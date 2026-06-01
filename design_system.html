@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weave — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Brand */
+    --brand-primary: #C85A5A;
+    --brand-hover: #B84848;
+    --brand-light: #D67373;
+
+    /* Neutrals / Surfaces */
+    --bg-main: #FAF8F5;
+    --bg-card: #F7F5F1;
+    --bg-hover: #F2EFE9;
+    --border: #E8E5E0;
+    --border-alt: #E0DCD4;
+
+    /* Text */
+    --text-primary: #2A2A2A;
+    --text-secondary: #5A5A5A;
+    --text-muted: #888888;
+    --text-muted-alt: #555555;
+
+    /* Semantic */
+    --crimson: #A4243B;
+    --indigo: #1E3A5F;
+    --forest: #2D6A4F;
+    --ochre: #C9A227;
+    --ochre-dark: #A8861E;
+
+    /* Surfaces */
+    --insight-bg: #FDF9F3;
+    --insight-border: #E8E0D4;
+
+    /* Shadows */
+    --shadow-card: 0px 2px 8px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0px 4px 16px rgba(0,0,0,0.08);
+
+    /* Fonts */
+    --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+    --font-dm-sans: 'DM Sans', system-ui, sans-serif;
+    --font-inter: 'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-inter);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+  ::selection { background: var(--brand-primary); color: white; }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  .ds-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .ds-eyebrow {
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+  .ds-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 1.05;
+    margin: 0 0 16px;
+    color: var(--text-primary);
+  }
+  .ds-subtitle {
+    font-family: var(--font-dm-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0;
+  }
+
+  /* ---------- Section ---------- */
+  section { margin-bottom: 72px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 28px;
+  }
+  .section-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1.2;
+    margin: 0;
+    color: var(--text-primary);
+  }
+  .section-meta {
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .section-lede {
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    max-width: 640px;
+    margin: -16px 0 28px;
+  }
+
+  .group-title {
+    font-family: var(--font-dm-sans);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 28px 0 14px;
+  }
+
+  /* ---------- Color grid ---------- */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .swatch {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+  }
+  .swatch-chip {
+    height: 96px;
+    width: 100%;
+    display: block;
+  }
+  .swatch-meta {
+    padding: 12px 14px 14px;
+    font-family: var(--font-dm-sans);
+  }
+  .swatch-name {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin: 0 0 4px;
+  }
+  .swatch-hex {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- Typography ---------- */
+  .type-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 140px;
+    align-items: baseline;
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .type-row:last-child { border-bottom: none; }
+  .type-label {
+    font-family: var(--font-dm-sans);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .type-sample { color: var(--text-primary); }
+  .type-spec {
+    font-family: 'SF Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: right;
+  }
+
+  .display    { font-family: var(--font-cormorant); font-weight: 500; font-size: 28px; line-height: 32px; }
+  .h1         { font-family: var(--font-dm-sans);  font-weight: 500; font-size: 24px; line-height: 28px; }
+  .h2         { font-family: var(--font-dm-sans);  font-weight: 500; font-size: 20px; line-height: 24px; }
+  .h3         { font-family: var(--font-dm-sans);  font-weight: 500; font-size: 18px; line-height: 22px; }
+  .body-large { font-family: var(--font-dm-sans);  font-weight: 400; font-size: 16px; line-height: 24px; }
+  .body       { font-family: var(--font-dm-sans);  font-weight: 400; font-size: 14px; line-height: 20px; }
+  .caption    { font-family: var(--font-dm-sans);  font-weight: 400; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+  .editorial  { font-family: var(--font-cormorant); font-weight: 400; font-size: 17px; line-height: 1.6; color: var(--text-primary); }
+
+  .font-spec-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .font-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .font-card .swatch-name { font-size: 12px; margin-bottom: 12px; }
+  .font-card .preview {
+    font-size: 44px;
+    line-height: 1.05;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+  }
+  .font-card .note {
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .font-card.cormorant .preview { font-family: var(--font-cormorant); font-weight: 500; }
+  .font-card.dm-sans   .preview { font-family: var(--font-dm-sans);  font-weight: 500; }
+  .font-card.inter     .preview { font-family: var(--font-inter);    font-weight: 500; }
+
+  /* ---------- Spacing ---------- */
+  .spacing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 18px;
+  }
+  .spacing-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .spacing-bar {
+    background: var(--brand-primary);
+    height: 12px;
+    border-radius: 6px;
+  }
+  .spacing-cell .swatch-name { font-size: 13px; margin: 0; }
+  .spacing-cell .swatch-hex  { font-size: 12px; }
+
+  /* ---------- Radius ---------- */
+  .radius-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+  }
+  .radius-cell {
+    text-align: center;
+    font-family: var(--font-dm-sans);
+  }
+  .radius-block {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .radius-cell .label { font-size: 12px; color: var(--text-primary); }
+  .radius-cell .spec  { font-size: 11px; color: var(--text-muted); font-family: 'SF Mono', ui-monospace, monospace; }
+
+  /* ---------- Shadow ---------- */
+  .shadow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .shadow-cell {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    font-family: var(--font-dm-sans);
+  }
+  .shadow-cell .label { font-size: 13px; font-weight: 500; margin: 0 0 4px; }
+  .shadow-cell .spec  { font-size: 11px; color: var(--text-muted); font-family: 'SF Mono', ui-monospace, monospace; margin: 0; }
+  .shadow-card-rest  { box-shadow: var(--shadow-card); }
+  .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
+
+  /* ---------- Component blocks ---------- */
+  .component-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .component-block {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .component-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .component-name {
+    font-family: var(--font-dm-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .component-tag {
+    font-family: 'SF Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .component-stage {
+    padding: 32px;
+    background: var(--bg-main);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+  .component-stage.dark { background: var(--bg-card); }
+  .component-stage.column { flex-direction: column; align-items: stretch; }
+
+  /* ---- Buttons ---- */
+  .weave-button-primary {
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 9999px;
+    padding: 10px 24px;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 200ms;
+  }
+  .weave-button-primary:hover { background: var(--brand-hover); }
+  .weave-button-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-alt);
+    border-radius: 9999px;
+    padding: 10px 24px;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .weave-button-secondary:hover { background: var(--bg-hover); }
+  .weave-button-ghost {
+    background: transparent;
+    color: var(--ochre);
+    border: none;
+    font-family: var(--font-dm-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+  }
+  .weave-button-ghost:hover { color: var(--ochre-dark); }
+
+  /* ---- Input ---- */
+  .weave-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    color: var(--text-primary);
+    width: 320px;
+    outline: none;
+    transition: box-shadow 200ms;
+  }
+  .weave-input::placeholder { color: var(--text-muted); }
+  .weave-input:focus { box-shadow: 0 0 0 2px rgba(200,90,90,0.2); }
+
+  .weave-textarea {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    color: var(--text-primary);
+    width: 100%;
+    min-height: 96px;
+    outline: none;
+    resize: vertical;
+  }
+  .weave-textarea:focus { box-shadow: 0 0 0 2px rgba(200,90,90,0.2); }
+
+  /* ---- Card ---- */
+  .weave-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 200ms, transform 500ms;
+    width: 320px;
+    font-family: var(--font-dm-sans);
+  }
+  .weave-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+  .weave-card h4 {
+    font-family: var(--font-dm-sans);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+  }
+  .weave-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .weave-card .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  /* ---- Concept tags ---- */
+  .concept-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(200,90,90,0.10);
+    color: var(--brand-primary);
+    border-radius: 9999px;
+    font-family: var(--font-dm-sans);
+    font-weight: 500;
+    transition: background 200ms;
+  }
+  .concept-tag.sm { padding: 4px 10px; font-size: 12px; }
+  .concept-tag.md { padding: 6px 14px; font-size: 14px; }
+  .concept-tag.interactive { cursor: pointer; }
+  .concept-tag.interactive:hover { background: rgba(200,90,90,0.18); }
+  .concept-tag .x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--brand-primary);
+    line-height: 0;
+  }
+  .concept-tag .x:hover { color: var(--brand-hover); }
+
+  /* ---- Insight card ---- */
+  .insight-card {
+    background: var(--insight-bg);
+    border: 1px solid var(--insight-border);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 520px;
+    font-family: var(--font-dm-sans);
+  }
+  .insight-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .insight-head .spark { color: var(--ochre); font-size: 14px; }
+  .insight-head .label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .insight-pattern {
+    font-family: var(--font-cormorant);
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+  }
+  .insight-evidence-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .insight-evidence {
+    font-size: 13px;
+    color: var(--text-muted-alt);
+    margin-bottom: 16px;
+  }
+  .insight-evidence .dot { color: #ccc; margin: 0 6px; }
+  .insight-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ochre);
+    font-size: 13px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .insight-action:hover { opacity: 0.7; }
+
+  /* ---- Toast ---- */
+  .toast {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow-card);
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+  .toast .check {
+    width: 18px; height: 18px;
+    border-radius: 9999px;
+    background: var(--forest);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  /* ---- Skeleton ---- */
+  .skeleton {
+    background: var(--bg-hover);
+    border-radius: 8px;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes skeletonPulse {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 0.85; }
+  }
+  .skeleton-line { height: 12px; margin-bottom: 10px; }
+  .skeleton-line.w-3-4 { width: 75%; }
+  .skeleton-line.w-1-2 { width: 50%; }
+
+  /* ---- Bottom nav ---- */
+  .bottom-nav {
+    background: white;
+    border-top: 1px solid var(--border);
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: 0 0 16px 16px;
+  }
+  .bottom-nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 10px 0 12px;
+  }
+  .bn-item {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: var(--font-dm-sans);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .bn-item.active { color: var(--ochre); }
+  .bn-item .badge {
+    position: absolute;
+    top: -6px; right: -10px;
+    min-width: 16px; height: 16px;
+    background: var(--brand-primary);
+    color: white;
+    border-radius: 9999px;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .bn-item .icon-wrap { position: relative; }
+
+  /* ---- Content-type icons ---- */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  .icon-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 14px;
+    text-align: center;
+    font-family: var(--font-dm-sans);
+  }
+  .icon-symbol {
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+  .icon-cell .label { font-size: 12px; color: var(--text-primary); margin: 0 0 2px; }
+  .icon-cell .hex   { font-size: 11px; color: var(--text-muted); font-family: 'SF Mono', ui-monospace, monospace; }
+
+  /* ---- Motion ---- */
+  .motion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .motion-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    font-family: var(--font-dm-sans);
+  }
+  .motion-cell .label { font-size: 13px; font-weight: 500; margin: 0 0 4px; }
+  .motion-cell .spec  { font-size: 11px; color: var(--text-muted); font-family: 'SF Mono', ui-monospace, monospace; margin: 0; line-height: 1.5; }
+
+  /* ---- Bobbin mascot card ---- */
+  .bobbin-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .bobbin-meta { font-family: var(--font-dm-sans); }
+  .bobbin-meta h4 {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 24px;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+  }
+  .bobbin-meta p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+    line-height: 1.5;
+  }
+  .bobbin-swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bobbin-swatches span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', ui-monospace, monospace;
+  }
+  .bobbin-swatches i {
+    width: 12px; height: 12px; border-radius: 3px;
+    display: inline-block;
+    border: 1px solid var(--border);
+  }
+
+  /* ---- Footer ---- */
+  .ds-footer {
+    margin-top: 96px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  @media (max-width: 720px) {
+    .page { padding: 32px 20px 64px; }
+    .ds-title { font-size: 40px; }
+    .font-spec-card { grid-template-columns: 1fr; }
+    .type-row { grid-template-columns: 100px 1fr; }
+    .type-spec { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="ds-header">
+    <p class="ds-eyebrow">Weave · Design System</p>
+    <h1 class="ds-title">A cultural journal,<br/>woven with intention.</h1>
+    <p class="ds-subtitle">Warm, literary, curatorial — Weave's visual language pairs editorial typography with calm, paper-toned surfaces. This document captures the palette, type, spacing, and base components that hold the product together.</p>
+  </header>
+
+  <!-- ============================ COLOR ============================ -->
+  <section id="color">
+    <div class="section-head">
+      <h2 class="section-title">Color</h2>
+      <span class="section-meta">01 · Palette</span>
+    </div>
+    <p class="section-lede">A warm cream foundation grounds the product. Crimson carries action and identity; a set of semantic hues distinguishes books, film, and music; ochre signals insight and the Bobbin assistant.</p>
+
+    <p class="group-title">Brand</p>
+    <div class="swatch-grid">
+      <div class="swatch"><span class="swatch-chip" style="background:#C85A5A"></span><div class="swatch-meta"><p class="swatch-name">Brand Primary</p><p class="swatch-hex">#C85A5A</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#B84848"></span><div class="swatch-meta"><p class="swatch-name">Brand Hover</p><p class="swatch-hex">#B84848</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#D67373"></span><div class="swatch-meta"><p class="swatch-name">Brand Light</p><p class="swatch-hex">#D67373</p></div></div>
+    </div>
+
+    <p class="group-title">Neutral · Surfaces</p>
+    <div class="swatch-grid">
+      <div class="swatch"><span class="swatch-chip" style="background:#FAF8F5"></span><div class="swatch-meta"><p class="swatch-name">Background Main</p><p class="swatch-hex">#FAF8F5</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#F7F5F1"></span><div class="swatch-meta"><p class="swatch-name">Background Card</p><p class="swatch-hex">#F7F5F1</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#F2EFE9"></span><div class="swatch-meta"><p class="swatch-name">Background Hover</p><p class="swatch-hex">#F2EFE9</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#E8E5E0"></span><div class="swatch-meta"><p class="swatch-name">Border</p><p class="swatch-hex">#E8E5E0</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#E0DCD4"></span><div class="swatch-meta"><p class="swatch-name">Border Alt</p><p class="swatch-hex">#E0DCD4</p></div></div>
+    </div>
+
+    <p class="group-title">Text</p>
+    <div class="swatch-grid">
+      <div class="swatch"><span class="swatch-chip" style="background:#2A2A2A"></span><div class="swatch-meta"><p class="swatch-name">Text Primary</p><p class="swatch-hex">#2A2A2A</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#5A5A5A"></span><div class="swatch-meta"><p class="swatch-name">Text Secondary</p><p class="swatch-hex">#5A5A5A</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#888888"></span><div class="swatch-meta"><p class="swatch-name">Text Muted</p><p class="swatch-hex">#888888</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#555555"></span><div class="swatch-meta"><p class="swatch-name">Text Muted Alt</p><p class="swatch-hex">#555555</p></div></div>
+    </div>
+
+    <p class="group-title">Semantic · Content-Type</p>
+    <div class="swatch-grid">
+      <div class="swatch"><span class="swatch-chip" style="background:#A4243B"></span><div class="swatch-meta"><p class="swatch-name">Crimson — Music</p><p class="swatch-hex">#A4243B</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#1E3A5F"></span><div class="swatch-meta"><p class="swatch-name">Indigo — Books</p><p class="swatch-hex">#1E3A5F</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#2D6A4F"></span><div class="swatch-meta"><p class="swatch-name">Forest — Film</p><p class="swatch-hex">#2D6A4F</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#C9A227"></span><div class="swatch-meta"><p class="swatch-name">Ochre — Insight</p><p class="swatch-hex">#C9A227</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#A8861E"></span><div class="swatch-meta"><p class="swatch-name">Ochre Dark</p><p class="swatch-hex">#A8861E</p></div></div>
+    </div>
+
+    <p class="group-title">Special Surfaces</p>
+    <div class="swatch-grid">
+      <div class="swatch"><span class="swatch-chip" style="background:#FDF9F3"></span><div class="swatch-meta"><p class="swatch-name">Insight Card BG</p><p class="swatch-hex">#FDF9F3</p></div></div>
+      <div class="swatch"><span class="swatch-chip" style="background:#E8E0D4"></span><div class="swatch-meta"><p class="swatch-name">Insight Card Border</p><p class="swatch-hex">#E8E0D4</p></div></div>
+    </div>
+  </section>
+
+  <!-- ============================ TYPOGRAPHY ============================ -->
+  <section id="typography">
+    <div class="section-head">
+      <h2 class="section-title">Typography</h2>
+      <span class="section-meta">02 · Type</span>
+    </div>
+    <p class="section-lede">Cormorant Garamond carries editorial moments — quotes, patterns, hero text. DM Sans is the workhorse for UI chrome. The contrast is the point: literary content, calm interface.</p>
+
+    <div class="font-spec-card">
+      <div class="font-card cormorant">
+        <p class="swatch-name">Cormorant Garamond</p>
+        <p class="preview">A pattern in your taste.</p>
+        <p class="note">Editorial serif — quotes, pattern statements, hero text.<br/>Weights: 400, 500</p>
+      </div>
+      <div class="font-card dm-sans">
+        <p class="swatch-name">DM Sans</p>
+        <p class="preview">Collection · Patterns</p>
+        <p class="note">UI sans-serif — labels, buttons, metadata, navigation.<br/>Weights: 400, 500, 700</p>
+      </div>
+      <div class="font-card inter">
+        <p class="swatch-name">Inter (fallback)</p>
+        <p class="preview">Body fallback</p>
+        <p class="note">System body fallback when content fonts are unavailable.</p>
+      </div>
+    </div>
+
+    <p class="group-title">Type Scale</p>
+    <div class="type-row">
+      <span class="type-label">Display</span>
+      <span class="type-sample display">The shapes you've been drawn to</span>
+      <span class="type-spec">28 / 32 · Cormorant</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">H1</span>
+      <span class="type-sample h1">Your collection</span>
+      <span class="type-spec">24 / 28 · DM Sans 500</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">H2</span>
+      <span class="type-sample h2">Recently added</span>
+      <span class="type-spec">20 / 24 · DM Sans 500</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">H3</span>
+      <span class="type-sample h3">Saved this week</span>
+      <span class="type-spec">18 / 22 · DM Sans 500</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Body Large</span>
+      <span class="type-sample body-large">A featured paragraph reads at sixteen pixels with a comfortable line-height of twenty-four, used for hero copy and lead paragraphs.</span>
+      <span class="type-spec">16 / 24 · DM Sans</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Body</span>
+      <span class="type-sample body">Standard interface body copy, used for descriptions, list items, and the bulk of utility text across the product.</span>
+      <span class="type-spec">14 / 20 · DM Sans</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Caption</span>
+      <span class="type-sample caption">SAVED 3 DAYS AGO · BOOK · 240 PAGES</span>
+      <span class="type-spec">12 / 16 · DM Sans</span>
+    </div>
+    <div class="type-row">
+      <span class="type-label">Editorial</span>
+      <span class="type-sample editorial">You return again and again to stories about people who notice things — patient observers, quiet attendants to small moments.</span>
+      <span class="type-spec">17 / 1.6 · Cormorant</span>
+    </div>
+  </section>
+
+  <!-- ============================ SPACING ============================ -->
+  <section id="spacing">
+    <div class="section-head">
+      <h2 class="section-title">Spacing</h2>
+      <span class="section-meta">03 · Rhythm</span>
+    </div>
+    <p class="section-lede">A 4-pixel rhythm scales through the layout. Tight values stack icon gutters; the larger end of the scale carries section breathing room.</p>
+
+    <div class="spacing-grid">
+      <div class="spacing-cell"><div class="spacing-bar" style="width:4px"></div><p class="swatch-name">xs</p><p class="swatch-hex">4 px · icon gaps</p></div>
+      <div class="spacing-cell"><div class="spacing-bar" style="width:8px"></div><p class="swatch-name">sm</p><p class="swatch-hex">8 px · inline pad</p></div>
+      <div class="spacing-cell"><div class="spacing-bar" style="width:16px"></div><p class="swatch-name">md</p><p class="swatch-hex">12–16 px · standard</p></div>
+      <div class="spacing-cell"><div class="spacing-bar" style="width:24px"></div><p class="swatch-name">lg</p><p class="swatch-hex">16–24 px · section gaps</p></div>
+      <div class="spacing-cell"><div class="spacing-bar" style="width:32px"></div><p class="swatch-name">xl</p><p class="swatch-hex">20–32 px · generous</p></div>
+      <div class="spacing-cell"><div class="spacing-bar" style="width:48px"></div><p class="swatch-name">xxl</p><p class="swatch-hex">48 px · breathing room</p></div>
+    </div>
+  </section>
+
+  <!-- ============================ RADIUS ============================ -->
+  <section id="radius">
+    <div class="section-head">
+      <h2 class="section-title">Radius</h2>
+      <span class="section-meta">04 · Shape</span>
+    </div>
+
+    <div class="radius-grid">
+      <div class="radius-cell"><div class="radius-block" style="border-radius:8px"></div><p class="label">sm</p><p class="spec">8 px · inputs</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:10px"></div><p class="label">md</p><p class="spec">10 px · small cards</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:12px"></div><p class="label">lg / card</p><p class="spec">12 px · cards</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:18px"></div><p class="label">xl</p><p class="spec">18 px · modals</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:20px"></div><p class="label">2xl</p><p class="spec">20 px · large cards</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:24px"></div><p class="label">3xl</p><p class="spec">24 px · hero cards</p></div>
+      <div class="radius-cell"><div class="radius-block" style="border-radius:9999px"></div><p class="label">full</p><p class="spec">9999 px · pills</p></div>
+    </div>
+  </section>
+
+  <!-- ============================ ELEVATION ============================ -->
+  <section id="elevation">
+    <div class="section-head">
+      <h2 class="section-title">Elevation</h2>
+      <span class="section-meta">05 · Shadow</span>
+    </div>
+
+    <div class="shadow-grid">
+      <div class="shadow-cell shadow-card-rest">
+        <p class="label">Card · resting</p>
+        <p class="spec">0px 2px 8px rgba(0,0,0,0.04)</p>
+      </div>
+      <div class="shadow-cell shadow-card-hover">
+        <p class="label">Card · hover</p>
+        <p class="spec">0px 4px 16px rgba(0,0,0,0.08)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ COMPONENTS ============================ -->
+  <section id="components">
+    <div class="section-head">
+      <h2 class="section-title">Components</h2>
+      <span class="section-meta">06 · Base</span>
+    </div>
+    <p class="section-lede">The base set used to build Weave's interface: buttons, inputs, cards, tags, insight surfaces, toasts, and navigation.</p>
+
+    <div class="component-grid">
+
+      <!-- Buttons -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Buttons</p>
+          <span class="component-tag">.weave-button-primary / -secondary / -ghost</span>
+        </div>
+        <div class="component-stage">
+          <button class="weave-button-primary">Save to collection</button>
+          <button class="weave-button-primary" style="background:#B84848">Save to collection</button>
+          <button class="weave-button-secondary">Cancel</button>
+          <button class="weave-button-ghost">Explore this pattern
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inputs -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Inputs</p>
+          <span class="component-tag">.weave-input · .weave-textarea</span>
+        </div>
+        <div class="component-stage column">
+          <input class="weave-input" placeholder="Search your collection…" />
+          <input class="weave-input" placeholder="Focused state" autofocus />
+          <textarea class="weave-textarea" placeholder="Write a thought about this artifact…"></textarea>
+        </div>
+      </div>
+
+      <!-- Card -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Card · weave-card</p>
+          <span class="component-tag">.weave-card</span>
+        </div>
+        <div class="component-stage">
+          <div class="weave-card">
+            <div class="card-meta">
+              <span style="color:#1E3A5F">◎</span>
+              <span>BOOK · ESSAY</span>
+            </div>
+            <h4>The Lonely City</h4>
+            <p>Olivia Laing's meditation on art and isolation in New York — saved while reading at Aroma on Tuesday.</p>
+          </div>
+          <div class="weave-card">
+            <div class="card-meta">
+              <span style="color:#2D6A4F">▷</span>
+              <span>FILM</span>
+            </div>
+            <h4>Perfect Days</h4>
+            <p>Wim Wenders' quiet portrait of a Tokyo toilet cleaner. You marked the morning light through the trees as the thing that stayed with you.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Concept tags -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Concept Tags</p>
+          <span class="component-tag">ConceptTag — sm · md · interactive · removable</span>
+        </div>
+        <div class="component-stage">
+          <span class="concept-tag sm">solitude</span>
+          <span class="concept-tag sm">noticing</span>
+          <span class="concept-tag md">quiet observers</span>
+          <span class="concept-tag md interactive">urban melancholy</span>
+          <span class="concept-tag md interactive">
+            domestic ritual
+            <span class="x" aria-label="Remove">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Insight card -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Insight / Pattern Card</p>
+          <span class="component-tag">InsightCard</span>
+        </div>
+        <div class="component-stage">
+          <div class="insight-card">
+            <div class="insight-head">
+              <span class="spark">✦</span>
+              <span class="label">A pattern in your taste</span>
+            </div>
+            <p class="insight-pattern">You return again and again to stories about people who notice things — patient observers in cities that don't usually slow down.</p>
+            <span class="insight-evidence-label">This thread appears in:</span>
+            <div class="insight-evidence">
+              The Lonely City<span class="dot">·</span>Perfect Days<span class="dot">·</span>The Mezzanine
+            </div>
+            <button class="insight-action">Explore this pattern
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Toast</p>
+          <span class="component-tag">Toast — slides up, y:50 → 0</span>
+        </div>
+        <div class="component-stage">
+          <div class="toast">
+            <span class="check">✓</span>
+            Saved to your collection
+          </div>
+          <div class="toast">
+            <span class="check" style="background:#C9A227">✦</span>
+            A new pattern emerged
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Skeleton Loader</p>
+          <span class="component-tag">opacity 0.5 → 0.85 · 1.5s loop</span>
+        </div>
+        <div class="component-stage column">
+          <div style="max-width:320px;">
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line w-3-4"></div>
+            <div class="skeleton skeleton-line w-1-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom nav -->
+      <div class="component-block">
+        <div class="component-head">
+          <p class="component-name">Bottom Navigation</p>
+          <span class="component-tag">BottomNav · 4 tabs</span>
+        </div>
+        <div class="component-stage dark">
+          <div class="bottom-nav">
+            <div class="bottom-nav-inner">
+              <button class="bn-item active">
+                <span class="icon-wrap">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="1.5">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                  </svg>
+                </span>
+                Collection
+              </button>
+              <button class="bn-item">
+                <span class="icon-wrap">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5">
+                    <path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <span class="badge">2</span>
+                </span>
+                Patterns
+              </button>
+              <button class="bn-item">
+                <span class="icon-wrap">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                  </svg>
+                </span>
+                Bobbin
+              </button>
+              <button class="bn-item">
+                <span class="icon-wrap">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="none" stroke="#888" stroke-width="1.5"/>
+                  </svg>
+                </span>
+                Explore
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ ICONOGRAPHY ============================ -->
+  <section id="icons">
+    <div class="section-head">
+      <h2 class="section-title">Content-Type Icons</h2>
+      <span class="section-meta">07 · Iconography</span>
+    </div>
+    <p class="section-lede">Unicode glyphs colored by content type. Quiet, typographic, and consistent with the literary tone.</p>
+
+    <div class="icon-grid">
+      <div class="icon-cell">
+        <div class="icon-symbol" style="color:#A4243B">♫</div>
+        <p class="label">Album · Podcast</p>
+        <p class="hex">#A4243B · Crimson</p>
+      </div>
+      <div class="icon-cell">
+        <div class="icon-symbol" style="color:#1E3A5F">◎</div>
+        <p class="label">Book · Essay · Article</p>
+        <p class="hex">#1E3A5F · Indigo</p>
+      </div>
+      <div class="icon-cell">
+        <div class="icon-symbol" style="color:#2D6A4F">▷</div>
+        <p class="label">Film</p>
+        <p class="hex">#2D6A4F · Forest</p>
+      </div>
+      <div class="icon-cell">
+        <div class="icon-symbol" style="color:#1E3A5F">◉</div>
+        <p class="label">Artwork</p>
+        <p class="hex">#1E3A5F · Indigo</p>
+      </div>
+      <div class="icon-cell">
+        <div class="icon-symbol" style="color:#C9A227">✦</div>
+        <p class="label">Insight · Action</p>
+        <p class="hex">#C9A227 · Ochre</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ BOBBIN ============================ -->
+  <section id="bobbin">
+    <div class="section-head">
+      <h2 class="section-title">Bobbin — Mascot</h2>
+      <span class="section-meta">08 · Brand</span>
+    </div>
+
+    <div class="bobbin-card">
+      <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none" width="120" height="120">
+        <ellipse cx="32" cy="28" rx="6" ry="14" fill="#1E3A5F"/>
+        <ellipse cx="48" cy="28" rx="6" ry="14" fill="#1E3A5F"/>
+        <ellipse cx="32" cy="28" rx="3" ry="9" fill="#E8E5E0"/>
+        <ellipse cx="48" cy="28" rx="3" ry="9" fill="#E8E5E0"/>
+        <circle cx="40" cy="50" r="16" fill="#1E3A5F"/>
+        <circle cx="35" cy="48" r="5" fill="none" stroke="#C9A227" stroke-width="1.5"/>
+        <circle cx="45" cy="48" r="5" fill="none" stroke="#C9A227" stroke-width="1.5"/>
+        <path d="M38 48 L42 48" stroke="#C9A227" stroke-width="1"/>
+        <circle cx="35" cy="48" r="1.5" fill="white"/>
+        <circle cx="45" cy="48" r="1.5" fill="white"/>
+        <ellipse cx="40" cy="56" rx="2.5" ry="1.5" fill="#C9A227"/>
+      </svg>
+      <div class="bobbin-meta">
+        <h4>Bobbin</h4>
+        <p>An owl with glasses and round ears. The AI assistant's identity — warm, attentive, a little bookish.</p>
+        <div class="bobbin-swatches">
+          <span><i style="background:#1E3A5F"></i>Body · #1E3A5F</span>
+          <span><i style="background:#E8E5E0"></i>Inner ears · #E8E5E0</span>
+          <span><i style="background:#C9A227"></i>Glasses · #C9A227</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ MOTION ============================ -->
+  <section id="motion">
+    <div class="section-head">
+      <h2 class="section-title">Motion</h2>
+      <span class="section-meta">09 · Animation</span>
+    </div>
+    <p class="section-lede">Powered by Framer Motion. Movements are short and intentional — never bouncy or theatrical.</p>
+
+    <div class="motion-grid">
+      <div class="motion-cell">
+        <p class="label">Page / card enter</p>
+        <p class="spec">opacity 0 → 1, y 20 → 0<br/>duration 0.3s</p>
+      </div>
+      <div class="motion-cell">
+        <p class="label">Toast slide</p>
+        <p class="spec">opacity 0 → 1, y 50 → 0<br/>duration 0.2s</p>
+      </div>
+      <div class="motion-cell">
+        <p class="label">Skeleton pulse</p>
+        <p class="spec">opacity [0.5, 0.85, 0.5]<br/>1.5s · ease-in-out · ∞</p>
+      </div>
+      <div class="motion-cell">
+        <p class="label">Card hover lift</p>
+        <p class="spec">translateY -2px<br/>transition all 500ms</p>
+      </div>
+      <div class="motion-cell">
+        <p class="label">Button press</p>
+        <p class="spec">tap scale 0.98<br/>hover scale 1.02</p>
+      </div>
+      <div class="motion-cell">
+        <p class="label">Delete confirm</p>
+        <p class="spec">AnimatePresence overlay<br/>opacity fade</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="ds-footer">
+    <span>Weave · Design System</span>
+    <span>Extracted from /docs/design-system.md, tailwind.config, globals.css, and components/</span>
+  </footer>
+
+</div>
+</body>
+</html>

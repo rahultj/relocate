@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Relocation Marketplace — MVP Implementation Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-primary: #C85A5A;
+    --brand-hover: #B84848;
+    --brand-light: #D67373;
+    --brand-soft: rgba(200,90,90,0.10);
+
+    --bg-main: #FAF8F5;
+    --bg-card: #F7F5F1;
+    --bg-hover: #F2EFE9;
+    --border: #E8E5E0;
+    --border-alt: #E0DCD4;
+
+    --text-primary: #2A2A2A;
+    --text-secondary: #5A5A5A;
+    --text-muted: #888888;
+    --text-muted-alt: #555555;
+
+    --crimson: #A4243B;
+    --indigo: #1E3A5F;
+    --forest: #2D6A4F;
+    --ochre: #C9A227;
+    --ochre-dark: #A8861E;
+
+    --insight-bg: #FDF9F3;
+    --insight-border: #E8E0D4;
+
+    --shadow-card: 0px 2px 8px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0px 4px 16px rgba(0,0,0,0.08);
+    --shadow-phone: 0 20px 40px rgba(30, 30, 30, 0.08), 0 0 0 1px rgba(0,0,0,0.04);
+
+    --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+    --font-dm-sans: 'DM Sans', system-ui, sans-serif;
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+  ::selection { background: var(--brand-primary); color: white; }
+  a { color: var(--brand-primary); text-decoration: none; }
+  a:hover { color: var(--brand-hover); }
+
+  /* ---------- Doc shell ---------- */
+  .doc {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    max-width: 1240px;
+    margin: 0 auto;
+    gap: 0;
+  }
+
+  /* ---------- Nav ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    border-right: 1px solid var(--border);
+    padding: 40px 28px 32px;
+    overflow-y: auto;
+  }
+  .nav-brand {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--text-primary);
+    line-height: 1.15;
+    margin: 0 0 4px;
+  }
+  .nav-brand .dot { color: var(--brand-primary); }
+  .nav-meta {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 32px;
+  }
+  .nav-group {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 24px 0 10px;
+  }
+  .nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .nav li {
+    margin: 0;
+  }
+  .nav a {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .nav a:hover { color: var(--text-primary); }
+  .nav a .num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    min-width: 18px;
+  }
+
+  /* ---------- Main ---------- */
+  .main {
+    padding: 56px 56px 120px;
+    min-width: 0;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 48px;
+    margin-bottom: 56px;
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brand-primary);
+    margin: 0 0 16px;
+    font-weight: 500;
+  }
+  .hero-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 1.05;
+    margin: 0 0 20px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--brand-primary);
+  }
+  .hero-sub {
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 0 28px;
+  }
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .hero-meta span strong {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-family: var(--font-dm-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 6px;
+  }
+
+  /* ---------- Sections ---------- */
+  section { margin-bottom: 88px; scroll-margin-top: 24px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+    margin-bottom: 32px;
+  }
+  .section-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.15;
+    margin: 0;
+    color: var(--text-primary);
+  }
+  .section-meta {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .section-lede {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 680px;
+    margin: -8px 0 36px;
+  }
+
+  /* ---------- Principle row ---------- */
+  .principle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .principle-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .principle-card .pnum {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--brand-primary);
+    letter-spacing: 0.08em;
+    margin: 0 0 10px;
+  }
+  .principle-card h3 {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.2;
+    margin: 0 0 10px;
+    color: var(--text-primary);
+  }
+  .principle-card p {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  /* ---------- Screen layout ---------- */
+  .screen {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 48px;
+    margin-bottom: 72px;
+    align-items: start;
+  }
+  .screen.wide { grid-template-columns: 540px 1fr; }
+  .screen.flip { grid-template-columns: 1fr 340px; }
+
+  .screen-rationale h3 {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+  }
+  .screen-rationale .screen-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 0 16px;
+    display: block;
+  }
+  .screen-rationale p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    margin: 0 0 14px;
+  }
+  .screen-rationale .pull {
+    font-family: var(--font-cormorant);
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    border-left: 2px solid var(--brand-primary);
+    padding-left: 14px;
+    margin: 18px 0;
+  }
+  .rationale-bullets {
+    list-style: none;
+    padding: 0;
+    margin: 18px 0 0;
+  }
+  .rationale-bullets li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .rationale-bullets li::before {
+    content: "✦";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--ochre);
+    font-size: 12px;
+  }
+
+  /* ---------- Phone frame ---------- */
+  .phone {
+    width: 340px;
+    background: white;
+    border-radius: 36px;
+    padding: 12px;
+    box-shadow: var(--shadow-phone);
+    position: relative;
+  }
+  .phone-screen {
+    background: var(--bg-main);
+    border-radius: 26px;
+    overflow: hidden;
+    height: 660px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .phone-notch {
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 90px; height: 22px;
+    background: #2A2A2A;
+    border-radius: 12px;
+    z-index: 10;
+  }
+  .phone-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 22px 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .phone-status .right {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .phone-status .bar {
+    width: 14px; height: 8px;
+    background: var(--text-primary);
+    border-radius: 2px;
+  }
+
+  /* Browser frame */
+  .browser {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .browser-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+  }
+  .browser-dots {
+    display: flex; gap: 6px;
+  }
+  .browser-dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border-alt);
+  }
+  .browser-url {
+    flex: 1;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .browser-url .lock { color: var(--forest); margin-right: 6px; }
+  .browser-body { padding: 0; }
+
+  /* ---------- Listing screen ---------- */
+  .app-header {
+    padding: 20px 22px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-main);
+  }
+  .app-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+  }
+  .app-headline {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.15;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+  }
+  .app-byline {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+  .app-byline .dot { color: var(--border-alt); margin: 0 6px; }
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 22px;
+    overflow-x: auto;
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-pill {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--border-alt);
+    background: transparent;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: var(--font-dm-sans);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .filter-pill.active {
+    background: var(--text-primary);
+    color: white;
+    border-color: var(--text-primary);
+  }
+  .item-feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+  .item-row {
+    display: flex;
+    gap: 14px;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .item-thumb {
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .item-thumb.claimed::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(250, 248, 245, 0.7);
+  }
+  .item-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 3px;
+    line-height: 1.3;
+  }
+  .item-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .item-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+  .item-meta .dot { color: var(--border-alt); }
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-family: var(--font-dm-sans);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .status-chip.available {
+    background: rgba(45,106,79,0.10);
+    color: var(--forest);
+  }
+  .status-chip.waitlist {
+    background: rgba(201,162,39,0.14);
+    color: var(--ochre-dark);
+  }
+  .status-chip.claimed {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+  }
+  .status-chip.holds {
+    background: var(--brand-soft);
+    color: var(--brand-primary);
+  }
+  .status-chip .pulse {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* ---------- Item detail ---------- */
+  .detail-hero {
+    background: var(--bg-card);
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 92px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-body { padding: 20px 22px 22px; flex: 1; overflow-y: auto; }
+  .detail-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  .detail-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 1.15;
+    margin: 0 0 12px;
+    color: var(--text-primary);
+  }
+  .detail-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--insight-bg);
+    border: 1px solid var(--insight-border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .detail-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .detail-meta-row .label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+  }
+  .detail-meta-row .value {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .detail-desc {
+    font-family: var(--font-cormorant);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-primary);
+    margin: 0 0 18px;
+  }
+  .waitlist-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+  .waitlist-block .label {
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  .waitlist-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .waitlist-dots .pos {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+  }
+  .waitlist-dots .pos.taken {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+  }
+  .waitlist-dots .pos.you {
+    background: white;
+    border: 2px dashed var(--ochre);
+  }
+  .waitlist-dots .more {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-left: 4px;
+  }
+  .waitlist-note {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ---------- Buttons (extension) ---------- */
+  .btn-primary {
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 9999px;
+    padding: 12px 24px;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    transition: background 200ms;
+  }
+  .btn-primary:hover { background: var(--brand-hover); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-alt);
+    border-radius: 9999px;
+    padding: 10px 20px;
+    font-family: var(--font-dm-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-secondary:hover { background: var(--bg-hover); }
+
+  /* ---------- OTP screen ---------- */
+  .otp-stage {
+    padding: 48px 24px 24px;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .otp-glyph {
+    font-size: 36px;
+    color: var(--ochre);
+    margin-bottom: 18px;
+  }
+  .otp-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.2;
+    margin: 0 0 8px;
+    color: var(--text-primary);
+  }
+  .otp-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 32px;
+    line-height: 1.5;
+  }
+  .otp-sub strong { color: var(--text-primary); font-weight: 500; font-family: var(--font-mono); }
+  .otp-boxes {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .otp-box {
+    width: 44px; height: 52px;
+    border: 1px solid var(--border-alt);
+    border-radius: 10px;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-cormorant);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .otp-box.focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(200,90,90,0.15);
+    background: white;
+  }
+  .otp-box.empty { color: var(--text-muted); }
+  .otp-box .caret {
+    width: 1px;
+    height: 22px;
+    background: var(--brand-primary);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .otp-help {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .otp-help a { color: var(--ochre); font-weight: 500; }
+  .otp-trust {
+    margin-top: auto;
+    padding: 14px 16px;
+    background: var(--insight-bg);
+    border-top: 1px solid var(--insight-border);
+    text-align: left;
+    font-size: 11px;
+    color: var(--text-muted-alt);
+    line-height: 1.5;
+  }
+  .otp-trust .lock { color: var(--ochre); margin-right: 6px; }
+
+  /* ---------- Seller bulk-add ---------- */
+  .desk-shell {
+    padding: 28px 32px;
+    background: var(--bg-main);
+  }
+  .desk-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  .desk-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1.15;
+    margin: 0 0 6px;
+  }
+  .desk-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 24px;
+  }
+  .bulk-drop {
+    border: 1.5px dashed var(--border-alt);
+    border-radius: 14px;
+    background: var(--bg-card);
+    padding: 32px 24px;
+    text-align: center;
+    margin-bottom: 22px;
+  }
+  .bulk-drop .glyph {
+    font-size: 32px;
+    color: var(--brand-primary);
+    margin-bottom: 8px;
+  }
+  .bulk-drop .ttl {
+    font-family: var(--font-cormorant);
+    font-size: 20px;
+    margin: 0 0 4px;
+    color: var(--text-primary);
+  }
+  .bulk-drop .sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .bulk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .bulk-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 140px 110px 32px;
+    gap: 14px;
+    align-items: center;
+    padding: 12px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .bulk-row.draft {
+    background: var(--insight-bg);
+    border-color: var(--insight-border);
+  }
+  .bulk-row.draft .bulk-thumb { background: white; }
+  .bulk-thumb {
+    width: 64px; height: 64px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+  }
+  .bulk-fields { display: flex; flex-direction: column; gap: 6px; }
+  .bulk-name {
+    background: transparent;
+    border: none;
+    font-family: var(--font-dm-sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    padding: 0;
+    outline: none;
+  }
+  .bulk-name.suggested {
+    color: var(--ochre-dark);
+    font-style: italic;
+  }
+  .bulk-desc-input {
+    background: transparent;
+    border: none;
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 0;
+    outline: none;
+  }
+  .bulk-mini-input {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: var(--font-dm-sans);
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+  }
+  .bulk-icon-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bulk-icon-btn:hover { background: var(--bg-hover); color: var(--brand-primary); }
+  .bulk-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .bulk-summary .stat {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .bulk-summary .stat strong {
+    font-family: var(--font-cormorant);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-right: 6px;
+  }
+
+  /* ---------- Seller dashboard ---------- */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .dash-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .dash-stat .num {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+  }
+  .dash-stat .num.brand { color: var(--brand-primary); }
+  .dash-stat .num.ochre { color: var(--ochre-dark); }
+  .dash-stat .num.forest { color: var(--forest); }
+  .dash-stat .lbl {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .dash-table {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .dash-table-head {
+    display: grid;
+    grid-template-columns: 48px 1.4fr 1fr 1fr 1fr 0.6fr;
+    padding: 12px 18px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .dash-row {
+    display: grid;
+    grid-template-columns: 48px 1.4fr 1fr 1fr 1fr 0.6fr;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .dash-row:last-child { border-bottom: none; }
+  .dash-row:hover { background: var(--bg-main); }
+  .dash-thumb {
+    width: 36px; height: 36px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .dash-name {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .dash-name .sub {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .dash-cell { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+  .dash-cell.muted { color: var(--text-muted); }
+
+  /* Pipeline pill */
+  .pipeline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .pipeline.listed { background: var(--bg-hover); color: var(--text-secondary); }
+  .pipeline.interested { background: rgba(201,162,39,0.14); color: var(--ochre-dark); }
+  .pipeline.confirmed { background: var(--brand-soft); color: var(--brand-primary); }
+  .pipeline.picked { background: rgba(45,106,79,0.10); color: var(--forest); }
+  .pipeline .dotmark {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* ---------- QR share ---------- */
+  .qr-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: var(--shadow-card);
+    max-width: 380px;
+    text-align: center;
+  }
+  .qr-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ochre-dark);
+    margin: 0 0 4px;
+  }
+  .qr-title {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 22px;
+    margin: 0 0 16px;
+  }
+  .qr-frame {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 16px;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 2px;
+  }
+  .qr-frame .cell { width: 100%; aspect-ratio: 1; background: white; border-radius: 1px; }
+  .qr-frame .cell.on { background: var(--text-primary); }
+  .qr-url {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    word-break: break-all;
+  }
+  .qr-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .qr-actions button { flex: 1; }
+
+  /* ---------- SMS ---------- */
+  .sms-shell {
+    background: #ECECEC;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .sms-header {
+    background: #F7F7F7;
+    border-bottom: 1px solid #E0E0E0;
+    padding: 14px 18px;
+    text-align: center;
+  }
+  .sms-from {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin: 0;
+  }
+  .sms-num {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+    font-family: var(--font-mono);
+  }
+  .sms-thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sms-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 12px 0 4px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+  .bubble {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+  .bubble.incoming {
+    background: white;
+    color: var(--text-primary);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.outgoing {
+    background: #4C8BF5;
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble .meta {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 4px;
+    display: block;
+    font-family: var(--font-mono);
+  }
+  .bubble a { color: inherit; text-decoration: underline; }
+  .bubble.outgoing a { color: white; }
+  .sms-input-area {
+    background: #F7F7F7;
+    border-top: 1px solid #E0E0E0;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sms-input {
+    flex: 1;
+    background: white;
+    border: 1px solid #DADADA;
+    border-radius: 18px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .sms-send {
+    width: 32px; height: 32px;
+    background: #4C8BF5;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---------- Sequence diagram ---------- */
+  .seq-wrap {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 36px 24px;
+    overflow-x: auto;
+  }
+  .seq {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 0;
+    min-width: 720px;
+    position: relative;
+  }
+  .seq-lane {
+    position: relative;
+    padding-bottom: 24px;
+  }
+  .seq-lane::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 56px; bottom: 0;
+    width: 1px;
+    background: var(--border);
+    transform: translateX(-50%);
+  }
+  .seq-actor {
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 2;
+  }
+  .seq-actor .glyph { display: block; font-size: 16px; margin-bottom: 4px; }
+  .seq-actor.buyer .glyph { color: var(--indigo); }
+  .seq-actor.web .glyph { color: var(--brand-primary); }
+  .seq-actor.sms .glyph { color: var(--ochre); }
+  .seq-actor.seller .glyph { color: var(--forest); }
+
+  .seq-rows {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 14px;
+    position: relative;
+    z-index: 1;
+  }
+  .seq-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    align-items: center;
+    position: relative;
+  }
+  .seq-step {
+    grid-column-end: span var(--span, 1);
+    grid-column-start: var(--from, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .seq-step .arrow {
+    height: 28px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 14px;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.2;
+    position: relative;
+  }
+  .seq-step.outgoing .arrow {
+    background: white;
+    border-color: var(--border-alt);
+  }
+  .seq-step.outgoing .arrow::after {
+    content: "▶";
+    position: absolute;
+    right: -2px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--brand-primary);
+    font-size: 9px;
+  }
+  .seq-step.incoming .arrow::before {
+    content: "◀";
+    position: absolute;
+    left: -2px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--brand-primary);
+    font-size: 9px;
+  }
+  .seq-step.ochre .arrow { background: var(--insight-bg); border-color: var(--insight-border); color: var(--ochre-dark); }
+  .seq-step.event .arrow { background: var(--brand-soft); border-color: rgba(200,90,90,0.25); color: var(--brand-primary); font-weight: 500; justify-content: center; }
+  .seq-tag {
+    position: absolute;
+    top: -18px;
+    left: 14px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: var(--font-mono);
+  }
+  .seq-divider {
+    grid-column: 1 / -1;
+    padding: 8px 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: center;
+    position: relative;
+  }
+  .seq-divider::before, .seq-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 1px;
+    background: var(--border);
+  }
+  .seq-divider::before { left: 0; }
+  .seq-divider::after { right: 0; }
+
+  /* ---------- Data model ---------- */
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .data-table {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .data-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .data-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .data-name .prefix { color: var(--brand-primary); }
+  .data-purpose {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-dm-sans);
+  }
+  .data-body { padding: 4px 0; }
+  .data-field {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    padding: 8px 18px;
+    gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border-bottom: 1px solid var(--bg-card);
+  }
+  .data-field:last-child { border-bottom: none; }
+  .data-field .fname {
+    color: var(--text-primary);
+  }
+  .data-field .fname .pk { color: var(--brand-primary); margin-right: 4px; }
+  .data-field .fname .fk { color: var(--ochre-dark); margin-right: 4px; }
+  .data-field .ftype {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: right;
+  }
+  .data-field .annot {
+    font-family: var(--font-dm-sans);
+    font-size: 11px;
+    color: var(--text-secondary);
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding-left: 0;
+  }
+
+  .data-legend {
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: var(--insight-bg);
+    border: 1px solid var(--insight-border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-muted-alt);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .data-legend span strong {
+    color: var(--brand-primary);
+    font-family: var(--font-mono);
+  }
+  .data-legend .fk-mark { color: var(--ochre-dark); }
+
+  /* ---------- Build sequence ---------- */
+  .milestone {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 32px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .milestone:last-child { border-bottom: none; }
+  .milestone-head .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .milestone-head .tag.mvp { background: var(--brand-soft); color: var(--brand-primary); }
+  .milestone-head .tag.v2 { background: var(--bg-hover); color: var(--text-muted-alt); }
+  .milestone-head h3 {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.15;
+    margin: 0 0 4px;
+  }
+  .milestone-head .dur {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .milestone-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .milestone-body li {
+    position: relative;
+    padding: 8px 0 8px 22px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    border-top: 1px dashed var(--border);
+  }
+  .milestone-body li:first-child { border-top: none; }
+  .milestone-body li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-alt);
+  }
+  .milestone-body li.done::before { background: var(--forest); border-color: var(--forest); }
+  .milestone-body li strong {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .milestone-body li code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-card);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text-primary);
+  }
+
+  /* ---------- Risks ---------- */
+  .risk-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .risk-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow-card);
+    position: relative;
+  }
+  .risk-card .sev {
+    position: absolute;
+    top: 22px;
+    right: 24px;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+    font-family: var(--font-dm-sans);
+  }
+  .risk-card .sev.high { background: var(--brand-soft); color: var(--brand-primary); }
+  .risk-card .sev.med { background: rgba(201,162,39,0.14); color: var(--ochre-dark); }
+  .risk-card .sev.low { background: var(--bg-hover); color: var(--text-muted-alt); }
+  .risk-card h4 {
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    padding-right: 80px;
+  }
+  .risk-card .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+  }
+  .risk-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 10px;
+  }
+  .risk-card .mitig {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--text-muted-alt);
+  }
+  .risk-card .mitig strong {
+    color: var(--brand-primary);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ---------- Out of scope ---------- */
+  .oos-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .oos-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--ochre);
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .oos-item h5 {
+    font-family: var(--font-dm-sans);
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0 0 4px;
+    color: var(--text-primary);
+  }
+  .oos-item .v {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ochre-dark);
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+  }
+  .oos-item p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* ---------- Footer ---------- */
+  .doc-footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  /* ---------- Note callout ---------- */
+  .note-card {
+    background: var(--insight-bg);
+    border: 1px solid var(--insight-border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 24px 0 0;
+    font-family: var(--font-dm-sans);
+  }
+  .note-card .head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .note-card .head .spark {
+    color: var(--ochre);
+    font-size: 14px;
+  }
+  .note-card .head .label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .note-card p {
+    font-family: var(--font-cormorant);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-primary);
+    margin: 0;
+    font-style: italic;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px) {
+    .doc { grid-template-columns: 1fr; }
+    .nav { display: none; }
+    .main { padding: 32px 24px 80px; }
+    .hero-title { font-size: 40px; }
+    .screen, .screen.wide, .screen.flip { grid-template-columns: 1fr; gap: 32px; }
+    .principle-grid { grid-template-columns: 1fr; }
+    .data-grid { grid-template-columns: 1fr; }
+    .dash-grid { grid-template-columns: 1fr 1fr; }
+    .risk-grid, .oos-list { grid-template-columns: 1fr; }
+    .milestone { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc">
+
+  <!-- ============================ NAV ============================ -->
+  <aside class="nav">
+    <p class="nav-brand">Saudade<span class="dot">.</span></p>
+    <p class="nav-meta">MVP · Implementation Plan</p>
+
+    <p class="nav-group">Plan</p>
+    <ul>
+      <li><a href="#overview"><span class="num">01</span>Overview</a></li>
+      <li><a href="#principles"><span class="num">02</span>Principles</a></li>
+    </ul>
+
+    <p class="nav-group">Screens</p>
+    <ul>
+      <li><a href="#screen-listing"><span class="num">03</span>Listing</a></li>
+      <li><a href="#screen-detail"><span class="num">04</span>Item detail</a></li>
+      <li><a href="#screen-otp"><span class="num">05</span>OTP entry</a></li>
+      <li><a href="#screen-sms"><span class="num">06</span>SMS shape</a></li>
+      <li><a href="#screen-bulk"><span class="num">07</span>Bulk-add</a></li>
+      <li><a href="#screen-dash"><span class="num">08</span>Seller dashboard</a></li>
+      <li><a href="#screen-qr"><span class="num">09</span>QR share</a></li>
+    </ul>
+
+    <p class="nav-group">System</p>
+    <ul>
+      <li><a href="#sequence"><span class="num">10</span>End-to-end flow</a></li>
+      <li><a href="#data"><span class="num">11</span>Data model</a></li>
+      <li><a href="#build"><span class="num">12</span>Build sequence</a></li>
+    </ul>
+
+    <p class="nav-group">Forward</p>
+    <ul>
+      <li><a href="#oos"><span class="num">13</span>Out of scope</a></li>
+      <li><a href="#risks"><span class="num">14</span>Risks &amp; questions</a></li>
+    </ul>
+  </aside>
+
+  <main class="main">
+
+    <!-- ============================ HERO ============================ -->
+    <header class="hero" id="overview">
+      <p class="hero-eyebrow">Implementation Plan · v0.1</p>
+      <h1 class="hero-title">A quiet marketplace for<br/>the things you can't <em>take with you.</em></h1>
+      <p class="hero-sub">
+        A single-seller relocation site for offloading household items before
+        a move home. The buyer experience defaults to the path of least
+        resistance — no accounts, no apps, no return visits. SMS over a proxy
+        number carries everything from receipt to chat. One verified phone
+        number per claim is the only friction, and it's the friction that
+        makes everything else trustworthy.
+      </p>
+      <div class="hero-meta">
+        <span><strong>Owner</strong> rahultj@gmail.com</span>
+        <span><strong>Target ship</strong> 4 weeks to MVP</span>
+        <span><strong>Surface</strong> 1 page web + SMS</span>
+        <span><strong>Stack note</strong> Twilio · Postgres · Next.js</span>
+      </div>
+    </header>
+
+    <!-- ============================ PRINCIPLES ============================ -->
+    <section id="principles">
+      <div class="section-head">
+        <h2 class="section-title">Three principles, in order</h2>
+        <span class="section-meta">02 · North Star</span>
+      </div>
+      <p class="section-lede">
+        Every product decision below resolves a tension between buyer ease and
+        seller-side trust. When those collide, the buyer wins; the seller
+        absorbs the complexity. These three rules are how we decide.
+      </p>
+
+      <div class="principle-grid">
+        <div class="principle-card">
+          <p class="pnum">P · 01</p>
+          <h3>Buyer-first, always.</h3>
+          <p>If a feature adds a step for the buyer to make the seller's life easier, cut it. The buyer is doing me a favor.</p>
+        </div>
+        <div class="principle-card">
+          <p class="pnum">P · 02</p>
+          <h3>SMS is the medium.</h3>
+          <p>Receipts, reminders, chat, cancellations — everything happens in the buyer's existing message thread. No app, no email, no login.</p>
+        </div>
+        <div class="principle-card">
+          <p class="pnum">P · 03</p>
+          <h3>OTP is the identity.</h3>
+          <p>One verification at claim time. The verified phone number is the buyer's identity for the lifetime of the listing. No passwords.</p>
+        </div>
+      </div>
+
+      <div class="note-card">
+        <div class="head">
+          <span class="spark">✦</span>
+          <span class="label">A note on the working name</span>
+        </div>
+        <p>Saudade — a Portuguese word for the longing for what's been left behind. Placeholder; designed to be replaced before launch. The visual system is what should outlive the name.</p>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: LISTING ============================ -->
+    <section id="screen-listing">
+      <div class="section-head">
+        <h2 class="section-title">Item listing</h2>
+        <span class="section-meta">03 · Buyer surface</span>
+      </div>
+
+      <div class="screen">
+        <!-- PHONE -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status">
+              <span>9:41</span>
+              <span class="right">
+                <span style="font-size:10px">●●●</span>
+                <span class="bar"></span>
+              </span>
+            </div>
+
+            <div class="app-header">
+              <p class="app-eyebrow">Rahul's leaving sale</p>
+              <h2 class="app-headline">17 things, going home.</h2>
+              <p class="app-byline">Bangalore · Indiranagar<span class="dot">·</span>Pickup 12 Jun → 24 Jun</p>
+            </div>
+
+            <div class="filter-row">
+              <button class="filter-pill active">All · 17</button>
+              <button class="filter-pill">Available</button>
+              <button class="filter-pill">Free now</button>
+              <button class="filter-pill">Kitchen</button>
+            </div>
+
+            <div class="item-feed">
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#E8D9C5,#D4BFA0)">🪑</div>
+                <div class="item-body">
+                  <h4 class="item-name">IKEA Poäng chair, oak</h4>
+                  <p class="item-desc">Frame oak, cover sand. Two minor scuffs on the legs.</p>
+                  <div class="item-meta">
+                    <span class="status-chip available"><span class="pulse"></span>Free 12 Jun</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#1E3A5F,#3A5A82); color:white;">♫</div>
+                <div class="item-body">
+                  <h4 class="item-name">Bose SoundLink Mini II</h4>
+                  <p class="item-desc">Bluetooth speaker. Charging cradle included.</p>
+                  <div class="item-meta">
+                    <span class="status-chip waitlist"><span class="pulse"></span>Waitlist · 2</span>
+                    <span class="dot">·</span>
+                    <span>Free 14 Jun</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb claimed" style="background:linear-gradient(135deg,#A4243B,#7d1a2c); color:white;">▣</div>
+                <div class="item-body">
+                  <h4 class="item-name">Vitamix Ascent A2300</h4>
+                  <p class="item-desc">Blender. Used weekly. Container is clear, no fog.</p>
+                  <div class="item-meta">
+                    <span class="status-chip claimed">Claimed</span>
+                    <span class="dot">·</span>
+                    <span>Held until 14 Jun</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
+                <div class="item-body">
+                  <h4 class="item-name">Westside dining table, teak</h4>
+                  <p class="item-desc">Seats six. Some watermarks on the surface.</p>
+                  <div class="item-meta">
+                    <span class="status-chip available"><span class="pulse"></span>Free 24 Jun</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#C9A227,#A8861E); color:white;">●</div>
+                <div class="item-body">
+                  <h4 class="item-name">Le Creuset Dutch oven, 5.5qt</h4>
+                  <p class="item-desc">Cerise. Some interior staining, no chips.</p>
+                  <div class="item-meta">
+                    <span class="status-chip holds"><span class="pulse"></span>OTP pending</span>
+                    <span class="dot">·</span>
+                    <span>Free 12 Jun</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">03 · /[slug]</span>
+          <h3>One scroll. One sort. No accounts.</h3>
+          <p>
+            The landing page <em>is</em> the listing — a single mobile-shaped
+            scroll sorted by the date each item becomes available. The buyer
+            arrives via a link or QR code, sees what's free this week, and
+            taps to claim. There is no homepage, no signup wall, no "browse
+            by city" indirection. The link is the address.
+          </p>
+
+          <div class="pull">
+            Status is the price. Available, waitlist, OTP pending, claimed — those four states are the only information density that matters before tap-through.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Status as the primary affordance.</strong> A buyer can decide whether to bother before reading the description. The colored pulse dot is doing more work than copy could.</li>
+            <li><strong>Faded thumbnail for claimed items.</strong> Don't hide them — claimed-then-freed items rejoin the feed when a holder drops, so visibility primes future returns.</li>
+            <li><strong>Filter chips, not a search bar.</strong> The catalog is small. Pre-curated pills cover 95% of intent without keyboard.</li>
+            <li><strong>No price.</strong> Pricing is v2 (AI-assisted). For MVP every item is free or pay-what-you-want — collected in person, not on platform.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: DETAIL ============================ -->
+    <section id="screen-detail">
+      <div class="section-head">
+        <h2 class="section-title">Item detail &amp; claim</h2>
+        <span class="section-meta">04 · Conversion moment</span>
+      </div>
+
+      <div class="screen flip">
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">04 · /[slug]/[itemId]</span>
+          <h3>The page that asks for the phone number.</h3>
+          <p>
+            This is the only screen where we ask the buyer to do something
+            harder than scroll. Everything before it earns the right to ask;
+            everything after it (the OTP, the SMS receipt, the eventual
+            pickup) is automatic. So we make the ask quiet: one input, one
+            button, and a small visual that proves the waitlist is honest.
+          </p>
+
+          <div class="pull">
+            The waitlist dots aren't decoration — they're trust. Showing position 3-of-5 tells the buyer their wait is bounded.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Phone-number-first.</strong> The CTA is a tel-input, not a form. We don't ask for name, email, or pickup time before the OTP.</li>
+            <li><strong>"Free 14 Jun" is the contract.</strong> Date prominent, exact, and tied to the listing's stated pickup window. Surprise = trust loss.</li>
+            <li><strong>Waitlist is opt-in even when zero.</strong> If the item is claimed, the buyer is offered the waitlist immediately rather than told "come back later."</li>
+            <li><strong>No "1,234 viewers" theater.</strong> Passive social proof comes in v2 only when we have honest numbers to show.</li>
+          </ul>
+        </div>
+
+        <!-- PHONE -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status">
+              <span>9:42</span>
+              <span class="right">
+                <span style="font-size:10px">●●●</span>
+                <span class="bar"></span>
+              </span>
+            </div>
+
+            <div class="detail-hero" style="background:linear-gradient(135deg,#1E3A5F,#3A5A82); color:white;">
+              ♫
+            </div>
+
+            <div class="detail-body">
+              <p class="detail-eyebrow">Speaker · Bluetooth</p>
+              <h2 class="detail-title">Bose SoundLink Mini II</h2>
+
+              <div class="detail-meta">
+                <div class="detail-meta-row">
+                  <span class="label">Available from</span>
+                  <span class="value">14 Jun 2026</span>
+                </div>
+                <div class="detail-meta-row">
+                  <span class="label">Condition</span>
+                  <span class="value">Good · 3 yr old</span>
+                </div>
+                <div class="detail-meta-row">
+                  <span class="label">Pickup</span>
+                  <span class="value">Indiranagar 100ft Rd</span>
+                </div>
+              </div>
+
+              <p class="detail-desc">Daily-use speaker that's still going strong. Charging cradle included. Small dent on the back grille — doesn't affect sound.</p>
+
+              <div class="waitlist-block">
+                <p class="label">Claimed — waitlist open</p>
+                <div class="waitlist-dots">
+                  <span class="pos taken"></span>
+                  <span class="pos taken"></span>
+                  <span class="pos you"></span>
+                  <span class="more">you'd be 3rd</span>
+                </div>
+                <p class="waitlist-note">If the holder drops, you'll get a text. No action needed from you in the meantime.</p>
+              </div>
+
+              <button class="btn-primary">Join waitlist · verify phone</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: OTP ============================ -->
+    <section id="screen-otp">
+      <div class="section-head">
+        <h2 class="section-title">OTP — the one deliberate friction</h2>
+        <span class="section-meta">05 · Trust moment</span>
+      </div>
+
+      <div class="screen">
+        <!-- PHONE -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status">
+              <span>9:42</span>
+              <span class="right">
+                <span style="font-size:10px">●●●</span>
+                <span class="bar"></span>
+              </span>
+            </div>
+
+            <div class="otp-stage">
+              <div class="otp-glyph">✦</div>
+              <h2 class="otp-title">Confirm it's you</h2>
+              <p class="otp-sub">We sent a 6-digit code to<br/><strong>+91 98••• ••432</strong></p>
+
+              <div class="otp-boxes">
+                <div class="otp-box">7</div>
+                <div class="otp-box">2</div>
+                <div class="otp-box">9</div>
+                <div class="otp-box focus"><span class="caret"></span></div>
+                <div class="otp-box empty">·</div>
+                <div class="otp-box empty">·</div>
+              </div>
+
+              <p class="otp-help">Didn't get it? <a href="#">Resend in 0:23</a></p>
+
+              <div class="otp-trust">
+                <span class="lock">⚿</span>
+                Your number is verified once and stored hashed. It's never shown to the seller — every message between you two goes through a proxy number for the next 7 days.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">05 · /verify</span>
+          <h3>One screen. One job. Then never again.</h3>
+          <p>
+            This is the only screen in the buyer journey that requires more
+            than tap-and-scroll. The friction has to earn its keep — so it's
+            framed as a promise of what it buys you (privacy, no return
+            visits, no spam). The footer is the real CTA: <em>here's why
+            we're asking.</em>
+          </p>
+
+          <div class="pull">
+            Passwords forward without friction. An OTP can't be screenshotted by a colleague or guessed from a leaked dump. The medium <em>is</em> the verification.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Autofill plumbed.</strong> iOS will offer the code from the SMS UI; we set the <code>autocomplete="one-time-code"</code> attribute so it lands in one tap.</li>
+            <li><strong>30-second resend cooldown.</strong> Cheaper than rate-limit error states, kinder than nothing.</li>
+            <li><strong>Hashed at rest.</strong> The verified phone is stored as a salted hash for lookup; the plaintext is only held in memory during the active session.</li>
+            <li><strong>One number = one identity.</strong> Cancel-via-link tokens are scoped to this hash + the specific item, so a leaked link can't be replayed on other items.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: SMS ============================ -->
+    <section id="screen-sms">
+      <div class="section-head">
+        <h2 class="section-title">The SMS thread</h2>
+        <span class="section-meta">06 · The product, after the page</span>
+      </div>
+      <p class="section-lede">
+        After the OTP, the buyer never has to open the site again. Everything
+        — receipt, reminder, chat, cancellation — lands in their existing
+        SMS thread with the same proxy number. This is the actual product.
+      </p>
+
+      <div class="screen">
+        <!-- PHONE -->
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="sms-shell">
+
+              <div class="sms-header">
+                <p class="sms-from">Rahul's sale</p>
+                <p class="sms-num">+91 80000 03721 · proxy</p>
+              </div>
+
+              <div class="sms-thread">
+
+                <p class="sms-time">Today 9:43 AM</p>
+
+                <div class="bubble incoming">
+                  Your claim is in: <strong>Bose SoundLink Mini II</strong>. Pickup window opens <strong>14 Jun</strong> at Indiranagar 100ft Rd.
+                </div>
+                <div class="bubble incoming">
+                  Reply <strong>CANCEL</strong> any time to free the slot, or tap: <a href="#">sdade.in/c/k3p9</a><br/>
+                  <span class="meta">Receipt · saudade</span>
+                </div>
+
+                <p class="sms-time">14 Jun 8:02 AM</p>
+
+                <div class="bubble incoming">
+                  Reminder: pickup window opens in <strong>4 hours</strong>. Reply to coordinate a time with the seller.
+                </div>
+
+                <div class="bubble outgoing">Hey, can I swing by around 1?</div>
+
+                <p class="sms-time">14 Jun 8:14 AM</p>
+
+                <div class="bubble incoming">
+                  1 works. The gate code is 4421, ring the doorbell on the 3rd floor.
+                </div>
+
+                <div class="bubble outgoing">Perfect, see you then.</div>
+
+              </div>
+
+              <div class="sms-input-area">
+                <div class="sms-input">Message</div>
+                <button class="sms-send">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12l14 0M13 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">06 · proxy thread</span>
+          <h3>One number for everything.</h3>
+          <p>
+            The same proxy number sends the receipt, the reminder, and the
+            forwarded chat. The buyer never has to keep two threads, and
+            never sees the seller's real number — and vice versa. CANCEL is
+            a one-word kill switch that frees the slot and auto-promotes the
+            next person on the waitlist.
+          </p>
+
+          <div class="pull">
+            The proxy number is the seller. As far as the buyer is concerned, "Rahul's sale" lives at this number — and stops existing 7 days after pickup.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Twilio Programmable Messaging + Proxy.</strong> The proxy session is scoped per (buyer, item) and times out 7 days post-pickup. After that, replies bounce.</li>
+            <li><strong>Receipt is the source of truth.</strong> Includes the cancel link with a short opaque token, scoped to phone+item. Replying CANCEL is the path most people will take; the link is for the rest.</li>
+            <li><strong>48-hour reminder.</strong> Sent at the start of the pickup-day window (configurable per item). Reduces no-shows without becoming spam.</li>
+            <li><strong>The seller dashboard mirrors the thread.</strong> Seller sees every conversation in one place on web; buyer sees it in iMessage. Different surfaces, same canonical record.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: SELLER BULK-ADD ============================ -->
+    <section id="screen-bulk">
+      <div class="section-head">
+        <h2 class="section-title">Seller bulk-add</h2>
+        <span class="section-meta">07 · Seller surface</span>
+      </div>
+
+      <div class="screen wide flip">
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">07 · /seller/add</span>
+          <h3>Photograph the room. Drop the photos. Done.</h3>
+          <p>
+            The seller has 30+ items to list in one sitting. Anything that
+            asks for a form per item is a non-starter. So the flow is: drop
+            a batch of photos, the system pre-fills a draft row per image
+            (suggested name from a vision model, defaulted condition,
+            defaulted available-date inherited from the listing window), and
+            the seller skims and corrects.
+          </p>
+
+          <div class="pull">
+            Drafts in ochre. The seller's eye is drawn straight to the suggestions that need approval, and skips the rows that look right.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Photo-first, fields-second.</strong> The thumbnail is the primary key in the seller's head, not the name.</li>
+            <li><strong>Inline editing.</strong> No modal-per-item. Tab between rows. Available-date defaults to the listing's start so most rows need zero edits.</li>
+            <li><strong>AI-suggested names</strong> are styled italic-ochre to signal "review me." Tapping confirms; typing replaces.</li>
+            <li><strong>Bulk publish.</strong> Save the whole batch as one action; QR + link are generated immediately and copied to clipboard.</li>
+          </ul>
+        </div>
+
+        <!-- BROWSER -->
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="browser-dots"><span></span><span></span><span></span></div>
+            <div class="browser-url"><span class="lock">⚿</span>saudade.in/seller/add</div>
+          </div>
+          <div class="browser-body">
+            <div class="desk-shell">
+              <p class="desk-eyebrow">Step 2 of 3 · Items</p>
+              <h2 class="desk-title">Add the things you're parting with.</h2>
+              <p class="desk-sub">Drop photos. We'll guess names and you can tidy up. <strong>5 added</strong>, available from 12 Jun by default.</p>
+
+              <div class="bulk-drop">
+                <div class="glyph">+</div>
+                <p class="ttl">Drop photos here</p>
+                <p class="sub">or paste from clipboard · JPG, HEIC, PNG · up to 40 at a time</p>
+              </div>
+
+              <div class="bulk-list">
+
+                <div class="bulk-row">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#E8D9C5,#D4BFA0)">🪑</div>
+                  <div class="bulk-fields">
+                    <input class="bulk-name" value="IKEA Poäng chair, oak" />
+                    <input class="bulk-desc-input" value="Frame oak, cover sand. Two minor scuffs on the legs." />
+                  </div>
+                  <input class="bulk-mini-input" value="12 Jun 2026" />
+                  <select class="bulk-mini-input"><option>Good</option></select>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+                <div class="bulk-row draft">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#1E3A5F,#3A5A82); color:white;">♫</div>
+                  <div class="bulk-fields">
+                    <input class="bulk-name suggested" value="Bose SoundLink Mini II (suggested)" />
+                    <input class="bulk-desc-input" placeholder="Add a one-liner…" />
+                  </div>
+                  <input class="bulk-mini-input" value="14 Jun 2026" />
+                  <select class="bulk-mini-input"><option>Good</option></select>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+                <div class="bulk-row">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#A4243B,#7d1a2c); color:white;">▣</div>
+                  <div class="bulk-fields">
+                    <input class="bulk-name" value="Vitamix Ascent A2300" />
+                    <input class="bulk-desc-input" value="Used weekly. Container is clear, no fog." />
+                  </div>
+                  <input class="bulk-mini-input" value="12 Jun 2026" />
+                  <select class="bulk-mini-input"><option>Like new</option></select>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+                <div class="bulk-row draft">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
+                  <div class="bulk-fields">
+                    <input class="bulk-name suggested" value="Teak dining table (suggested · seats 6)" />
+                    <input class="bulk-desc-input" placeholder="Add a one-liner…" />
+                  </div>
+                  <input class="bulk-mini-input" value="24 Jun 2026" />
+                  <select class="bulk-mini-input"><option>Fair</option></select>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+                <div class="bulk-row">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#C9A227,#A8861E); color:white;">●</div>
+                  <div class="bulk-fields">
+                    <input class="bulk-name" value="Le Creuset Dutch oven, 5.5qt" />
+                    <input class="bulk-desc-input" value="Cerise. Some interior staining, no chips." />
+                  </div>
+                  <input class="bulk-mini-input" value="12 Jun 2026" />
+                  <select class="bulk-mini-input"><option>Good</option></select>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+              </div>
+
+              <div class="bulk-summary">
+                <p class="stat"><strong>5</strong>items · <strong>2</strong>need review</p>
+                <button class="btn-primary" style="width:auto; padding:10px 24px;">Publish &amp; generate links</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: DASHBOARD ============================ -->
+    <section id="screen-dash">
+      <div class="section-head">
+        <h2 class="section-title">Seller dashboard</h2>
+        <span class="section-meta">08 · Operational surface</span>
+      </div>
+
+      <div class="screen wide">
+        <!-- BROWSER -->
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="browser-dots"><span></span><span></span><span></span></div>
+            <div class="browser-url"><span class="lock">⚿</span>saudade.in/seller</div>
+          </div>
+          <div class="browser-body">
+            <div class="desk-shell">
+              <p class="desk-eyebrow">Listing · sdade.in/r</p>
+              <h2 class="desk-title">Rahul's leaving sale</h2>
+              <p class="desk-sub">17 items · pickup window 12 Jun – 24 Jun</p>
+
+              <div class="dash-grid">
+                <div class="dash-stat">
+                  <p class="num">17</p>
+                  <p class="lbl">Listed</p>
+                </div>
+                <div class="dash-stat">
+                  <p class="num ochre">5</p>
+                  <p class="lbl">Interested</p>
+                </div>
+                <div class="dash-stat">
+                  <p class="num brand">6</p>
+                  <p class="lbl">Confirmed</p>
+                </div>
+                <div class="dash-stat">
+                  <p class="num forest">2</p>
+                  <p class="lbl">Picked up</p>
+                </div>
+              </div>
+
+              <div class="dash-table">
+                <div class="dash-table-head">
+                  <span></span>
+                  <span>Item</span>
+                  <span>Status</span>
+                  <span>Claimed by</span>
+                  <span>Last message</span>
+                  <span></span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">♫</div>
+                  <div class="dash-name">Bose SoundLink Mini II<span class="sub">Speaker · #2</span></div>
+                  <span><span class="pipeline confirmed"><span class="dotmark"></span>Confirmed</span></span>
+                  <span class="dash-cell">•••432 · 2 waitlist</span>
+                  <span class="dash-cell">8:14 AM today</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">▣</div>
+                  <div class="dash-name">Vitamix Ascent<span class="sub">Blender · #3</span></div>
+                  <span><span class="pipeline confirmed"><span class="dotmark"></span>Confirmed</span></span>
+                  <span class="dash-cell">•••091</span>
+                  <span class="dash-cell">yesterday 6:02 PM</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">●</div>
+                  <div class="dash-name">Le Creuset Dutch oven<span class="sub">Cookware · #5</span></div>
+                  <span><span class="pipeline interested"><span class="dotmark"></span>OTP pending</span></span>
+                  <span class="dash-cell">•••778</span>
+                  <span class="dash-cell muted">awaiting OTP · 4m</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">▷</div>
+                  <div class="dash-name">Teak dining table<span class="sub">Furniture · #6</span></div>
+                  <span><span class="pipeline listed"><span class="dotmark"></span>Listed</span></span>
+                  <span class="dash-cell muted">—</span>
+                  <span class="dash-cell muted">—</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">🪑</div>
+                  <div class="dash-name">IKEA Poäng chair<span class="sub">Furniture · #1</span></div>
+                  <span><span class="pipeline picked"><span class="dotmark"></span>Picked up</span></span>
+                  <span class="dash-cell">•••204</span>
+                  <span class="dash-cell">12 Jun · receipt closed</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+                <div class="dash-row">
+                  <div class="dash-thumb">◎</div>
+                  <div class="dash-name">Cookbook stack (12)<span class="sub">Books · #4</span></div>
+                  <span><span class="pipeline interested"><span class="dotmark"></span>Waitlist · 3</span></span>
+                  <span class="dash-cell">•••432, •••091, •••204</span>
+                  <span class="dash-cell">10 Jun 11:18 AM</span>
+                  <span class="dash-cell muted">›</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">08 · /seller</span>
+          <h3>A pipeline, not a table.</h3>
+          <p>
+            The seller's mental model is "where is each thing in its journey
+            from listed to gone?" — so the dashboard leans into that. Four
+            pipeline states across the top let the seller see at a glance
+            how much momentum the sale has, and each row is a tap into the
+            proxied SMS thread with that buyer.
+          </p>
+
+          <div class="pull">
+            Buyer phone numbers are masked even to the seller. They become identifiable only after pickup is confirmed, by which point the trust transfer has happened in person.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>States: Listed → Interested → Confirmed → Picked up.</strong> "Interested" covers both OTP-pending and waitlisted; "Confirmed" is the contracted state where SMS reminders fire.</li>
+            <li><strong>Row click opens the proxied thread.</strong> Same thread the buyer sees, mirrored to web with seller-side controls (mark picked up, cancel claim, message).</li>
+            <li><strong>Masked numbers.</strong> Only the last three digits show; the proxy address is what the seller actually messages.</li>
+            <li><strong>Listing-level QR / share lives one click away</strong> from the header (see next screen).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SCREEN: QR SHARE ============================ -->
+    <section id="screen-qr">
+      <div class="section-head">
+        <h2 class="section-title">QR &amp; link share</h2>
+        <span class="section-meta">09 · The distribution moment</span>
+      </div>
+
+      <div class="screen">
+        <!-- QR CARD -->
+        <div style="display:flex; justify-content:center; padding-top:12px;">
+          <div class="qr-card">
+            <p class="qr-eyebrow">Share this listing</p>
+            <h3 class="qr-title">Rahul's leaving sale</h3>
+
+            <div class="qr-frame" aria-label="QR code">
+              <!-- Generated dot grid (decorative) -->
+              <!-- Top-left finder -->
+              <span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span>
+              <span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span>
+              <span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span>
+              <!-- Bottom finder rows -->
+              <span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span>
+              <span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell"></span><span class="cell on"></span><span class="cell on"></span>
+            </div>
+
+            <div class="qr-url">sdade.in/r/4xq2</div>
+
+            <div class="qr-actions">
+              <button class="btn-secondary">Copy link</button>
+              <button class="btn-primary" style="width:auto;">Download · print</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RATIONALE -->
+        <div class="screen-rationale">
+          <span class="screen-tag">09 · share modal</span>
+          <h3>One sheet you can tape to the fridge.</h3>
+          <p>
+            Every listing and every individual item gets a short URL and a
+            QR. Both render to a single printable A4 sheet so the seller
+            can put it on the fridge, in the building lobby, or in a
+            WhatsApp message to the apartment group. The link is the
+            invitation.
+          </p>
+
+          <div class="pull">
+            Short slugs over UUIDs. sdade.in/r/4xq2 is shareable in conversation; a 36-character UUID dies in transmission.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>Listing QR vs. item QR.</strong> The listing QR opens the full feed; the per-item QR opens the detail page directly — useful for tagging individual items in person.</li>
+            <li><strong>Printable A4.</strong> A single endpoint returns a clean PDF with the QR, item name, and pickup window — the print job is the marketing.</li>
+            <li><strong>Short, opaque slugs.</strong> 4-char base32. Collision-proofed but readable. No PII in the URL.</li>
+            <li><strong>No analytics in MVP.</strong> View counts are v2; honest social proof requires a baseline of real traffic first.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ SEQUENCE DIAGRAM ============================ -->
+    <section id="sequence">
+      <div class="section-head">
+        <h2 class="section-title">End-to-end flow</h2>
+        <span class="section-meta">10 · System sequence</span>
+      </div>
+      <p class="section-lede">
+        The claim path is the hot loop. It threads four actors — buyer, web
+        app, SMS gateway (Twilio), and seller — and runs in two phases: the
+        live claim (synchronous, OTP gated) and the asynchronous waitlist
+        promotion that fires when someone cancels.
+      </p>
+
+      <div class="seq-wrap">
+        <div class="seq">
+          <div class="seq-lane">
+            <div class="seq-actor buyer">
+              <span class="glyph">◉</span>
+              Buyer
+            </div>
+          </div>
+          <div class="seq-lane">
+            <div class="seq-actor web">
+              <span class="glyph">◎</span>
+              Web app
+            </div>
+          </div>
+          <div class="seq-lane">
+            <div class="seq-actor sms">
+              <span class="glyph">✦</span>
+              SMS / Twilio
+            </div>
+          </div>
+          <div class="seq-lane">
+            <div class="seq-actor seller">
+              <span class="glyph">▷</span>
+              Seller
+            </div>
+          </div>
+
+          <div class="seq-rows">
+
+            <div class="seq-divider">Phase 1 · Claim</div>
+
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:1; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">tap</span>
+                  Claim · enter phone
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:2; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">api</span>
+                  POST /claim · sends OTP
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming" style="--from:1; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">sms</span>
+                  6-digit code
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:1; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">tap</span>
+                  Enter OTP · verify
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step event" style="--from:2; --span:1;">
+                <div class="arrow">
+                  Claim locked
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:2; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">send</span>
+                  Receipt + cancel link
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming" style="--from:1; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">sms</span>
+                  Receipt landed
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming" style="--from:2; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">webhook</span>
+                  Notify seller dashboard
+                </div>
+              </div>
+            </div>
+
+            <div class="seq-divider">Phase 2 · Coordinate (proxied chat)</div>
+
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:1; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">sms</span>
+                  "What time works?"
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:2; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">proxy</span>
+                  Forward to seller (numbers swapped)
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming" style="--from:2; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">proxy</span>
+                  Seller reply → buyer thread
+                </div>
+              </div>
+            </div>
+
+            <div class="seq-divider">Phase 3 · Cancel → promote (async)</div>
+
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:1; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">sms</span>
+                  Reply "CANCEL" (or tap link)
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step event" style="--from:2; --span:1;">
+                <div class="arrow">
+                  Slot freed
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step outgoing" style="--from:2; --span:2;">
+                <div class="arrow">
+                  <span class="seq-tag">enqueue</span>
+                  Promote next waitlist entry
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming ochre" style="--from:1; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">sms · ochre</span>
+                  "You're up · claim is yours"
+                </div>
+              </div>
+            </div>
+            <div class="seq-row">
+              <div class="seq-step incoming" style="--from:2; --span:3;">
+                <div class="arrow">
+                  <span class="seq-tag">webhook</span>
+                  Dashboard updates: waitlist → confirmed
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ DATA MODEL ============================ -->
+    <section id="data">
+      <div class="section-head">
+        <h2 class="section-title">Data model</h2>
+        <span class="section-meta">11 · Schema sketch</span>
+      </div>
+      <p class="section-lede">
+        Six tables. The interesting design choice is that <code style="font-family:var(--font-mono); font-size:12px; background:var(--bg-card); padding:1px 6px; border-radius:4px;">claims</code> is the only mutable
+        record of buyer↔item state — both active claims and waitlist entries
+        live there with a single status field. This keeps promotion logic to
+        a single transactional update.
+      </p>
+
+      <div class="data-grid">
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>listings</span>
+            <span class="data-purpose">one per seller event</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname">slug</span><span class="ftype">text · unique · 4ch</span></div>
+            <div class="data-field"><span class="fname">title</span><span class="ftype">text</span></div>
+            <div class="data-field"><span class="fname">city, neighborhood</span><span class="ftype">text</span></div>
+            <div class="data-field"><span class="fname">pickup_from</span><span class="ftype">date</span></div>
+            <div class="data-field"><span class="fname">pickup_to</span><span class="ftype">date</span></div>
+            <div class="data-field"><span class="fname">seller_phone_hash</span><span class="ftype">text · indexed</span></div>
+            <div class="data-field"><span class="fname">proxy_number</span><span class="ftype">text · Twilio sid</span></div>
+            <div class="data-field"><span class="fname">created_at</span><span class="ftype">timestamptz</span></div>
+          </div>
+        </div>
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>items</span>
+            <span class="data-purpose">the things being given away</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname"><span class="fk">↳</span>listing_id</span><span class="ftype">fk → listings</span></div>
+            <div class="data-field"><span class="fname">slug</span><span class="ftype">text · 4ch within listing</span></div>
+            <div class="data-field"><span class="fname">name</span><span class="ftype">text</span></div>
+            <div class="data-field"><span class="fname">description</span><span class="ftype">text</span></div>
+            <div class="data-field"><span class="fname">condition</span><span class="ftype">enum</span></div>
+            <div class="data-field"><span class="fname">available_from</span><span class="ftype">date</span></div>
+            <div class="data-field"><span class="fname">photo_url</span><span class="ftype">text · object store</span></div>
+            <div class="data-field"><span class="fname">status</span><span class="ftype">enum · listed | claimed | picked_up</span></div>
+          </div>
+        </div>
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>claims</span>
+            <span class="data-purpose">active claims + waitlist, one row each</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname"><span class="fk">↳</span>item_id</span><span class="ftype">fk → items</span></div>
+            <div class="data-field"><span class="fname"><span class="fk">↳</span>buyer_id</span><span class="ftype">fk → buyers</span></div>
+            <div class="data-field"><span class="fname">status</span><span class="ftype">enum · pending | confirmed | waitlist | cancelled | picked_up</span></div>
+            <div class="data-field"><span class="fname">position</span><span class="ftype">int · waitlist order</span></div>
+            <div class="data-field"><span class="fname">cancel_token</span><span class="ftype">text · opaque, scoped</span></div>
+            <div class="data-field"><span class="fname">claimed_at</span><span class="ftype">timestamptz</span></div>
+            <div class="data-field"><span class="fname">otp_verified_at</span><span class="ftype">timestamptz · null until confirmed</span></div>
+            <div class="data-field annot">Unique (item_id, buyer_id) — a buyer can hold or wait for a given item at most once.</div>
+          </div>
+        </div>
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>buyers</span>
+            <span class="data-purpose">verified phone identity</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname">phone_hash</span><span class="ftype">text · unique, salted</span></div>
+            <div class="data-field"><span class="fname">phone_e164</span><span class="ftype">text · enc-at-rest</span></div>
+            <div class="data-field"><span class="fname">verified_at</span><span class="ftype">timestamptz</span></div>
+            <div class="data-field"><span class="fname">last_otp_at</span><span class="ftype">timestamptz · rate-limit</span></div>
+            <div class="data-field annot">Created on first OTP verify. Re-used across items in the same listing — a buyer verifies once per listing, not once per claim.</div>
+          </div>
+        </div>
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>messages</span>
+            <span class="data-purpose">canonical SMS log (in + out)</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname"><span class="fk">↳</span>claim_id</span><span class="ftype">fk → claims</span></div>
+            <div class="data-field"><span class="fname">direction</span><span class="ftype">enum · in | out</span></div>
+            <div class="data-field"><span class="fname">from_role</span><span class="ftype">enum · buyer | seller | system</span></div>
+            <div class="data-field"><span class="fname">body</span><span class="ftype">text</span></div>
+            <div class="data-field"><span class="fname">twilio_sid</span><span class="ftype">text · idempotency key</span></div>
+            <div class="data-field"><span class="fname">created_at</span><span class="ftype">timestamptz</span></div>
+          </div>
+        </div>
+
+        <div class="data-table">
+          <div class="data-head">
+            <span class="data-name"><span class="prefix">▣</span>otp_codes</span>
+            <span class="data-purpose">short-lived, single-use</span>
+          </div>
+          <div class="data-body">
+            <div class="data-field"><span class="fname"><span class="pk">★</span>id</span><span class="ftype">uuid</span></div>
+            <div class="data-field"><span class="fname">phone_hash</span><span class="ftype">text · indexed</span></div>
+            <div class="data-field"><span class="fname">code_hash</span><span class="ftype">bcrypt</span></div>
+            <div class="data-field"><span class="fname">expires_at</span><span class="ftype">timestamptz · +10 min</span></div>
+            <div class="data-field"><span class="fname">attempts</span><span class="ftype">int · capped at 5</span></div>
+            <div class="data-field"><span class="fname">consumed_at</span><span class="ftype">timestamptz · null</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="data-legend">
+        <span><strong>★</strong> primary key</span>
+        <span class="fk-mark"><strong style="color:var(--ochre-dark)">↳</strong> foreign key</span>
+        <span>All phone numbers stored both as <strong>hash</strong> (for lookup) and <strong>encrypted E.164</strong> (for proxy routing). Plaintext never leaves the SMS worker.</span>
+      </div>
+    </section>
+
+    <!-- ============================ BUILD SEQUENCE ============================ -->
+    <section id="build">
+      <div class="section-head">
+        <h2 class="section-title">Build sequence</h2>
+        <span class="section-meta">12 · Milestones</span>
+      </div>
+      <p class="section-lede">
+        Four weeks to MVP, in shippable slices. The order is governed by the
+        principle of "what could I demo to one buyer today?" — every
+        milestone ends in something a real person could use end-to-end.
+      </p>
+
+      <div class="milestone">
+        <div class="milestone-head">
+          <span class="tag mvp">MVP · M1</span>
+          <h3>Listing + claim, no SMS</h3>
+          <p class="dur">Week 1 · ~5 days</p>
+        </div>
+        <div class="milestone-body">
+          <ul>
+            <li><strong>Schema + migrations.</strong> Six tables stand up on Postgres. Item statuses transition correctly under load.</li>
+            <li><strong>Public listing page.</strong> <code>/r/[slug]</code> renders items sorted by availability. Filter pills work client-side.</li>
+            <li><strong>Item detail page.</strong> Static page with claim CTA that captures phone number — stub for verification.</li>
+            <li><strong>Seller bulk-add (manual).</strong> No AI suggestions yet; just photo upload + form rows. Publish writes records and generates slugs.</li>
+            <li><strong>Demoable to one buyer.</strong> A friend can claim an item end-to-end if you skip the OTP and tell them in person.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-head">
+          <span class="tag mvp">MVP · M2</span>
+          <h3>SMS arrives: OTP + receipt</h3>
+          <p class="dur">Week 2 · ~5 days</p>
+        </div>
+        <div class="milestone-body">
+          <ul>
+            <li><strong>Twilio integration.</strong> Programmable Messaging hooked up; outbound OTP sends &lt; 2s.</li>
+            <li><strong>OTP flow.</strong> 6-digit code, 10-min expiry, 5-attempt cap, autocomplete plumbed for iOS.</li>
+            <li><strong>Receipt SMS.</strong> Templated, includes the cancel link with opaque token scoped to <code>(claim_id, buyer_phone_hash)</code>.</li>
+            <li><strong>48h reminder.</strong> Background job (cron) scans for claims approaching pickup and sends reminders. Idempotent.</li>
+            <li><strong>Demoable to one buyer over WhatsApp screen-share.</strong> Real OTP, real receipt, real reminder.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-head">
+          <span class="tag mvp">MVP · M3</span>
+          <h3>Two-way proxy chat + waitlist promotion</h3>
+          <p class="dur">Week 3 · ~5 days</p>
+        </div>
+        <div class="milestone-body">
+          <ul>
+            <li><strong>Twilio Proxy session per (buyer, item).</strong> Inbound webhook routes messages between buyer and seller with numbers masked. 7-day TTL after pickup.</li>
+            <li><strong>CANCEL keyword + token URL.</strong> Both paths flow through the same handler; both fire waitlist promotion in a single transaction.</li>
+            <li><strong>Waitlist promotion job.</strong> When a claim cancels, the next waitlist entry is promoted to <code>pending</code>, sent an OTP (or notified if already verified for this listing), and given a 24h window to confirm.</li>
+            <li><strong>Seller dashboard.</strong> Pipeline view, message threads, mark-as-picked-up.</li>
+            <li><strong>QR + printable A4 export.</strong> One-click share.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-head">
+          <span class="tag mvp">MVP · M4</span>
+          <h3>Polish, observability, ship</h3>
+          <p class="dur">Week 4 · ~5 days</p>
+        </div>
+        <div class="milestone-body">
+          <ul>
+            <li><strong>Empty states + error states</strong> across all surfaces. Sold-out listing reads honestly. OTP timeout has a path forward.</li>
+            <li><strong>Rate limiting</strong> on OTP send (per phone, per IP). Twilio cost guardrails.</li>
+            <li><strong>Auditable message log.</strong> Every inbound/outbound SMS lands in <code>messages</code> with a Twilio SID for reconciliation.</li>
+            <li><strong>Seller onboarding flow.</strong> Self-serve listing creation. Single password-less seller login via SMS OTP (same primitive).</li>
+            <li><strong>Privacy + retention copy.</strong> A plain-language page explaining the proxy, the hashing, and the 30-day data deletion after the listing closes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="milestone">
+        <div class="milestone-head">
+          <span class="tag v2">v2</span>
+          <h3>After the first sale</h3>
+          <p class="dur">Post-MVP · prioritized by what hurt most</p>
+        </div>
+        <div class="milestone-body">
+          <ul>
+            <li><strong>AI-assisted pricing.</strong> Per-item price suggestion from comparable eBay / FB Marketplace listings. Seller approves; price shows on detail page.</li>
+            <li><strong>AI bulk-add suggestions.</strong> Vision model fills name + condition + suggested description per uploaded photo.</li>
+            <li><strong>Passive social proof.</strong> Honest counts: "viewed today" and waitlist depth. Only ship once we have non-trivial traffic.</li>
+            <li><strong>Estate-sale / pro-seller mode</strong> + Facebook Marketplace syndication.</li>
+            <li><strong>WhatsApp channel.</strong> Opt-in alternative to SMS — gated on Meta business approval, so plan for 4-6 weeks of admin work in parallel.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ OUT OF SCOPE ============================ -->
+    <section id="oos">
+      <div class="section-head">
+        <h2 class="section-title">Deliberately out of scope</h2>
+        <span class="section-meta">13 · Saying no</span>
+      </div>
+      <p class="section-lede">
+        Surfaced here so an engineer reading this can defend "we didn't build that" with the reason, not the reflex.
+      </p>
+
+      <div class="oos-list">
+        <div class="oos-item">
+          <h5><span class="v">v2</span>AI-assisted pricing</h5>
+          <p>Requires a pricing service + comparable scraping. Adds latency to listing flow. MVP works without prices.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>Passive social proof</h5>
+          <p>Counts before traffic = lies. Defer until we have real numbers worth showing.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>Estate-sale / pro-seller mode</h5>
+          <p>Different volume, different trust model (deposits, holds). Worth a separate product surface, not a flag.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>Facebook Marketplace syndication</h5>
+          <p>No Meta API; would be brittle scraping. Revisit when manual cross-posting becomes the daily pain.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>WhatsApp channel</h5>
+          <p>Meta business approval is 4-6 weeks of admin friction. Start with SMS, add WhatsApp as a non-blocking parallel.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>Buyer accounts</h5>
+          <p>Defended on first principles. Phone number is identity; accounts add login friction without adding trust.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>In-app payments</h5>
+          <p>Settle in person, in cash or UPI. Adds KYC/PSP overhead that breaks the "no return visits" promise.</p>
+        </div>
+        <div class="oos-item">
+          <h5><span class="v">v2</span>Reviews / ratings</h5>
+          <p>Trust comes from who shares the link, not from a 5-star average. A single-seller surface doesn't need a marketplace's reputation layer.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ RISKS ============================ -->
+    <section id="risks">
+      <div class="section-head">
+        <h2 class="section-title">Risks &amp; open questions</h2>
+        <span class="section-meta">14 · Calls to make</span>
+      </div>
+      <p class="section-lede">
+        Six things that could derail MVP. Each is paired with a mitigation
+        for what I'd ship today, and a flag for the decision that needs to
+        be made by week 2.
+      </p>
+
+      <div class="risk-grid">
+
+        <div class="risk-card">
+          <span class="sev high">Sev · High</span>
+          <h4>SMS vs. WhatsApp as the medium</h4>
+          <p class="tag">P · 02 · the medium</p>
+          <p>In India, WhatsApp is what people open; SMS is what brands send. Buyers may dismiss our messages as promotional. But WhatsApp Business API gates us on a 4-6 week Meta approval before we can ship.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            Ship SMS. Send the first message from a Sender ID branded with the seller's first name ("RAHUL"), not a numeric shortcode — same channel, less spam smell. Begin the WhatsApp BSP application in parallel from week 1.
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <span class="sev high">Sev · High</span>
+          <h4>OTP drop-off at the conversion moment</h4>
+          <p class="tag">P · 03 · the friction</p>
+          <p>Even a 6-digit OTP costs 30 seconds. If we lose 40% at this step, the listing dies. Telcos in India have variable deliverability, especially on Jio at peak hours.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            Use a transactional SMS provider with telco-routing redundancy (Twilio + MSG91 fallback). Tail OTP send-to-receive latency in dashboards from day 1. Surface "didn't get it?" prominently. If drop-off > 25%, evaluate magic-link as a fallback (loses some trust, preserves conversion).
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <span class="sev high">Sev · High</span>
+          <h4>No-shows &amp; pickup disputes</h4>
+          <p class="tag">trust transfer</p>
+          <p>Buyer claims, never shows up. Seller waits, has to choose between holding the item or freeing the slot. Without payments, we have no economic mechanism to penalize ghosting.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            48-hour reminder + 24-hour grace period after the pickup window opens. If unresponsive in the proxy thread, seller can mark "no-show" from the dashboard, which auto-promotes the next waitlist entry. Cost is borne by the next-in-line, not the seller.
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <span class="sev med">Sev · Med</span>
+          <h4>Proxy session abuse</h4>
+          <p class="tag">SMS surface</p>
+          <p>A buyer with a claim could spam the seller over the proxy thread. Or a buyer's number gets leaked via the dashboard. Or someone tries to reuse a verified phone across listings to bypass per-listing limits.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            Per-thread rate limit (10 messages / hour). Seller has a "block this buyer" action that closes the proxy session. Mask buyer numbers in the dashboard until pickup is confirmed.
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <span class="sev med">Sev · Med</span>
+          <h4>The "single seller" assumption</h4>
+          <p class="tag">product shape</p>
+          <p>The plan assumes one listing = one seller leaving. If a building has 4 families relocating in the same month, the experience fragments into 4 disjoint URLs.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            Out of scope — this is MVP. But flag for v2: allow co-located listings to be aggregated under a neighborhood-tag URL (<code>/n/indiranagar</code>) that's an opt-in roll-up, not a marketplace.
+          </div>
+        </div>
+
+        <div class="risk-card">
+          <span class="sev low">Sev · Low</span>
+          <h4>Slug collisions at scale</h4>
+          <p class="tag">infra</p>
+          <p>4-character base32 slugs give us ~1M combinations per listing. At 17 items × 100 sellers we have 1700 item slugs in play — no real collision risk for MVP, but worth a forward note.</p>
+          <div class="mitig">
+            <strong>Mitigation for MVP</strong>
+            Item slugs are scoped within a listing (so collisions across listings don't matter). Listing slugs are globally unique with retry-on-collision on insert. Bump to 6-char if we ever pass 50k listings.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================ FOOTER ============================ -->
+    <footer class="doc-footer">
+      <span>Saudade · MVP Implementation Plan · v0.1</span>
+      <span>Designed in the Weave system · type, color, &amp; component vocabulary from design_system.html</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
