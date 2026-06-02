@@ -852,7 +852,7 @@
   }
   .bulk-row {
     display: grid;
-    grid-template-columns: 64px 1fr 130px 90px 100px 32px;
+    grid-template-columns: 64px 1fr 100px 110px 90px 32px;
     gap: 12px;
     align-items: center;
     padding: 12px;
@@ -860,6 +860,8 @@
     border: 1px solid var(--border);
     border-radius: 10px;
   }
+  .bulk-row.ready { border-color: rgba(45,106,79,0.25); }
+  .bulk-row.skip { opacity: 0.55; background: var(--bg-card); }
   .bulk-row.draft {
     background: var(--insight-bg);
     border-color: var(--insight-border);
@@ -1635,6 +1637,128 @@
     font-style: italic;
   }
 
+  /* ---------- Bulk-add: CSV-first ---------- */
+  .csv-upload {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: var(--insight-bg);
+    border: 1px solid var(--insight-border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .csv-glyph {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    background: var(--ochre);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+  .csv-meta { flex: 1; min-width: 0; }
+  .csv-ttl {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+    font-family: var(--font-dm-sans);
+  }
+  .csv-ttl .check { color: var(--forest); margin-right: 4px; }
+  .csv-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+    line-height: 1.45;
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+  }
+  .bulk-drop.slim {
+    padding: 10px 18px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+    border-radius: 10px;
+  }
+  .bulk-drop.slim .glyph-mini {
+    color: var(--brand-primary);
+    font-size: 14px;
+    margin-right: 6px;
+    font-weight: 500;
+  }
+  .bulk-thumb-placeholder {
+    width: 64px; height: 64px;
+    background: var(--bg-card);
+    border: 1.5px dashed var(--border-alt);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-dm-sans);
+    font-weight: 500;
+    line-height: 1.2;
+    text-align: center;
+    padding: 6px;
+  }
+  .bulk-thumb-placeholder:hover {
+    background: var(--bg-hover);
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+  }
+  .bulk-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .condition-mini {
+    display: inline-flex;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: var(--font-dm-sans);
+    flex-shrink: 0;
+  }
+  .condition-mini.good { background: rgba(45,106,79,0.12); color: var(--forest); }
+  .condition-mini.likenew { background: rgba(30,58,95,0.12); color: var(--indigo); }
+  .condition-mini.fair { background: rgba(201,162,39,0.18); color: var(--ochre-dark); }
+  .bulk-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+    margin: 3px 0 0;
+  }
+  .bulk-meta .box-flag { color: var(--forest); margin-left: 4px; }
+  .bulk-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--font-dm-sans);
+    justify-self: start;
+  }
+  .bulk-state.ready { background: rgba(45,106,79,0.14); color: var(--forest); }
+  .bulk-state.draft { background: rgba(201,162,39,0.18); color: var(--ochre-dark); }
+  .bulk-state.skip { background: var(--bg-hover); color: var(--text-muted); }
+  .bulk-state .dotmark {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
   /* ---------- Multi-claim (post-MVP pattern sketch) ---------- */
   .identity-row {
     display: flex;
@@ -1902,7 +2026,7 @@
             <div class="app-header">
               <p class="app-eyebrow">Rahul's leaving sale</p>
               <h2 class="app-headline">17 things, going home.</h2>
-              <p class="app-byline">Bangalore · Indiranagar<span class="dot">·</span>Pickup 12 Jun → 24 Jun</p>
+              <p class="app-byline">Washington, D.C. · Logan Circle<span class="dot">·</span>Pickup Jun 12 → Jun 24</p>
             </div>
 
             <div class="filter-row">
@@ -1920,10 +2044,10 @@
                   <h4 class="item-name">IKEA Poäng chair, oak</h4>
                   <p class="item-desc">Frame oak, cover sand. Two minor scuffs on the legs.</p>
                   <div class="item-meta">
-                    <span class="status-chip available"><span class="pulse"></span>Available 12 Jun</span>
+                    <span class="status-chip available"><span class="pulse"></span>Available Jun 12</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>3,500</div>
+                <div class="item-price"><span class="currency">$</span>40</div>
               </div>
 
               <div class="item-row">
@@ -1934,10 +2058,10 @@
                   <div class="item-meta">
                     <span class="status-chip waitlist"><span class="pulse"></span>Waitlist · 2</span>
                     <span class="dot">·</span>
-                    <span>14 Jun</span>
+                    <span>Jun 14</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>6,000</div>
+                <div class="item-price"><span class="currency">$</span>65</div>
               </div>
 
               <div class="item-row">
@@ -1948,19 +2072,19 @@
                   <div class="item-meta">
                     <span class="status-chip claimed">Claimed</span>
                     <span class="dot">·</span>
-                    <span>Held until 14 Jun</span>
+                    <span>Held until Jun 14</span>
                   </div>
                 </div>
-                <div class="item-price" style="color:var(--text-muted);"><span class="currency">₹</span>18,000</div>
+                <div class="item-price" style="color:var(--text-muted);"><span class="currency">$</span>200</div>
               </div>
 
               <div class="item-row">
                 <div class="item-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
                 <div class="item-body">
-                  <h4 class="item-name">Westside dining table, teak</h4>
+                  <h4 class="item-name">Teak dining table</h4>
                   <p class="item-desc">Seats six. Some watermarks on the surface.</p>
                   <div class="item-meta">
-                    <span class="status-chip available"><span class="pulse"></span>Available 24 Jun</span>
+                    <span class="status-chip available"><span class="pulse"></span>Available Jun 24</span>
                   </div>
                 </div>
                 <div class="item-price"><span class="free">Free</span></div>
@@ -1974,10 +2098,10 @@
                   <div class="item-meta">
                     <span class="status-chip holds"><span class="pulse"></span>OTP pending</span>
                     <span class="dot">·</span>
-                    <span>12 Jun</span>
+                    <span>Jun 12</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>8,500</div>
+                <div class="item-price"><span class="currency">$</span>175</div>
               </div>
 
             </div>
@@ -2036,7 +2160,8 @@
 
           <ul class="rationale-bullets">
             <li><strong>Phone-number-first.</strong> The CTA is a tel-input, not a form. We don't ask for name, email, or pickup time before the OTP.</li>
-            <li><strong>"Free 14 Jun" is the contract.</strong> Date prominent, exact, and tied to the listing's stated pickup window. Surprise = trust loss.</li>
+            <li><strong>"Available Jun 14" is the contract.</strong> Date prominent, exact, and tied to the listing's stated pickup window. Surprise = trust loss.</li>
+            <li><strong>Bought + Originally as honest trust signals.</strong> "Bought March 2022 · originally $200" tells the buyer the price is fair without needing them to look anything up. The seller's own numbers do what AI-suggested pricing does in v2, but earlier and cheaper.</li>
             <li><strong>Waitlist is opt-in even when zero.</strong> If the item is claimed, the buyer is offered the waitlist immediately rather than told "come back later."</li>
             <li><strong>No "1,234 viewers" theater.</strong> Passive social proof comes in v2 only when we have honest numbers to show.</li>
           </ul>
@@ -2065,11 +2190,19 @@
               <div class="detail-meta">
                 <div class="detail-meta-row">
                   <span class="label">Price</span>
-                  <span class="value" style="font-family:var(--font-cormorant); font-size:18px; color:var(--text-primary);">₹6,000</span>
+                  <span class="value" style="font-family:var(--font-cormorant); font-size:18px; color:var(--text-primary);">$65</span>
+                </div>
+                <div class="detail-meta-row">
+                  <span class="label">Bought</span>
+                  <span class="value">March 2022</span>
+                </div>
+                <div class="detail-meta-row">
+                  <span class="label">Originally</span>
+                  <span class="value">$200 · MSRP</span>
                 </div>
                 <div class="detail-meta-row">
                   <span class="label">Available from</span>
-                  <span class="value">14 Jun 2026</span>
+                  <span class="value">Jun 14 2026</span>
                 </div>
                 <div class="detail-meta-row">
                   <span class="label">Condition</span>
@@ -2077,7 +2210,7 @@
                 </div>
                 <div class="detail-meta-row">
                   <span class="label">Pickup</span>
-                  <span class="value">Indiranagar 100ft Rd</span>
+                  <span class="value">Logan Circle, NW</span>
                 </div>
               </div>
 
@@ -2124,7 +2257,7 @@
             <div class="otp-stage">
               <div class="otp-glyph">✦</div>
               <h2 class="otp-title">Confirm it's you</h2>
-              <p class="otp-sub">We sent a 6-digit code to<br/><strong>+91 98••• ••432</strong></p>
+              <p class="otp-sub">We sent a 6-digit code to<br/><strong>+1 (202) ••• ••432</strong></p>
 
               <div class="otp-boxes">
                 <div class="otp-box">7</div>
@@ -2192,7 +2325,7 @@
 
               <div class="sms-header">
                 <p class="sms-from">Rahul's sale</p>
-                <p class="sms-num">+91 80000 03721 · proxy</p>
+                <p class="sms-num">+1 (202) 555-0394 · proxy</p>
               </div>
 
               <div class="sms-thread">
@@ -2200,14 +2333,14 @@
                 <p class="sms-time">Today 9:43 AM</p>
 
                 <div class="bubble incoming">
-                  Your claim is in: <strong>Bose SoundLink Mini II</strong>. Pickup window opens <strong>14 Jun</strong> at Indiranagar 100ft Rd.
+                  Your claim is in: <strong>Bose SoundLink Mini II</strong>. Pickup window opens <strong>Jun 14</strong> at Logan Circle, NW.
                 </div>
                 <div class="bubble incoming">
                   Reply <strong>CANCEL</strong> any time to free the slot, or tap: <a href="#">sdade.in/c/k3p9</a><br/>
                   <span class="meta">Receipt · saudade</span>
                 </div>
 
-                <p class="sms-time">14 Jun 8:02 AM</p>
+                <p class="sms-time">Jun 14 8:02 AM</p>
 
                 <div class="bubble incoming">
                   Reminder: pickup window opens in <strong>4 hours</strong>. Reply to coordinate a time with the seller.
@@ -2215,10 +2348,10 @@
 
                 <div class="bubble outgoing">Hey, can I swing by around 1?</div>
 
-                <p class="sms-time">14 Jun 8:14 AM</p>
+                <p class="sms-time">Jun 14 8:14 AM</p>
 
                 <div class="bubble incoming">
-                  1 works. The gate code is 4421, ring the doorbell on the 3rd floor.
+                  1 works. The buzzer is for 3B, and there's metered parking on P Street.
                 </div>
 
                 <div class="bubble outgoing">Perfect, see you then.</div>
@@ -2272,25 +2405,28 @@
         <!-- RATIONALE -->
         <div class="screen-rationale">
           <span class="screen-tag">07 · /seller/add</span>
-          <h3>Photograph the room. Drop the photos. Done.</h3>
+          <h3>Bring your list. Add photos at your pace.</h3>
           <p>
-            The seller has 30+ items to list in one sitting. Anything that
-            asks for a form per item is a non-starter. So the flow is: drop
-            a batch of photos, the system pre-fills a draft row per image
-            (suggested name from a vision model, defaulted condition,
-            defaulted available-date inherited from the listing window), and
-            the seller skims and corrects.
+            Most sellers already have a list — a move spreadsheet, a Notes
+            doc, a take-stock photo dump. The bulk-add starts from there:
+            drop in a CSV (or paste rows) and every row becomes a draft.
+            From that point it's three small decisions per item — what's
+            the price, attach a photo, ready to publish or skip? Photos are
+            the slowest step, so they're explicitly not the gate. Drafts
+            without photos still land in the dashboard; they just can't go
+            live yet.
           </p>
 
           <div class="pull">
-            Drafts in ochre. The seller's eye is drawn straight to the suggestions that need approval, and skips the rows that look right.
+            CSV-first because the data already exists. Photos are the slowest step, so they're explicitly not the gate.
           </div>
 
           <ul class="rationale-bullets">
-            <li><strong>Photo-first, fields-second.</strong> The thumbnail is the primary key in the seller's head, not the name.</li>
-            <li><strong>Inline editing.</strong> No modal-per-item. Tab between rows. Available-date defaults to the listing's start so most rows need zero edits.</li>
-            <li><strong>AI-suggested names</strong> are styled italic-ochre to signal "review me." Tapping confirms; typing replaces.</li>
-            <li><strong>Bulk publish.</strong> Save the whole batch as one action; QR + link are generated immediately and copied to clipboard.</li>
+            <li><strong>Column mapping is best-effort, transparent.</strong> The CSV uploader shows exactly how each column was interpreted — seller can override before any row is touched.</li>
+            <li><strong>Bought / Originally / Box travel along.</strong> These become the trust signal on every item detail page. The seller writes them once in their own spreadsheet; the buyer sees them as fairness proof.</li>
+            <li><strong>Per-row state, not per-batch.</strong> Publish only the rows marked Ready. The link and QR are stable from the first publish — adding more later doesn't break what's been shared.</li>
+            <li><strong>Photos attach to any row.</strong> Drop a batch of photos and the seller assigns them to rows manually, or taps a row's "+ Photo" placeholder for a single attach. iOS multi-select supported.</li>
+            <li><strong>AI naming + condition stays v2.</strong> It solves the cold-start problem — no list, just a phone — which isn't most sellers' problem. AI-<em>suggested pricing</em> is the more valuable v2 piece.</li>
           </ul>
         </div>
 
@@ -2303,82 +2439,104 @@
           <div class="browser-body">
             <div class="desk-shell">
               <p class="desk-eyebrow">Step 2 of 3 · Items</p>
-              <h2 class="desk-title">Add the things you're parting with.</h2>
-              <p class="desk-sub">Drop photos. We'll guess names and conditions — you set the price. <strong>5 added</strong>, available from 12 Jun by default.</p>
+              <h2 class="desk-title">Bring your list. Add photos at your pace.</h2>
+              <p class="desk-sub">Drop a CSV or paste rows — every row becomes a draft. Decide the price, attach a photo, publish. <strong>27 imported</strong>, available from Jun 12 by default.</p>
 
-              <div class="bulk-drop">
-                <div class="glyph">+</div>
-                <p class="ttl">Drop photos here</p>
-                <p class="sub">or paste from clipboard · JPG, HEIC, PNG · up to 40 at a time</p>
+              <div class="csv-upload">
+                <div class="csv-glyph">⇪</div>
+                <div class="csv-meta">
+                  <p class="csv-ttl"><span class="check">✓</span>move_sale_master.csv · 27 rows imported</p>
+                  <p class="csv-sub">Mapped: Company/model → name · Bought, Original price → trust signal · Price/free → listing price · Remarks → description</p>
+                </div>
+                <button class="btn-secondary">Re-upload</button>
+              </div>
+
+              <div class="bulk-drop slim">
+                <span class="glyph-mini">+</span>Drop photos here to attach to any row · JPG, HEIC, PNG
               </div>
 
               <div class="bulk-list">
 
-                <div class="bulk-row">
+                <div class="bulk-row ready">
                   <div class="bulk-thumb" style="background:linear-gradient(135deg,#E8D9C5,#D4BFA0)">🪑</div>
                   <div class="bulk-fields">
-                    <input class="bulk-name" value="IKEA Poäng chair, oak" />
-                    <input class="bulk-desc-input" value="Frame oak, cover sand. Two minor scuffs on the legs." />
+                    <div class="bulk-line">
+                      <input class="bulk-name" value="IKEA Poäng chair, oak" />
+                      <span class="condition-mini good">Good</span>
+                    </div>
+                    <p class="bulk-meta">Bought May 2020 · Originally $79</p>
                   </div>
-                  <input class="bulk-mini-input" value="12 Jun 2026" />
-                  <select class="bulk-mini-input"><option>Good</option></select>
-                  <input class="bulk-mini-input" value="₹ 3,500" />
+                  <input class="bulk-mini-input" value="$ 40" />
+                  <input class="bulk-mini-input" value="Jun 12 2026" />
+                  <span class="bulk-state ready"><span class="dotmark"></span>Ready</span>
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
-                <div class="bulk-row draft">
+                <div class="bulk-row ready">
                   <div class="bulk-thumb" style="background:linear-gradient(135deg,#1E3A5F,#3A5A82); color:white;">♫</div>
                   <div class="bulk-fields">
-                    <input class="bulk-name suggested" value="Bose SoundLink Mini II (suggested)" />
-                    <input class="bulk-desc-input" placeholder="Add a one-liner…" />
+                    <div class="bulk-line">
+                      <input class="bulk-name" value="Bose SoundLink Mini II" />
+                      <span class="condition-mini good">Good</span>
+                    </div>
+                    <p class="bulk-meta">Bought Mar 2022 · Originally $200 <span class="box-flag">· Box ✓</span></p>
                   </div>
-                  <input class="bulk-mini-input" value="14 Jun 2026" />
-                  <select class="bulk-mini-input"><option>Good</option></select>
-                  <input class="bulk-mini-input" placeholder="₹ price" />
-                  <button class="bulk-icon-btn">×</button>
-                </div>
-
-                <div class="bulk-row">
-                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#A4243B,#7d1a2c); color:white;">▣</div>
-                  <div class="bulk-fields">
-                    <input class="bulk-name" value="Vitamix Ascent A2300" />
-                    <input class="bulk-desc-input" value="Used weekly. Container is clear, no fog." />
-                  </div>
-                  <input class="bulk-mini-input" value="12 Jun 2026" />
-                  <select class="bulk-mini-input"><option>Like new</option></select>
-                  <input class="bulk-mini-input" value="₹ 18,000" />
+                  <input class="bulk-mini-input" value="$ 65" />
+                  <input class="bulk-mini-input" value="Jun 14 2026" />
+                  <span class="bulk-state ready"><span class="dotmark"></span>Ready</span>
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
                 <div class="bulk-row draft">
-                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
+                  <div class="bulk-thumb-placeholder">+ Photo</div>
                   <div class="bulk-fields">
-                    <input class="bulk-name suggested" value="Teak dining table (suggested · seats 6)" />
-                    <input class="bulk-desc-input" placeholder="Add a one-liner…" />
+                    <div class="bulk-line">
+                      <input class="bulk-name" value="Instant Pot 6QT Duo" />
+                      <span class="condition-mini likenew">Like new</span>
+                    </div>
+                    <p class="bulk-meta">Bought Sep 2024 · Originally $105</p>
                   </div>
-                  <input class="bulk-mini-input" value="24 Jun 2026" />
-                  <select class="bulk-mini-input"><option>Fair</option></select>
-                  <input class="bulk-mini-input" value="Free" style="color:var(--forest); font-weight:500;" />
+                  <input class="bulk-mini-input" placeholder="$ or Free" />
+                  <input class="bulk-mini-input" value="Jun 12 2026" />
+                  <span class="bulk-state draft"><span class="dotmark"></span>Draft</span>
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
-                <div class="bulk-row">
-                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#C9A227,#A8861E); color:white;">●</div>
+                <div class="bulk-row draft">
+                  <div class="bulk-thumb-placeholder">+ Photo</div>
                   <div class="bulk-fields">
-                    <input class="bulk-name" value="Le Creuset Dutch oven, 5.5qt" />
-                    <input class="bulk-desc-input" value="Cerise. Some interior staining, no chips." />
+                    <div class="bulk-line">
+                      <input class="bulk-name" value="Lodge 6qt enameled Dutch oven" />
+                      <span class="condition-mini good">Good</span>
+                    </div>
+                    <p class="bulk-meta">Bought Jan 2024 · Originally $85</p>
                   </div>
-                  <input class="bulk-mini-input" value="12 Jun 2026" />
-                  <select class="bulk-mini-input"><option>Good</option></select>
-                  <input class="bulk-mini-input" value="₹ 8,500" />
+                  <input class="bulk-mini-input" value="$ 40" />
+                  <input class="bulk-mini-input" value="Jun 12 2026" />
+                  <span class="bulk-state draft"><span class="dotmark"></span>Draft</span>
+                  <button class="bulk-icon-btn">×</button>
+                </div>
+
+                <div class="bulk-row skip">
+                  <div class="bulk-thumb" style="background:linear-gradient(135deg,#5A5A5A,#3A3A3A); color:white;">●</div>
+                  <div class="bulk-fields">
+                    <div class="bulk-line">
+                      <input class="bulk-name" value="Dyson V11 vacuum" />
+                      <span class="condition-mini good">Good</span>
+                    </div>
+                    <p class="bulk-meta">Bought Jul 2022 · Originally $400 · keeping</p>
+                  </div>
+                  <input class="bulk-mini-input" value="—" />
+                  <input class="bulk-mini-input" value="—" />
+                  <span class="bulk-state skip"><span class="dotmark"></span>Skip</span>
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
               </div>
 
               <div class="bulk-summary">
-                <p class="stat"><strong>5</strong>items · <strong>2</strong>need review · <strong>1</strong>free</p>
-                <button class="btn-primary" style="width:auto; padding:10px 24px;">Publish &amp; generate links</button>
+                <p class="stat"><strong>27</strong>imported · <strong>2</strong>ready · <strong>22</strong>drafts · <strong>3</strong>skipped</p>
+                <button class="btn-primary" style="width:auto; padding:10px 24px;">Publish 2 ready</button>
               </div>
             </div>
           </div>
@@ -2569,10 +2727,9 @@
           <h3>One sheet you can tape to the fridge.</h3>
           <p>
             Every listing and every individual item gets a short URL and a
-            QR. Both render to a single printable A4 sheet so the seller
-            can put it on the fridge, in the building lobby, or in a
-            WhatsApp message to the apartment group. The link is the
-            invitation.
+            QR. Both render to a single printable letter-sized sheet so the
+            seller can put it on the fridge, in the building lobby, or text
+            it to the building group chat. The link is the invitation.
           </p>
 
           <div class="pull">
@@ -2817,9 +2974,13 @@
             <div class="data-field"><span class="fname">description</span><span class="ftype">text</span></div>
             <div class="data-field"><span class="fname">condition</span><span class="ftype">enum</span></div>
             <div class="data-field"><span class="fname">available_from</span><span class="ftype">date</span></div>
-            <div class="data-field"><span class="fname">price_paise</span><span class="ftype">int · nullable</span></div>
+            <div class="data-field"><span class="fname">price_cents</span><span class="ftype">int · nullable</span></div>
             <div class="data-field"><span class="fname">is_free</span><span class="ftype">bool · derived if price null</span></div>
+            <div class="data-field"><span class="fname">bought_date</span><span class="ftype">date · nullable</span></div>
+            <div class="data-field"><span class="fname">original_price_cents</span><span class="ftype">int · nullable</span></div>
+            <div class="data-field"><span class="fname">original_box_included</span><span class="ftype">bool · nullable</span></div>
             <div class="data-field"><span class="fname">photo_url</span><span class="ftype">text · object store</span></div>
+            <div class="data-field annot">Trust-signal fields (bought_date, original_price_cents, original_box_included) come from the seller's CSV at import time and render on the item detail page as "Bought X · Originally $Y" without any seller intervention.</div>
             <div class="data-field"><span class="fname">status</span><span class="ftype">enum · listed | claimed | picked_up</span></div>
           </div>
         </div>
@@ -2925,7 +3086,7 @@
             <li><strong>Public listing page.</strong> <code>/r/[slug]</code> renders items sorted by availability date. Filter pills work client-side. Price + Free states both render.</li>
             <li><strong>Item detail page.</strong> Full meta block (price, available-from, condition, pickup). Claim button is visible but disabled with a quiet "Claims open soon" label — so the surface is honest about what's not yet wired.</li>
             <li><strong>Seller bulk-add (manual).</strong> Photo upload + inline form rows. Publish writes records and mints slugs. No AI suggestions yet.</li>
-            <li><strong>QR + printable A4.</strong> Listing + per-item QRs generate on publish. You can print and share.</li>
+            <li><strong>QR + printable letter sheet.</strong> Listing + per-item QRs generate on publish. You can print and share.</li>
             <li><strong>What you can do at end of week:</strong> Publish your real sale, share the URL with friends, get visual feedback. No buyer-side action possible yet.</li>
           </ul>
         </div>
@@ -2941,7 +3102,7 @@
           <ul>
             <li><strong>Question this answers:</strong> Will real buyers complete the OTP, and does the receipt feel trustworthy in their inbox?</li>
             <li><strong>Schema additions.</strong> <code>claims</code>, <code>buyers</code>, <code>otp_codes</code>, <code>messages</code> tables. <code>claim_session_id</code> nullable on claims from day one — single-claim leaves it null, multi-claim populates it later. No retrofit needed.</li>
-            <li><strong>Twilio outbound.</strong> Programmable Messaging plumbed; outbound OTP sends &lt; 2s. MSG91 fallback configured for telco-route redundancy.</li>
+            <li><strong>Twilio outbound + 10DLC registered.</strong> Programmable Messaging plumbed; outbound OTP sends &lt; 2s. Brand + campaign registered through The Campaign Registry (started in M1) so unregistered traffic doesn't get blocked on T-Mobile.</li>
             <li><strong>OTP flow.</strong> 6-digit code, 10-min expiry, 5-attempt cap, <code>autocomplete="one-time-code"</code> for iOS autofill.</li>
             <li><strong>Phone-is-identity-per-listing.</strong> Once a buyer verifies, the phone is trusted for the rest of the listing's lifetime — even though the UI ships single-claim. This is the multi-claim hook: the verification reuses architecturally, the multi-tap UI just isn't built yet.</li>
             <li><strong>Receipt SMS.</strong> Templated, includes cancel link with opaque token scoped to <code>(claim_id, phone_hash)</code>. 48-hour reminder fires from a cron.</li>
@@ -3000,7 +3161,7 @@
             <li><strong>AI bulk-add suggestions.</strong> Vision model fills name + condition + suggested description per uploaded photo.</li>
             <li><strong>Passive social proof.</strong> Honest counts: "viewed today" and waitlist depth. Only ship once there's real traffic worth showing.</li>
             <li><strong>Estate-sale / pro-seller mode</strong> + Facebook Marketplace syndication.</li>
-            <li><strong>WhatsApp channel.</strong> Opt-in alternative to SMS — gated on Meta business approval, so begin the application during M1 so it's ready when MVP is.</li>
+            <li><strong>WhatsApp / iMessage Business channel.</strong> Opt-in alternative to SMS for buyers who prefer rich-media chat. WhatsApp is less essential in the US than it would be in India; consider iMessage Business (Apple Messages for Business) as the higher-leverage US-specific play.</li>
           </ul>
         </div>
       </div>
@@ -3033,15 +3194,15 @@
             <div class="identity-row">
               <span class="identity-check">✓</span>
               <div class="identity-meta">
-                <p class="ident-name">Verified · +91 98••• ••432</p>
-                <p class="ident-status">1 claimed · pickup 14 Jun</p>
+                <p class="ident-name">Verified · +1 (202) ••• ••432</p>
+                <p class="ident-status">1 claimed · pickup Jun 14</p>
               </div>
             </div>
 
             <div class="app-header">
               <p class="app-eyebrow">Rahul's leaving sale</p>
               <h2 class="app-headline">17 things, going home.</h2>
-              <p class="app-byline">Bangalore · Indiranagar<span class="dot">·</span>Pickup 12 Jun → 24 Jun</p>
+              <p class="app-byline">Washington, D.C. · Logan Circle<span class="dot">·</span>Pickup Jun 12 → Jun 24</p>
             </div>
 
             <div class="item-feed">
@@ -3052,10 +3213,10 @@
                   <h4 class="item-name">Bose SoundLink Mini II</h4>
                   <p class="item-desc">Bluetooth speaker. Charging cradle included.</p>
                   <div class="item-meta">
-                    <span class="status-chip yours">✓ Yours · 14 Jun</span>
+                    <span class="status-chip yours">✓ Yours · Jun 14</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>6,000</div>
+                <div class="item-price"><span class="currency">$</span>65</div>
               </div>
 
               <div class="item-row">
@@ -3066,10 +3227,10 @@
                   <div class="item-meta">
                     <button class="claim-mini-btn">+ Claim</button>
                     <span class="dot">·</span>
-                    <span>12 Jun</span>
+                    <span>Jun 12</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>3,500</div>
+                <div class="item-price"><span class="currency">$</span>40</div>
               </div>
 
               <div class="item-row">
@@ -3080,21 +3241,21 @@
                   <div class="item-meta">
                     <button class="claim-mini-btn">+ Claim</button>
                     <span class="dot">·</span>
-                    <span>12 Jun</span>
+                    <span>Jun 12</span>
                   </div>
                 </div>
-                <div class="item-price"><span class="currency">₹</span>8,500</div>
+                <div class="item-price"><span class="currency">$</span>175</div>
               </div>
 
               <div class="item-row">
                 <div class="item-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
                 <div class="item-body">
-                  <h4 class="item-name">Westside dining table, teak</h4>
+                  <h4 class="item-name">Teak dining table</h4>
                   <p class="item-desc">Seats six. Some watermarks on the surface.</p>
                   <div class="item-meta">
                     <button class="claim-mini-btn">+ Claim</button>
                     <span class="dot">·</span>
-                    <span>24 Jun</span>
+                    <span>Jun 24</span>
                   </div>
                 </div>
                 <div class="item-price"><span class="free">Free</span></div>
@@ -3109,7 +3270,7 @@
                     <button class="claim-mini-btn waitlist">+ Waitlist · 3rd</button>
                   </div>
                 </div>
-                <div class="item-price" style="color:var(--text-muted);"><span class="currency">₹</span>18,000</div>
+                <div class="item-price" style="color:var(--text-muted);"><span class="currency">$</span>200</div>
               </div>
 
             </div>
@@ -3174,7 +3335,7 @@
 
               <div class="sms-header">
                 <p class="sms-from">Rahul's sale</p>
-                <p class="sms-num">+91 80000 03721 · proxy</p>
+                <p class="sms-num">+1 (202) 555-0394 · proxy</p>
               </div>
 
               <div class="sms-thread">
@@ -3188,25 +3349,25 @@
                       <span class="bundle-glyph" style="color:#1E3A5F">♫</span>
                       <div>
                         <p class="bn">Bose SoundLink Mini II</p>
-                        <p class="bs">14 Jun · ₹6,000</p>
+                        <p class="bs">Jun 14 · $65</p>
                       </div>
                     </li>
                     <li>
                       <span class="bundle-glyph" style="color:#A4243B">🪑</span>
                       <div>
                         <p class="bn">IKEA Poäng chair, oak</p>
-                        <p class="bs">12 Jun · ₹3,500</p>
+                        <p class="bs">Jun 12 · $40</p>
                       </div>
                     </li>
                     <li>
                       <span class="bundle-glyph" style="color:#C9A227">●</span>
                       <div>
                         <p class="bn">Le Creuset Dutch oven, 5.5qt</p>
-                        <p class="bs">12 Jun · ₹8,500</p>
+                        <p class="bs">Jun 12 · $175</p>
                       </div>
                     </li>
                   </ul>
-                  <p class="bundle-total">Total ₹18,000 · pickup Indiranagar 100ft Rd</p>
+                  <p class="bundle-total">Total $280 · pickup Logan Circle, NW</p>
                 </div>
 
                 <div class="bubble incoming">
@@ -3256,8 +3417,8 @@
           <p>No Meta API; would be brittle scraping. Revisit when manual cross-posting becomes the daily pain.</p>
         </div>
         <div class="oos-item">
-          <h5><span class="v">v2</span>WhatsApp channel</h5>
-          <p>Meta business approval is 4-6 weeks of admin friction. Start with SMS, add WhatsApp as a non-blocking parallel.</p>
+          <h5><span class="v">v2</span>WhatsApp / iMessage Business</h5>
+          <p>SMS covers the US market well; rich-media channels are a v2 add. WhatsApp Meta approval is 4-6 weeks of admin; iMessage Business has its own onboarding via Apple. Both are non-blocking parallel tracks if demand warrants.</p>
         </div>
         <div class="oos-item">
           <h5><span class="v">v2</span>Buyer accounts</h5>
@@ -3290,23 +3451,23 @@
 
         <div class="risk-card">
           <span class="sev high">Sev · High</span>
-          <h4>SMS vs. WhatsApp as the medium</h4>
-          <p class="tag">P · 02 · the medium</p>
-          <p>In India, WhatsApp is what people open; SMS is what brands send. Buyers may dismiss our messages as promotional. But WhatsApp Business API gates us on a 4-6 week Meta approval before we can ship.</p>
+          <h4>10DLC registration &amp; carrier deliverability</h4>
+          <p class="tag">US SMS · A2P compliance</p>
+          <p>US carriers (T-Mobile especially) throttle or block unregistered application-to-person SMS. Sending the OTP or receipt before our brand + campaign is registered through The Campaign Registry means messages land late or not at all — exactly when trust is being built. Registration takes 3-10 business days end-to-end.</p>
           <div class="mitig">
             <strong>Mitigation for MVP</strong>
-            Ship SMS. Send the first message from a Sender ID branded with the seller's first name ("RAHUL"), not a numeric shortcode — same channel, less spam smell. Begin the WhatsApp BSP application in parallel from week 1.
+            Start A2P 10DLC brand registration in M1 (parallel with the build, takes a week of paperwork) so the long-code is approved by the time M2 needs it. As fallback, provision a Twilio toll-free number — registration is faster (1-3 days) and throughput is enough for one-seller volume. Monitor delivery rates per carrier from day one.
           </div>
         </div>
 
         <div class="risk-card">
-          <span class="sev high">Sev · High</span>
+          <span class="sev med">Sev · Med</span>
           <h4>OTP drop-off at the conversion moment</h4>
           <p class="tag">P · 03 · the friction</p>
-          <p>Even a 6-digit OTP costs 30 seconds. If we lose 40% at this step, the listing dies. Telcos in India have variable deliverability, especially on Jio at peak hours.</p>
+          <p>Even a 6-digit OTP costs 30 seconds. US deliverability is broadly good once 10DLC is in place — but iMessage-vs-SMS rendering inconsistency, spam-filter false positives, and "STOP" replies from skittish buyers all chip at completion rates.</p>
           <div class="mitig">
             <strong>Mitigation for MVP</strong>
-            Use a transactional SMS provider with telco-routing redundancy (Twilio + MSG91 fallback). Tail OTP send-to-receive latency in dashboards from day 1. Surface "didn't get it?" prominently. If drop-off > 25%, evaluate magic-link as a fallback (loses some trust, preserves conversion).
+            <code>autocomplete="one-time-code"</code> for iOS autofill (most US buyers are iPhone). Send from a real number, not a short-code — feels more like a friend texting. Surface "didn't get it?" with a 30s resend cooldown. Tail send-to-receive latency from day one. If drop-off &gt; 20%, evaluate a magic-link fallback for desktop.
           </div>
         </div>
 
