@@ -25,13 +25,22 @@ A single-seller relocation marketplace for offloading household items before a m
 
 Subgoals (one at a time, stop after each — see Working agreements):
 - [x] **Scaffold** — Next 16 + Tailwind v4 + Drizzle + Supabase client + shadcn/ui under `app/`. Weave palette wired in `globals.css`; fonts via `next/font`. Dev server boots clean (`curl /` returns 200, title + fonts + classes correct).
-- [ ] **Schema** — Drizzle schema for `listings` + `items` (claim/buyer tables stubbed empty, ready for M2). Section 11 in `index.html` is the data-model contract. `pnpm db:push` against Supabase.
-- [ ] **CSV-first bulk-add** at `/seller/add` (section 07 in `index.html`).
+- [x] **Schema** — all 6 tables (section 11 contract) in `src/db/schema.ts`; M1 writes `listings`/`items`, M2 tables land ready+empty. Migration `0000` generated, `tsc` clean. Lazy `db` client in `src/db/index.ts`. **Not yet pushed** — needs `DATABASE_URL` in `.env.local` then `pnpm db:push`.
+- [x] **CSV-first bulk-add** at `/seller/add` (section 07). Drop/paste CSV → transparent overridable column mapping → editable Ready/Draft/Skip rows → publish (transactional, slug collision-retry). Pure logic in `lib/csv.ts`+`lib/format.ts`+`lib/slug.ts`, unit-sanity-tested. Page renders 200 with no DB. **Photo upload is local-preview only** — `photoUrl` writes null, `TODO(M1)` to wire Supabase Storage (needs `SUPABASE_SERVICE_ROLE_KEY`). Added a "Listing details" mini-form (title/city/pickup) since M1 has no separate listing-creation step.
 - [ ] **Public listing page** at `/r/[slug]`.
 - [ ] **Item detail page** at `/r/[slug]/[itemId]` — claim button visible-but-disabled.
 - [ ] **QR + printable letter sheet** on publish.
 
-Next up: schema.
+**Next up: public listing page `/r/[slug]`** — but paused pending Rahul's visual review.
+
+### Resume here (paused 2026-06-02)
+
+Paused deliberately to review the **brand/visual** before building more — the listing page is the key brand surface and its look carries into detail + QR, so reacting now avoids reworking three surfaces. When back at the laptop:
+1. `cp app/.env.example app/.env.local`, fill `DATABASE_URL` (Supabase session pooler / 5432 for migrations), `cd app && pnpm db:push`.
+2. `pnpm dev` → open `/seller/add`, import a CSV, publish — validates the whole write path end to end.
+3. Give a read on the visual + bulk-add UX, **then** I build `/r/[slug]` and you review that before detail page + QR layer on.
+
+Open decisions to confirm during review: (a) the collapsed "Listing details" form on `/seller/add` vs. a separate step; (b) deferring photo upload. Both flagged above.
 
 **Ships in M1:**
 - Postgres schema — `listings` and `items` (claim/buyer tables stub empty, ready for M2)
