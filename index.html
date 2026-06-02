@@ -2838,7 +2838,8 @@
             <div class="data-field"><span class="fname">cancel_token</span><span class="ftype">text · opaque, scoped</span></div>
             <div class="data-field"><span class="fname">claimed_at</span><span class="ftype">timestamptz</span></div>
             <div class="data-field"><span class="fname">otp_verified_at</span><span class="ftype">timestamptz · null until confirmed</span></div>
-            <div class="data-field annot">Unique (item_id, buyer_id) — a buyer can hold or wait for a given item at most once.</div>
+            <div class="data-field"><span class="fname">claim_session_id</span><span class="ftype">uuid · nullable</span></div>
+            <div class="data-field annot">Unique (item_id, buyer_id) — a buyer can hold or wait for a given item at most once. claim_session_id groups bundle claims for batched receipts (multi-claim ships in v2; column lives nullable from M2).</div>
           </div>
         </div>
 
@@ -2904,24 +2905,28 @@
         <span class="section-meta">12 · Milestones</span>
       </div>
       <p class="section-lede">
-        Four weeks to MVP, in shippable slices. The order is governed by the
-        principle of "what could I demo to one buyer today?" — every
-        milestone ends in something a real person could use end-to-end.
+        Four weeks to MVP, in shippable slices. Each milestone is framed by the
+        question it answers — not just what code lands, but what you'd be able
+        to <em>say</em> at the end of that week. Phone is identity from M2
+        forward; multi-claim architecture is baked in even though its UI ships
+        with v2.
       </p>
 
       <div class="milestone">
         <div class="milestone-head">
           <span class="tag mvp">MVP · M1</span>
-          <h3>Listing + claim, no SMS</h3>
+          <h3>The listing exists.</h3>
           <p class="dur">Week 1 · ~5 days</p>
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>Schema + migrations.</strong> Six tables stand up on Postgres. Item statuses transition correctly under load.</li>
-            <li><strong>Public listing page.</strong> <code>/r/[slug]</code> renders items sorted by availability. Filter pills work client-side.</li>
-            <li><strong>Item detail page.</strong> Static page with claim CTA that captures phone number — stub for verification.</li>
-            <li><strong>Seller bulk-add (manual).</strong> No AI suggestions yet; just photo upload + form rows. Publish writes records and generates slugs.</li>
-            <li><strong>Demoable to one buyer.</strong> A friend can claim an item end-to-end if you skip the OTP and tell them in person.</li>
+            <li><strong>Question this answers:</strong> Does the brand and the visual hold up when a friend sees it?</li>
+            <li><strong>Schema (display subset).</strong> <code>listings</code>, <code>items</code> on Postgres. Photo upload to object storage. Claim/buyer tables stub out and ship empty.</li>
+            <li><strong>Public listing page.</strong> <code>/r/[slug]</code> renders items sorted by availability date. Filter pills work client-side. Price + Free states both render.</li>
+            <li><strong>Item detail page.</strong> Full meta block (price, available-from, condition, pickup). Claim button is visible but disabled with a quiet "Claims open soon" label — so the surface is honest about what's not yet wired.</li>
+            <li><strong>Seller bulk-add (manual).</strong> Photo upload + inline form rows. Publish writes records and mints slugs. No AI suggestions yet.</li>
+            <li><strong>QR + printable A4.</strong> Listing + per-item QRs generate on publish. You can print and share.</li>
+            <li><strong>What you can do at end of week:</strong> Publish your real sale, share the URL with friends, get visual feedback. No buyer-side action possible yet.</li>
           </ul>
         </div>
       </div>
@@ -2929,16 +2934,18 @@
       <div class="milestone">
         <div class="milestone-head">
           <span class="tag mvp">MVP · M2</span>
-          <h3>SMS arrives: OTP + receipt</h3>
+          <h3>SMS arrives: claim + OTP + receipt.</h3>
           <p class="dur">Week 2 · ~5 days</p>
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>Twilio integration.</strong> Programmable Messaging hooked up; outbound OTP sends &lt; 2s.</li>
-            <li><strong>OTP flow.</strong> 6-digit code, 10-min expiry, 5-attempt cap, autocomplete plumbed for iOS.</li>
-            <li><strong>Receipt SMS.</strong> Templated, includes the cancel link with opaque token scoped to <code>(claim_id, buyer_phone_hash)</code>.</li>
-            <li><strong>48h reminder.</strong> Background job (cron) scans for claims approaching pickup and sends reminders. Idempotent.</li>
-            <li><strong>Demoable to one buyer over WhatsApp screen-share.</strong> Real OTP, real receipt, real reminder.</li>
+            <li><strong>Question this answers:</strong> Will real buyers complete the OTP, and does the receipt feel trustworthy in their inbox?</li>
+            <li><strong>Schema additions.</strong> <code>claims</code>, <code>buyers</code>, <code>otp_codes</code>, <code>messages</code> tables. <code>claim_session_id</code> nullable on claims from day one — single-claim leaves it null, multi-claim populates it later. No retrofit needed.</li>
+            <li><strong>Twilio outbound.</strong> Programmable Messaging plumbed; outbound OTP sends &lt; 2s. MSG91 fallback configured for telco-route redundancy.</li>
+            <li><strong>OTP flow.</strong> 6-digit code, 10-min expiry, 5-attempt cap, <code>autocomplete="one-time-code"</code> for iOS autofill.</li>
+            <li><strong>Phone-is-identity-per-listing.</strong> Once a buyer verifies, the phone is trusted for the rest of the listing's lifetime — even though the UI ships single-claim. This is the multi-claim hook: the verification reuses architecturally, the multi-tap UI just isn't built yet.</li>
+            <li><strong>Receipt SMS.</strong> Templated, includes cancel link with opaque token scoped to <code>(claim_id, phone_hash)</code>. 48-hour reminder fires from a cron.</li>
+            <li><strong>What you can do at end of week:</strong> A friend can claim one item, get a real OTP, receive a real receipt, and reply CANCEL to drop out.</li>
           </ul>
         </div>
       </div>
@@ -2946,16 +2953,17 @@
       <div class="milestone">
         <div class="milestone-head">
           <span class="tag mvp">MVP · M3</span>
-          <h3>Two-way proxy chat + waitlist promotion</h3>
+          <h3>Proxy chat, cancel-and-promote, seller view.</h3>
           <p class="dur">Week 3 · ~5 days</p>
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>Twilio Proxy session per (buyer, item).</strong> Inbound webhook routes messages between buyer and seller with numbers masked. 7-day TTL after pickup.</li>
-            <li><strong>CANCEL keyword + token URL.</strong> Both paths flow through the same handler; both fire waitlist promotion in a single transaction.</li>
-            <li><strong>Waitlist promotion job.</strong> When a claim cancels, the next waitlist entry is promoted to <code>pending</code>, sent an OTP (or notified if already verified for this listing), and given a 24h window to confirm.</li>
-            <li><strong>Seller dashboard.</strong> Pipeline view, message threads, mark-as-picked-up.</li>
-            <li><strong>QR + printable A4 export.</strong> One-click share.</li>
+            <li><strong>Question this answers:</strong> Can the seller actually run the sale without ever picking up the phone?</li>
+            <li><strong>Twilio Proxy session per (buyer, item).</strong> Inbound webhook routes messages with numbers masked both ways. 7-day TTL after pickup, then replies bounce.</li>
+            <li><strong>CANCEL keyword + token URL.</strong> Both paths through one handler, both fire waitlist promotion in a single transaction.</li>
+            <li><strong>Waitlist promotion job.</strong> Cancel → next entry promoted to <code>pending</code> → SMS sent (skipping OTP if phone already verified for the listing — the M2 hook earns its keep here) → 24h grace window to confirm.</li>
+            <li><strong>Seller dashboard.</strong> Pipeline counts (Listed / Interested / Confirmed / Picked up), table view, per-row proxied thread, mark-as-picked-up action.</li>
+            <li><strong>What you can do at end of week:</strong> Run a complete sale loop with a friend — claim → coordinate over SMS → pickup → cancel → next person gets promoted automatically.</li>
           </ul>
         </div>
       </div>
@@ -2963,16 +2971,18 @@
       <div class="milestone">
         <div class="milestone-head">
           <span class="tag mvp">MVP · M4</span>
-          <h3>Polish, observability, ship</h3>
+          <h3>Polish, observability, ship.</h3>
           <p class="dur">Week 4 · ~5 days</p>
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>Empty states + error states</strong> across all surfaces. Sold-out listing reads honestly. OTP timeout has a path forward.</li>
-            <li><strong>Rate limiting</strong> on OTP send (per phone, per IP). Twilio cost guardrails.</li>
-            <li><strong>Auditable message log.</strong> Every inbound/outbound SMS lands in <code>messages</code> with a Twilio SID for reconciliation.</li>
-            <li><strong>Seller onboarding flow.</strong> Self-serve listing creation. Single password-less seller login via SMS OTP (same primitive).</li>
-            <li><strong>Privacy + retention copy.</strong> A plain-language page explaining the proxy, the hashing, and the 30-day data deletion after the listing closes.</li>
+            <li><strong>Question this answers:</strong> Is this trustworthy enough to send to a stranger?</li>
+            <li><strong>Empty + error states</strong> across every surface. Sold-out listing reads honestly. OTP timeout has a path forward. Cancelled-after-pickup is unambiguous.</li>
+            <li><strong>Rate limiting</strong> on OTP send (per phone, per IP) and per-thread proxy chat (10 msg/hr). Twilio cost guardrails wired to alerts.</li>
+            <li><strong>Auditable message log.</strong> Every inbound/outbound SMS lands in <code>messages</code> with the Twilio SID for reconciliation.</li>
+            <li><strong>Self-serve seller onboarding.</strong> Passwordless seller login via SMS OTP — same primitive as the buyer side, no new auth code.</li>
+            <li><strong>Privacy + retention copy.</strong> Plain-language page explaining the proxy, the hashing, and the 30-day deletion after listing close.</li>
+            <li><strong>What you can do at end of week:</strong> Run your own move-sale start to finish. Real listing, real buyers, real proxy, no manual intervention.</li>
           </ul>
         </div>
       </div>
@@ -2980,16 +2990,17 @@
       <div class="milestone">
         <div class="milestone-head">
           <span class="tag v2">v2</span>
-          <h3>After the first sale</h3>
+          <h3>After the first sale.</h3>
           <p class="dur">Post-MVP · prioritized by what hurt most</p>
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>AI-suggested pricing.</strong> Per-item price <em>suggestion</em> from comparable eBay / FB Marketplace listings. Seller can accept, edit, or ignore — prices themselves already ship in MVP, this is the assist layer.</li>
+            <li><strong>Multi-claim UI.</strong> Verified-buyer listing view (one-tap <code>+ Claim</code> pills, identity row, "Yours" badges) + bundle receipt SMS with 30s debounce. Schema and verification logic already exist from M2 — this is purely the front-end and SMS-batching layer. See section 13 for the sketch.</li>
+            <li><strong>AI-suggested pricing.</strong> Per-item price <em>suggestion</em> from comparable eBay / FB Marketplace listings. Seller can accept, edit, or ignore — prices themselves already ship in MVP.</li>
             <li><strong>AI bulk-add suggestions.</strong> Vision model fills name + condition + suggested description per uploaded photo.</li>
-            <li><strong>Passive social proof.</strong> Honest counts: "viewed today" and waitlist depth. Only ship once we have non-trivial traffic.</li>
+            <li><strong>Passive social proof.</strong> Honest counts: "viewed today" and waitlist depth. Only ship once there's real traffic worth showing.</li>
             <li><strong>Estate-sale / pro-seller mode</strong> + Facebook Marketplace syndication.</li>
-            <li><strong>WhatsApp channel.</strong> Opt-in alternative to SMS — gated on Meta business approval, so plan for 4-6 weeks of admin work in parallel.</li>
+            <li><strong>WhatsApp channel.</strong> Opt-in alternative to SMS — gated on Meta business approval, so begin the application during M1 so it's ready when MVP is.</li>
           </ul>
         </div>
       </div>
