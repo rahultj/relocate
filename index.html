@@ -521,6 +521,32 @@
     letter-spacing: 0.02em;
   }
   .item-meta .dot { color: var(--border-alt); }
+  .item-price {
+    flex-shrink: 0;
+    align-self: flex-start;
+    text-align: right;
+    font-family: var(--font-cormorant);
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1.2;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    margin-top: 2px;
+    min-width: 64px;
+  }
+  .item-price .free {
+    font-family: var(--font-dm-sans);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--forest);
+  }
+  .item-price .currency {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-right: 1px;
+  }
   .status-chip {
     display: inline-flex;
     align-items: center;
@@ -826,8 +852,8 @@
   }
   .bulk-row {
     display: grid;
-    grid-template-columns: 64px 1fr 140px 110px 32px;
-    gap: 14px;
+    grid-template-columns: 64px 1fr 130px 90px 100px 32px;
+    gap: 12px;
     align-items: center;
     padding: 12px;
     background: white;
@@ -1766,9 +1792,10 @@
                   <h4 class="item-name">IKEA Poäng chair, oak</h4>
                   <p class="item-desc">Frame oak, cover sand. Two minor scuffs on the legs.</p>
                   <div class="item-meta">
-                    <span class="status-chip available"><span class="pulse"></span>Free 12 Jun</span>
+                    <span class="status-chip available"><span class="pulse"></span>Available 12 Jun</span>
                   </div>
                 </div>
+                <div class="item-price"><span class="currency">₹</span>3,500</div>
               </div>
 
               <div class="item-row">
@@ -1779,9 +1806,10 @@
                   <div class="item-meta">
                     <span class="status-chip waitlist"><span class="pulse"></span>Waitlist · 2</span>
                     <span class="dot">·</span>
-                    <span>Free 14 Jun</span>
+                    <span>14 Jun</span>
                   </div>
                 </div>
+                <div class="item-price"><span class="currency">₹</span>6,000</div>
               </div>
 
               <div class="item-row">
@@ -1795,6 +1823,7 @@
                     <span>Held until 14 Jun</span>
                   </div>
                 </div>
+                <div class="item-price" style="color:var(--text-muted);"><span class="currency">₹</span>18,000</div>
               </div>
 
               <div class="item-row">
@@ -1803,9 +1832,10 @@
                   <h4 class="item-name">Westside dining table, teak</h4>
                   <p class="item-desc">Seats six. Some watermarks on the surface.</p>
                   <div class="item-meta">
-                    <span class="status-chip available"><span class="pulse"></span>Free 24 Jun</span>
+                    <span class="status-chip available"><span class="pulse"></span>Available 24 Jun</span>
                   </div>
                 </div>
+                <div class="item-price"><span class="free">Free</span></div>
               </div>
 
               <div class="item-row">
@@ -1816,9 +1846,10 @@
                   <div class="item-meta">
                     <span class="status-chip holds"><span class="pulse"></span>OTP pending</span>
                     <span class="dot">·</span>
-                    <span>Free 12 Jun</span>
+                    <span>12 Jun</span>
                   </div>
                 </div>
+                <div class="item-price"><span class="currency">₹</span>8,500</div>
               </div>
 
             </div>
@@ -1838,14 +1869,14 @@
           </p>
 
           <div class="pull">
-            Status is the price. Available, waitlist, OTP pending, claimed — those four states are the only information density that matters before tap-through.
+            Three pieces of information per row: what it is, when it's free, what it costs. Status is the gating signal — available, waitlist, OTP pending, claimed — and decides whether the price even matters yet.
           </div>
 
           <ul class="rationale-bullets">
             <li><strong>Status as the primary affordance.</strong> A buyer can decide whether to bother before reading the description. The colored pulse dot is doing more work than copy could.</li>
-            <li><strong>Faded thumbnail for claimed items.</strong> Don't hide them — claimed-then-freed items rejoin the feed when a holder drops, so visibility primes future returns.</li>
+            <li><strong>Price set by the seller.</strong> Each item carries a flat amount or is marked <em>Free</em> at listing time. Payment happens in person — cash or UPI — not on platform. AI-suggested pricing from comparable listings is v2.</li>
+            <li><strong>Faded thumbnail + greyed price for claimed items.</strong> Don't hide them — claimed-then-freed items rejoin the feed when a holder drops, so visibility primes future returns.</li>
             <li><strong>Filter chips, not a search bar.</strong> The catalog is small. Pre-curated pills cover 95% of intent without keyboard.</li>
-            <li><strong>No price.</strong> Pricing is v2 (AI-assisted). For MVP every item is free or pay-what-you-want — collected in person, not on platform.</li>
           </ul>
         </div>
       </div>
@@ -1904,6 +1935,10 @@
               <h2 class="detail-title">Bose SoundLink Mini II</h2>
 
               <div class="detail-meta">
+                <div class="detail-meta-row">
+                  <span class="label">Price</span>
+                  <span class="value" style="font-family:var(--font-cormorant); font-size:18px; color:var(--text-primary);">₹6,000</span>
+                </div>
                 <div class="detail-meta-row">
                   <span class="label">Available from</span>
                   <span class="value">14 Jun 2026</span>
@@ -2141,7 +2176,7 @@
             <div class="desk-shell">
               <p class="desk-eyebrow">Step 2 of 3 · Items</p>
               <h2 class="desk-title">Add the things you're parting with.</h2>
-              <p class="desk-sub">Drop photos. We'll guess names and you can tidy up. <strong>5 added</strong>, available from 12 Jun by default.</p>
+              <p class="desk-sub">Drop photos. We'll guess names and conditions — you set the price. <strong>5 added</strong>, available from 12 Jun by default.</p>
 
               <div class="bulk-drop">
                 <div class="glyph">+</div>
@@ -2159,6 +2194,7 @@
                   </div>
                   <input class="bulk-mini-input" value="12 Jun 2026" />
                   <select class="bulk-mini-input"><option>Good</option></select>
+                  <input class="bulk-mini-input" value="₹ 3,500" />
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
@@ -2170,6 +2206,7 @@
                   </div>
                   <input class="bulk-mini-input" value="14 Jun 2026" />
                   <select class="bulk-mini-input"><option>Good</option></select>
+                  <input class="bulk-mini-input" placeholder="₹ price" />
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
@@ -2181,6 +2218,7 @@
                   </div>
                   <input class="bulk-mini-input" value="12 Jun 2026" />
                   <select class="bulk-mini-input"><option>Like new</option></select>
+                  <input class="bulk-mini-input" value="₹ 18,000" />
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
@@ -2192,6 +2230,7 @@
                   </div>
                   <input class="bulk-mini-input" value="24 Jun 2026" />
                   <select class="bulk-mini-input"><option>Fair</option></select>
+                  <input class="bulk-mini-input" value="Free" style="color:var(--forest); font-weight:500;" />
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
@@ -2203,13 +2242,14 @@
                   </div>
                   <input class="bulk-mini-input" value="12 Jun 2026" />
                   <select class="bulk-mini-input"><option>Good</option></select>
+                  <input class="bulk-mini-input" value="₹ 8,500" />
                   <button class="bulk-icon-btn">×</button>
                 </div>
 
               </div>
 
               <div class="bulk-summary">
-                <p class="stat"><strong>5</strong>items · <strong>2</strong>need review</p>
+                <p class="stat"><strong>5</strong>items · <strong>2</strong>need review · <strong>1</strong>free</p>
                 <button class="btn-primary" style="width:auto; padding:10px 24px;">Publish &amp; generate links</button>
               </div>
             </div>
@@ -2649,6 +2689,8 @@
             <div class="data-field"><span class="fname">description</span><span class="ftype">text</span></div>
             <div class="data-field"><span class="fname">condition</span><span class="ftype">enum</span></div>
             <div class="data-field"><span class="fname">available_from</span><span class="ftype">date</span></div>
+            <div class="data-field"><span class="fname">price_paise</span><span class="ftype">int · nullable</span></div>
+            <div class="data-field"><span class="fname">is_free</span><span class="ftype">bool · derived if price null</span></div>
             <div class="data-field"><span class="fname">photo_url</span><span class="ftype">text · object store</span></div>
             <div class="data-field"><span class="fname">status</span><span class="ftype">enum · listed | claimed | picked_up</span></div>
           </div>
@@ -2815,7 +2857,7 @@
         </div>
         <div class="milestone-body">
           <ul>
-            <li><strong>AI-assisted pricing.</strong> Per-item price suggestion from comparable eBay / FB Marketplace listings. Seller approves; price shows on detail page.</li>
+            <li><strong>AI-suggested pricing.</strong> Per-item price <em>suggestion</em> from comparable eBay / FB Marketplace listings. Seller can accept, edit, or ignore — prices themselves already ship in MVP, this is the assist layer.</li>
             <li><strong>AI bulk-add suggestions.</strong> Vision model fills name + condition + suggested description per uploaded photo.</li>
             <li><strong>Passive social proof.</strong> Honest counts: "viewed today" and waitlist depth. Only ship once we have non-trivial traffic.</li>
             <li><strong>Estate-sale / pro-seller mode</strong> + Facebook Marketplace syndication.</li>
@@ -2837,8 +2879,8 @@
 
       <div class="oos-list">
         <div class="oos-item">
-          <h5><span class="v">v2</span>AI-assisted pricing</h5>
-          <p>Requires a pricing service + comparable scraping. Adds latency to listing flow. MVP works without prices.</p>
+          <h5><span class="v">v2</span>AI-suggested pricing</h5>
+          <p>Sellers set prices in MVP — free or a flat amount per item. The v2 piece is auto-<em>suggesting</em> a price from comparable eBay / FB Marketplace listings; needs scraping infra and adds latency to the listing flow.</p>
         </div>
         <div class="oos-item">
           <h5><span class="v">v2</span>Passive social proof</h5>
