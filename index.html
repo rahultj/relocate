@@ -1635,6 +1635,133 @@
     font-style: italic;
   }
 
+  /* ---------- Multi-claim (post-MVP pattern sketch) ---------- */
+  .identity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    background: var(--insight-bg);
+    border-bottom: 1px solid var(--insight-border);
+  }
+  .identity-check {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--forest);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .identity-meta { flex: 1; min-width: 0; }
+  .ident-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+  .ident-status {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    margin: 1px 0 0;
+  }
+  .status-chip.yours {
+    background: rgba(45,106,79,0.14);
+    color: var(--forest);
+  }
+  .claim-mini-btn {
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 9999px;
+    padding: 4px 14px;
+    font-family: var(--font-dm-sans);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background 200ms;
+  }
+  .claim-mini-btn:hover { background: var(--brand-hover); }
+  .claim-mini-btn.waitlist {
+    background: rgba(201,162,39,0.20);
+    color: var(--ochre-dark);
+  }
+  .claim-mini-btn.waitlist:hover { background: rgba(201,162,39,0.32); }
+  .item-row.yours .item-thumb {
+    box-shadow: 0 0 0 2px var(--forest);
+  }
+  .add-another {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--insight-bg);
+    border-bottom: 1px solid var(--insight-border);
+    font-size: 11px;
+    color: var(--ochre-dark);
+    font-weight: 500;
+  }
+  .add-another .spark { color: var(--ochre); }
+
+  .bubble.bundle {
+    max-width: 88%;
+    padding: 12px 14px;
+  }
+  .bundle-head {
+    font-weight: 500;
+    font-size: 12px;
+    margin: 0 0 8px;
+    color: var(--text-primary);
+  }
+  .bundle-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+  }
+  .bundle-list li {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .bundle-list li:first-child { border-top: none; padding-top: 2px; }
+  .bundle-glyph { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; }
+  .bundle-list .bn { font-size: 12px; margin: 0; font-weight: 500; color: var(--text-primary); line-height: 1.3; }
+  .bundle-list .bs { font-size: 10px; color: var(--text-muted); margin: 1px 0 0; font-family: var(--font-mono); letter-spacing: 0.02em; }
+  .bundle-total {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- Forward-sketch section accent ---------- */
+  .forward-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 9999px;
+    background: rgba(201,162,39,0.14);
+    color: var(--ochre-dark);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .forward-banner .spark { font-size: 12px; color: var(--ochre); }
+
   /* ---------- Responsive ---------- */
   @media (max-width: 980px) {
     .doc { grid-template-columns: 1fr; }
@@ -1685,8 +1812,9 @@
 
     <p class="nav-group">Forward</p>
     <ul>
-      <li><a href="#oos"><span class="num">13</span>Out of scope</a></li>
-      <li><a href="#risks"><span class="num">14</span>Risks &amp; questions</a></li>
+      <li><a href="#screen-multiclaim"><span class="num">13</span>Multi-claim sketch</a></li>
+      <li><a href="#oos"><span class="num">14</span>Out of scope</a></li>
+      <li><a href="#risks"><span class="num">15</span>Risks &amp; questions</a></li>
     </ul>
   </aside>
 
@@ -2867,11 +2995,233 @@
       </div>
     </section>
 
+    <!-- ============================ MULTI-CLAIM (FORWARD SKETCH) ============================ -->
+    <section id="screen-multiclaim">
+      <div class="section-head">
+        <h2 class="section-title">Multi-claim — when the buyer comes back</h2>
+        <span class="section-meta">13 · Forward sketch</span>
+      </div>
+      <p class="forward-banner"><span class="spark">✦</span>Pattern · ships after single-claim is validated</p>
+      <p class="section-lede">
+        Sketched here so the schema and SMS shape stay compatible with it from day one. The premise: the OTP earns its keep across the whole listing, not per item. Once verified, the buyer can claim more items with one tap; the receipt SMS arrives as a bundle.
+      </p>
+
+      <!-- Screen 1: returning verified buyer -->
+      <div class="screen">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status">
+              <span>10:18</span>
+              <span class="right">
+                <span style="font-size:10px">●●●</span>
+                <span class="bar"></span>
+              </span>
+            </div>
+
+            <div class="identity-row">
+              <span class="identity-check">✓</span>
+              <div class="identity-meta">
+                <p class="ident-name">Verified · +91 98••• ••432</p>
+                <p class="ident-status">1 claimed · pickup 14 Jun</p>
+              </div>
+            </div>
+
+            <div class="app-header">
+              <p class="app-eyebrow">Rahul's leaving sale</p>
+              <h2 class="app-headline">17 things, going home.</h2>
+              <p class="app-byline">Bangalore · Indiranagar<span class="dot">·</span>Pickup 12 Jun → 24 Jun</p>
+            </div>
+
+            <div class="item-feed">
+
+              <div class="item-row yours">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#1E3A5F,#3A5A82); color:white;">♫</div>
+                <div class="item-body">
+                  <h4 class="item-name">Bose SoundLink Mini II</h4>
+                  <p class="item-desc">Bluetooth speaker. Charging cradle included.</p>
+                  <div class="item-meta">
+                    <span class="status-chip yours">✓ Yours · 14 Jun</span>
+                  </div>
+                </div>
+                <div class="item-price"><span class="currency">₹</span>6,000</div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#E8D9C5,#D4BFA0)">🪑</div>
+                <div class="item-body">
+                  <h4 class="item-name">IKEA Poäng chair, oak</h4>
+                  <p class="item-desc">Frame oak, cover sand. Two minor scuffs on the legs.</p>
+                  <div class="item-meta">
+                    <button class="claim-mini-btn">+ Claim</button>
+                    <span class="dot">·</span>
+                    <span>12 Jun</span>
+                  </div>
+                </div>
+                <div class="item-price"><span class="currency">₹</span>3,500</div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#C9A227,#A8861E); color:white;">●</div>
+                <div class="item-body">
+                  <h4 class="item-name">Le Creuset Dutch oven, 5.5qt</h4>
+                  <p class="item-desc">Cerise. Some interior staining, no chips.</p>
+                  <div class="item-meta">
+                    <button class="claim-mini-btn">+ Claim</button>
+                    <span class="dot">·</span>
+                    <span>12 Jun</span>
+                  </div>
+                </div>
+                <div class="item-price"><span class="currency">₹</span>8,500</div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb" style="background:linear-gradient(135deg,#2D6A4F,#1f4a37); color:white;">▷</div>
+                <div class="item-body">
+                  <h4 class="item-name">Westside dining table, teak</h4>
+                  <p class="item-desc">Seats six. Some watermarks on the surface.</p>
+                  <div class="item-meta">
+                    <button class="claim-mini-btn">+ Claim</button>
+                    <span class="dot">·</span>
+                    <span>24 Jun</span>
+                  </div>
+                </div>
+                <div class="item-price"><span class="free">Free</span></div>
+              </div>
+
+              <div class="item-row">
+                <div class="item-thumb claimed" style="background:linear-gradient(135deg,#A4243B,#7d1a2c); color:white;">▣</div>
+                <div class="item-body">
+                  <h4 class="item-name">Vitamix Ascent A2300</h4>
+                  <p class="item-desc">Blender. Used weekly. Container is clear, no fog.</p>
+                  <div class="item-meta">
+                    <button class="claim-mini-btn waitlist">+ Waitlist · 3rd</button>
+                  </div>
+                </div>
+                <div class="item-price" style="color:var(--text-muted);"><span class="currency">₹</span>18,000</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="screen-rationale">
+          <span class="screen-tag">13a · listing for a verified buyer</span>
+          <h3>The listing changes shape, quietly.</h3>
+          <p>
+            Once the buyer is verified for this listing (within the pickup
+            window), returning to the page swaps the claim form for a
+            one-tap pill. No form, no OTP, no friction. Items they already
+            hold are checked off and outlined; items they haven't engaged
+            with show the brand-pink <strong>+ Claim</strong> pill. The page
+            recognizes the buyer through a magic-link in the receipt SMS
+            and a cookie that expires when the listing closes.
+          </p>
+
+          <div class="pull">
+            Verified is a state, not a moment. The buyer earns it once and lives in it for the listing's lifetime.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>One-tap claim still hits the same handler.</strong> The OTP gate is just skipped when the phone is already verified for this listing — no new endpoint, no new code path to maintain.</li>
+            <li><strong>Identity row is a quiet acknowledgement.</strong> Forest check + masked number. Not a profile, not a header — just enough that the buyer knows the page knows them.</li>
+            <li><strong>Waitlist is a one-tap pill too.</strong> Same affordance, ochre instead of pink, position number inline.</li>
+            <li><strong>Cookie lifetime = listing window + 7 days.</strong> Verification dies when the sale dies. No long-lived identity floating around.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Screen 2: bundle receipt SMS -->
+      <div class="screen flip">
+        <div class="screen-rationale">
+          <span class="screen-tag">13b · bundle receipt</span>
+          <h3>One receipt, many items, one cancel.</h3>
+          <p>
+            When several claims land within ~30 seconds for the same phone,
+            the SMS worker batches them into a single receipt. The buyer
+            gets one tidy summary; the seller dashboard groups them under
+            one entry. Cancel-by-keyword targets the bundle by default;
+            per-item cancels work by typing a shorthand.
+          </p>
+
+          <div class="pull">
+            Three texts in thirty seconds is spam. One text with three items is a receipt.
+          </div>
+
+          <ul class="rationale-bullets">
+            <li><strong>30-second debounce in the SMS worker.</strong> Claims for the same phone+listing made within the window collapse into one outbound message. Cheap to implement, kind to the inbox.</li>
+            <li><strong>Total line is informational only.</strong> No payment is taken on platform. The total just helps the buyer know what to bring.</li>
+            <li><strong>CANCEL alone drops the bundle.</strong> CANCEL CHAIR / CANCEL SPEAKER / CANCEL OVEN target individual items. The shorthand is the first noun of the item name; conflict resolution falls back to per-item links from the receipt.</li>
+            <li><strong>Schema gets one nullable column.</strong> <code>claim_session_id</code> on <code>claims</code> groups bundle members for receipts and reporting. Single-claim flow leaves it null.</li>
+          </ul>
+        </div>
+
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="sms-shell">
+
+              <div class="sms-header">
+                <p class="sms-from">Rahul's sale</p>
+                <p class="sms-num">+91 80000 03721 · proxy</p>
+              </div>
+
+              <div class="sms-thread">
+
+                <p class="sms-time">Today 10:18 AM</p>
+
+                <div class="bubble incoming bundle">
+                  <p class="bundle-head">3 items claimed:</p>
+                  <ul class="bundle-list">
+                    <li>
+                      <span class="bundle-glyph" style="color:#1E3A5F">♫</span>
+                      <div>
+                        <p class="bn">Bose SoundLink Mini II</p>
+                        <p class="bs">14 Jun · ₹6,000</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span class="bundle-glyph" style="color:#A4243B">🪑</span>
+                      <div>
+                        <p class="bn">IKEA Poäng chair, oak</p>
+                        <p class="bs">12 Jun · ₹3,500</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span class="bundle-glyph" style="color:#C9A227">●</span>
+                      <div>
+                        <p class="bn">Le Creuset Dutch oven, 5.5qt</p>
+                        <p class="bs">12 Jun · ₹8,500</p>
+                      </div>
+                    </li>
+                  </ul>
+                  <p class="bundle-total">Total ₹18,000 · pickup Indiranagar 100ft Rd</p>
+                </div>
+
+                <div class="bubble incoming">
+                  Reply <strong>CANCEL</strong> to drop all three, or <strong>CANCEL CHAIR</strong> / <strong>CANCEL SPEAKER</strong> / <strong>CANCEL OVEN</strong> for individual items.
+                  <span class="meta">Manage: sdade.in/c/k3p9</span>
+                </div>
+
+              </div>
+
+              <div class="sms-input-area">
+                <div class="sms-input">Message</div>
+                <button class="sms-send">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12l14 0M13 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============================ OUT OF SCOPE ============================ -->
     <section id="oos">
       <div class="section-head">
         <h2 class="section-title">Deliberately out of scope</h2>
-        <span class="section-meta">13 · Saying no</span>
+        <span class="section-meta">14 · Saying no</span>
       </div>
       <p class="section-lede">
         Surfaced here so an engineer reading this can defend "we didn't build that" with the reason, not the reflex.
@@ -2917,7 +3267,7 @@
     <section id="risks">
       <div class="section-head">
         <h2 class="section-title">Risks &amp; open questions</h2>
-        <span class="section-meta">14 · Calls to make</span>
+        <span class="section-meta">15 · Calls to make</span>
       </div>
       <p class="section-lede">
         Six things that could derail MVP. Each is paired with a mitigation
