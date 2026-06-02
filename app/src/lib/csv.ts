@@ -1,0 +1,196 @@
+// CSV-first bulk-add (section 07). Pure, dependency-free so it can be unit-
+// tested and run on either side. Two jobs:
+//   1. parseCsv     — text -> rows of cells (handles quotes + escaped quotes)
+//   2. mapColumns   — best-effort, transparent header -> field guesses
+//   3. rowsToDrafts — apply a mapping to build editable item drafts
+//
+// "Best-effort, transparent" is the contract: we guess, show the guess, and
+// let the seller override before any row is touched.
+
+import {
+  parseLooseDate,
+  parseCondition,
+  parseBool,
+  type ItemCondition,
+} from "./format";
+
+// The fields a CSV column can map to. "ignore" = column is dropped.
+export type FieldKey =
+  | "name"
+  | "description"
+  | "condition"
+  | "price"
+  | "boughtDate"
+  | "originalPrice"
+  | "originalBox"
+  | "availableFrom"
+  | "ignore";
+
+export const FIELD_LABELS: Record<FieldKey, string> = {
+  name: "Name",
+  description: "Description",
+  condition: "Condition",
+  price: "Listing price",
+  boughtDate: "Bought (trust signal)",
+  originalPrice: "Originally (trust signal)",
+  originalBox: "Box included",
+  availableFrom: "Available from",
+  ignore: "Ignore column",
+};
+
+// Header alias table. First match wins; checked in declaration order so more
+// specific fields (originalPrice) are tested before looser ones (price).
+const ALIASES: { field: FieldKey; patterns: RegExp[] }[] = [
+  { field: "originalPrice", patterns: [/^original/, /msrp/, /retail/, /\bpaid\b/, /bought.*price/] },
+  { field: "boughtDate", patterns: [/^bought/, /purchas/, /acquired/] },
+  { field: "originalBox", patterns: [/box/, /packaging/] },
+  { field: "condition", patterns: [/condition/, /\bstate\b/] },
+  { field: "availableFrom", patterns: [/available/, /ready/, /pickup/] },
+  { field: "price", patterns: [/price/, /asking/, /\bfree\b/, /\bcost\b/] },
+  { field: "description", patterns: [/remark/, /note/, /desc/, /comment/, /detail/] },
+  { field: "name", patterns: [/name/, /item/, /product/, /title/, /model/, /company/, /thing/] },
+];
+
+export interface ParsedCsv {
+  headers: string[];
+  rows: string[][]; // each row aligned to headers length
+}
+
+/** RFC-4180-ish parser: handles quoted fields, escaped "" quotes, CRLF. */
+export function parseCsv(text: string): ParsedCsv {
+  const records: string[][] = [];
+  let field = "";
+  let record: string[] = [];
+  let inQuotes = false;
+
+  const pushField = () => {
+    record.push(field);
+    field = "";
+  };
+  const pushRecord = () => {
+    pushField();
+    records.push(record);
+    record = [];
+  };
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      pushField();
+    } else if (c === "\n") {
+      pushRecord();
+    } else if (c === "\r") {
+      // swallow; \n handles the record break
+    } else {
+      field += c;
+    }
+  }
+  // trailing field/record (file not ending in newline)
+  if (field.length > 0 || record.length > 0) pushRecord();
+
+  // Drop fully-empty trailing records.
+  const nonEmpty = records.filter((r) => r.some((cell) => cell.trim() !== ""));
+  if (nonEmpty.length === 0) return { headers: [], rows: [] };
+
+  const [headers, ...rest] = nonEmpty;
+  const width = headers.length;
+  const rows = rest.map((r) => {
+    const padded = [...r];
+    while (padded.length < width) padded.push("");
+    return padded.slice(0, width);
+  });
+  return { headers: headers.map((h) => h.trim()), rows };
+}
+
+/** Guess a field for each header. Each non-ignore field is assigned at most once. */
+export function mapColumns(headers: string[]): FieldKey[] {
+  const taken = new Set<FieldKey>();
+  return headers.map((h) => {
+    const key = h.toLowerCase().trim();
+    for (const { field, patterns } of ALIASES) {
+      if (taken.has(field)) continue;
+      if (patterns.some((p) => p.test(key))) {
+        taken.add(field);
+        return field;
+      }
+    }
+    return "ignore";
+  });
+}
+
+// An editable draft row. `state` is the publish decision (UI-only); it is not
+// the item.status enum. Photo is held as a local preview until publish.
+export interface ItemDraft {
+  id: string; // client-side row key
+  name: string;
+  description: string;
+  condition: ItemCondition | null;
+  // Money is held as raw editable text on this surface and parsed at publish.
+  // "" or "Free" => free; "$40"/"40" => 4000 cents (see parsePriceToCents).
+  priceText: string;
+  originalPriceText: string;
+  boughtDate: string | null; // ISO
+  originalBoxIncluded: boolean | null;
+  availableFrom: string; // ISO, defaults to listing pickup_from
+  photoDataUrl: string | null; // local preview; uploaded on publish
+  state: "ready" | "draft" | "skip";
+}
+
+let draftCounter = 0;
+const nextId = () => `draft-${Date.now()}-${draftCounter++}`;
+
+/**
+ * Apply a column mapping to parsed rows, producing editable drafts.
+ * A row starts as "draft" — the seller decides Ready / Skip per the spec
+ * ("every row becomes a draft"). Photos are never the gate.
+ */
+export function rowsToDrafts(
+  parsed: ParsedCsv,
+  mapping: FieldKey[],
+  defaultAvailableFrom: string,
+): ItemDraft[] {
+  const col = (row: string[], field: FieldKey): string => {
+    const idx = mapping.indexOf(field);
+    return idx >= 0 ? (row[idx] ?? "") : "";
+  };
+
+  return parsed.rows.map((row) => {
+    const boxRaw = col(row, "originalBox");
+    return {
+      id: nextId(),
+      name: col(row, "name").trim(),
+      description: col(row, "description").trim(),
+      condition: parseCondition(col(row, "condition")),
+      priceText: col(row, "price").trim(),
+      originalPriceText: col(row, "originalPrice").trim(),
+      boughtDate: parseLooseDate(col(row, "boughtDate")),
+      originalBoxIncluded: boxRaw.trim() === "" ? null : parseBool(boxRaw),
+      availableFrom: parseLooseDate(col(row, "availableFrom")) ?? defaultAvailableFrom,
+      photoDataUrl: null,
+      state: "draft",
+    };
+  });
+}
+
+/** Human-readable summary of the mapping for the "Mapped: …" line. */
+export function describeMapping(headers: string[], mapping: FieldKey[]): string {
+  const parts: string[] = [];
+  mapping.forEach((field, i) => {
+    if (field === "ignore") return;
+    parts.push(`${headers[i]} → ${FIELD_LABELS[field]}`);
+  });
+  return parts.join(" · ");
+}

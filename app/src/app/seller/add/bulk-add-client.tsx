@@ -1,0 +1,614 @@
+"use client";
+
+import { useRef, useState, useMemo, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  parseCsv,
+  mapColumns,
+  rowsToDrafts,
+  describeMapping,
+  FIELD_LABELS,
+  type FieldKey,
+  type ParsedCsv,
+  type ItemDraft,
+} from "@/lib/csv";
+import {
+  parsePriceToCents,
+  parseLooseDate,
+  formatMonthYear,
+  CONDITION_LABELS,
+  type ItemCondition,
+} from "@/lib/format";
+import { publishListing, type PublishResult } from "./actions";
+
+const TODAY_ISO = "2026-06-02"; // build-time "today" per project context
+const FIELD_ORDER: FieldKey[] = [
+  "name",
+  "description",
+  "condition",
+  "price",
+  "boughtDate",
+  "originalPrice",
+  "originalBox",
+  "availableFrom",
+  "ignore",
+];
+
+type StateKind = ItemDraft["state"];
+const STATE_CYCLE: Record<StateKind, StateKind> = {
+  draft: "ready",
+  ready: "skip",
+  skip: "draft",
+};
+
+export function BulkAdd() {
+  // Listing header — publish creates the listing + items together (M1).
+  const [title, setTitle] = useState("");
+  const [city, setCity] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [pickupFrom, setPickupFrom] = useState("");
+  const [pickupTo, setPickupTo] = useState("");
+
+  // CSV import staging.
+  const [parsed, setParsed] = useState<ParsedCsv | null>(null);
+  const [mapping, setMapping] = useState<FieldKey[]>([]);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [pasteMode, setPasteMode] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+
+  // Imported, editable drafts.
+  const [drafts, setDrafts] = useState<ItemDraft[]>([]);
+
+  const [publishing, setPublishing] = useState(false);
+  const [result, setResult] = useState<PublishResult | null>(null);
+
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const bulkPhotoRef = useRef<HTMLInputElement>(null);
+
+  const defaultAvailableFrom = pickupFrom || TODAY_ISO;
+
+  // ---------- CSV intake ----------
+
+  const ingestText = useCallback((text: string, name: string | null) => {
+    const p = parseCsv(text);
+    if (p.headers.length === 0) {
+      setResult({ ok: false, error: "That file had no readable rows." });
+      return;
+    }
+    setParsed(p);
+    setMapping(mapColumns(p.headers));
+    setFileName(name);
+    setResult(null);
+  }, []);
+
+  const onCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then((t) => ingestText(t, file.name));
+  };
+
+  const applyMapping = () => {
+    if (!parsed) return;
+    setDrafts(rowsToDrafts(parsed, mapping, defaultAvailableFrom));
+  };
+
+  const resetImport = () => {
+    setParsed(null);
+    setMapping([]);
+    setFileName(null);
+    setDrafts([]);
+    setPasteText("");
+    setResult(null);
+    if (csvInputRef.current) csvInputRef.current.value = "";
+  };
+
+  // ---------- Row editing ----------
+
+  const patch = (id: string, p: Partial<ItemDraft>) =>
+    setDrafts((d) => d.map((row) => (row.id === id ? { ...row, ...p } : row)));
+
+  const removeRow = (id: string) =>
+    setDrafts((d) => d.filter((row) => row.id !== id));
+
+  const cycleState = (id: string, current: StateKind) =>
+    patch(id, { state: STATE_CYCLE[current] });
+
+  const attachPhoto = (id: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => patch(id, { photoDataUrl: reader.result as string });
+    reader.readAsDataURL(file);
+  };
+
+  // Bulk photo drop: assign to the first rows that don't yet have a photo.
+  const onBulkPhotos = (files: FileList) => {
+    const list = Array.from(files);
+    setDrafts((d) => {
+      let fi = 0;
+      return d.map((row) => {
+        if (row.photoDataUrl || fi >= list.length) return row;
+        const file = list[fi++];
+        const reader = new FileReader();
+        reader.onload = () => patch(row.id, { photoDataUrl: reader.result as string });
+        reader.readAsDataURL(file);
+        return row;
+      });
+    });
+  };
+
+  // ---------- Summary ----------
+
+  const counts = useMemo(() => {
+    const c = { ready: 0, draft: 0, skip: 0 };
+    drafts.forEach((d) => c[d.state]++);
+    return c;
+  }, [drafts]);
+
+  const readyPublishable = drafts.filter(
+    (d) => d.state === "ready" && d.name.trim() !== "",
+  );
+
+  // ---------- Publish ----------
+
+  const onPublish = async () => {
+    setPublishing(true);
+    setResult(null);
+    const res = await publishListing({
+      title,
+      city: city.trim() || null,
+      neighborhood: neighborhood.trim() || null,
+      pickupFrom: pickupFrom || null,
+      pickupTo: pickupTo || null,
+      items: readyPublishable.map((d) => {
+        const free = d.priceText.trim().toLowerCase() === "free" || d.priceText.trim() === "";
+        return {
+          name: d.name,
+          description: d.description.trim() || null,
+          condition: d.condition,
+          priceCents: free ? null : parsePriceToCents(d.priceText),
+          isFree: free,
+          boughtDate: d.boughtDate,
+          originalPriceCents: parsePriceToCents(d.originalPriceText),
+          originalBoxIncluded: d.originalBoxIncluded,
+          availableFrom: d.availableFrom,
+          // TODO(M1): upload d.photoDataUrl to Supabase Storage and pass the
+          // public URL here. Needs SUPABASE_SERVICE_ROLE_KEY in .env.local.
+          photoUrl: null,
+        };
+      }),
+    });
+    setResult(res);
+    setPublishing(false);
+  };
+
+  // ============================================================ render
+
+  return (
+    <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">
+        Step 2 of 3 · Items
+      </p>
+      <h1 className="mt-2 font-serif text-4xl font-medium tracking-tight text-text-primary">
+        Bring your list. Add photos at your pace.
+      </h1>
+      <p className="mt-3 max-w-xl text-text-secondary">
+        Drop a CSV or paste rows — every row becomes a draft. Decide the price,
+        attach a photo, publish. Photos are never the gate: drafts without them
+        still land, they just can&apos;t go live yet.
+      </p>
+
+      {/* ---------- Listing header ---------- */}
+      <section className="mt-8 rounded-xl border border-border-weave bg-bg-card p-5">
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
+          Listing details
+        </h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Title" className="sm:col-span-2">
+            <input
+              className={inputCls}
+              placeholder="Rahul's leaving sale"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </Field>
+          <Field label="City">
+            <input
+              className={inputCls}
+              placeholder="Washington, D.C."
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+          </Field>
+          <Field label="Neighborhood">
+            <input
+              className={inputCls}
+              placeholder="Logan Circle"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+            />
+          </Field>
+          <Field label="Pickup from">
+            <input
+              type="date"
+              className={inputCls}
+              value={pickupFrom}
+              onChange={(e) => setPickupFrom(e.target.value)}
+            />
+          </Field>
+          <Field label="Pickup to">
+            <input
+              type="date"
+              className={inputCls}
+              value={pickupTo}
+              onChange={(e) => setPickupTo(e.target.value)}
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* ---------- CSV intake ---------- */}
+      {drafts.length === 0 && (
+        <section className="mt-6">
+          {!parsed ? (
+            <>
+              <div className="flex items-center gap-3 rounded-xl border border-dashed border-border-alt bg-bg-card p-5">
+                <div className="grid size-10 place-items-center rounded-lg bg-brand-soft text-lg text-brand">
+                  ⇪
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-text-primary">Import your list</p>
+                  <p className="text-sm text-text-muted">
+                    A move spreadsheet, a Notes export — CSV with a header row.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => csvInputRef.current?.click()}
+                >
+                  Choose CSV
+                </Button>
+                <input
+                  ref={csvInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  hidden
+                  onChange={onCsvFile}
+                />
+              </div>
+              <button
+                className="mt-3 text-sm text-brand underline-offset-4 hover:underline"
+                onClick={() => setPasteMode((v) => !v)}
+              >
+                {pasteMode ? "Hide paste box" : "…or paste rows instead"}
+              </button>
+              {pasteMode && (
+                <div className="mt-3">
+                  <textarea
+                    className={`${inputCls} h-32 font-mono text-xs`}
+                    placeholder={"name,price,bought,original price,remarks\nIKEA Poäng chair,40,May 2020,79,Good"}
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                  />
+                  <Button
+                    className="mt-2"
+                    variant="outline"
+                    onClick={() => ingestText(pasteText, "pasted rows")}
+                    disabled={!pasteText.trim()}
+                  >
+                    Parse rows
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            // Column mapping — transparent, overridable before any row is touched.
+            <div className="rounded-xl border border-border-weave bg-bg-card p-5">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-text-primary">
+                  {parsed.rows.length} rows · check the column mapping
+                </p>
+                <Button variant="ghost" size="sm" onClick={resetImport}>
+                  Re-upload
+                </Button>
+              </div>
+              <p className="mt-1 text-sm text-text-muted">
+                We guessed how each column maps. Override any before importing —
+                nothing is created until you do.
+              </p>
+              <div className="mt-4 space-y-2">
+                {parsed.headers.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-lg bg-bg-main px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-text-secondary">
+                      {h || <em className="text-text-muted">(unnamed)</em>}
+                      <span className="ml-2 text-text-muted">
+                        e.g. {parsed.rows[0]?.[i] || "—"}
+                      </span>
+                    </span>
+                    <span className="text-text-muted">→</span>
+                    <select
+                      className="rounded-md border border-border-weave bg-bg-card px-2 py-1 text-sm text-text-primary"
+                      value={mapping[i]}
+                      onChange={(e) => {
+                        const next = [...mapping];
+                        next[i] = e.target.value as FieldKey;
+                        setMapping(next);
+                      }}
+                    >
+                      {FIELD_ORDER.map((f) => (
+                        <option key={f} value={f}>
+                          {FIELD_LABELS[f]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <Button className="mt-4" onClick={applyMapping}>
+                Import {parsed.rows.length} rows
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ---------- Imported rows ---------- */}
+      {drafts.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-center gap-3 rounded-lg border border-border-weave bg-bg-card px-4 py-3">
+            <span className="text-forest">✓</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-text-primary">
+                {fileName} · {drafts.length} rows imported
+              </p>
+              <p className="truncate text-xs text-text-muted">
+                Mapped: {describeMapping(parsed?.headers ?? [], mapping)}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={resetImport}>
+              Re-upload
+            </Button>
+          </div>
+
+          <button
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border-alt bg-bg-card py-3 text-sm text-text-muted hover:bg-bg-hover"
+            onClick={() => bulkPhotoRef.current?.click()}
+          >
+            <span className="text-brand">+</span> Drop photos to attach to rows
+            without one · JPG, HEIC, PNG
+          </button>
+          <input
+            ref={bulkPhotoRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => e.target.files && onBulkPhotos(e.target.files)}
+          />
+
+          <div className="mt-4 space-y-2">
+            {drafts.map((d) => (
+              <DraftRow
+                key={d.id}
+                draft={d}
+                onPatch={patch}
+                onRemove={removeRow}
+                onCycleState={cycleState}
+                onAttachPhoto={attachPhoto}
+              />
+            ))}
+          </div>
+
+          {/* Summary bar */}
+          <div className="sticky bottom-0 mt-5 flex flex-col gap-3 rounded-xl border border-border-weave bg-bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-text-secondary">
+              <strong className="text-text-primary">{drafts.length}</strong>{" "}
+              imported ·{" "}
+              <strong className="text-forest">{counts.ready}</strong> ready ·{" "}
+              <strong className="text-text-primary">{counts.draft}</strong>{" "}
+              drafts ·{" "}
+              <strong className="text-text-muted">{counts.skip}</strong> skipped
+            </p>
+            <Button
+              size="lg"
+              onClick={onPublish}
+              disabled={readyPublishable.length === 0 || publishing || !title.trim()}
+            >
+              {publishing
+                ? "Publishing…"
+                : `Publish ${readyPublishable.length} ready`}
+            </Button>
+          </div>
+          {!title.trim() && readyPublishable.length > 0 && (
+            <p className="mt-2 text-right text-xs text-ochre-dark">
+              Add a listing title above to publish.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* ---------- Result ---------- */}
+      {result && (
+        <div
+          className={`mt-4 rounded-lg border p-4 text-sm ${
+            result.ok
+              ? "border-forest/30 bg-forest/5 text-forest"
+              : "border-crimson/30 bg-crimson/5 text-crimson"
+          }`}
+        >
+          {result.ok ? (
+            <p>
+              Published <strong>{result.itemCount}</strong> items. Listing live
+              at <code className="font-mono">/r/{result.slug}</code>.
+            </p>
+          ) : (
+            <p>{result.error}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Subcomponents ----------
+
+const inputCls =
+  "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
+
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+const STATE_STYLES: Record<StateKind, string> = {
+  ready: "bg-forest/10 text-forest",
+  draft: "bg-ochre/10 text-ochre-dark",
+  skip: "bg-bg-hover text-text-muted line-through",
+};
+const STATE_LABELS: Record<StateKind, string> = {
+  ready: "Ready",
+  draft: "Draft",
+  skip: "Skip",
+};
+
+function trustMeta(d: ItemDraft): string {
+  const parts: string[] = [];
+  if (d.boughtDate) parts.push(`Bought ${formatMonthYear(d.boughtDate)}`);
+  const orig = parsePriceToCents(d.originalPriceText);
+  if (orig != null) parts.push(`Originally $${orig / 100}`);
+  if (d.originalBoxIncluded) parts.push("Box ✓");
+  return parts.join(" · ");
+}
+
+function DraftRow({
+  draft: d,
+  onPatch,
+  onRemove,
+  onCycleState,
+  onAttachPhoto,
+}: {
+  draft: ItemDraft;
+  onPatch: (id: string, p: Partial<ItemDraft>) => void;
+  onRemove: (id: string) => void;
+  onCycleState: (id: string, s: StateKind) => void;
+  onAttachPhoto: (id: string, file: File) => void;
+}) {
+  const photoRef = useRef<HTMLInputElement>(null);
+  const meta = trustMeta(d);
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-3 rounded-xl border border-border-weave bg-bg-card p-3 sm:flex-nowrap ${
+        d.state === "skip" ? "opacity-60" : ""
+      }`}
+    >
+      {/* Photo / placeholder */}
+      <button
+        onClick={() => photoRef.current?.click()}
+        className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted"
+      >
+        {d.photoDataUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={d.photoDataUrl}
+            alt={d.name}
+            className="size-full object-cover"
+          />
+        ) : (
+          "+ Photo"
+        )}
+      </button>
+      <input
+        ref={photoRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) =>
+          e.target.files?.[0] && onAttachPhoto(d.id, e.target.files[0])
+        }
+      />
+
+      {/* Name + condition + trust meta */}
+      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+        <div className="flex items-center gap-2">
+          <input
+            className="min-w-0 flex-1 bg-transparent font-medium text-text-primary outline-none"
+            value={d.name}
+            placeholder="Item name"
+            onChange={(e) => onPatch(d.id, { name: e.target.value })}
+          />
+          <select
+            className="rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary"
+            value={d.condition ?? ""}
+            onChange={(e) =>
+              onPatch(d.id, {
+                condition: (e.target.value || null) as ItemCondition | null,
+              })
+            }
+          >
+            <option value="">Condition…</option>
+            {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
+              <option key={c} value={c}>
+                {CONDITION_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </div>
+        {meta && <p className="mt-0.5 text-xs text-text-muted">{meta}</p>}
+      </div>
+
+      {/* Price */}
+      <input
+        className="w-20 rounded-md border border-border-weave bg-bg-main px-2 py-1 text-sm text-text-primary outline-none"
+        value={d.priceText}
+        placeholder="$ or Free"
+        onChange={(e) => onPatch(d.id, { priceText: e.target.value })}
+      />
+
+      {/* Available from */}
+      <input
+        type="date"
+        className="w-36 rounded-md border border-border-weave bg-bg-main px-2 py-1 text-sm text-text-primary outline-none"
+        value={d.availableFrom}
+        onChange={(e) =>
+          onPatch(d.id, {
+            availableFrom: parseLooseDate(e.target.value) ?? e.target.value,
+          })
+        }
+      />
+
+      {/* State pill */}
+      <button
+        onClick={() => onCycleState(d.id, d.state)}
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATE_STYLES[d.state]}`}
+        title="Click to cycle Ready / Skip / Draft"
+      >
+        <span className="size-1.5 rounded-full bg-current" />
+        {STATE_LABELS[d.state]}
+      </button>
+
+      <button
+        onClick={() => onRemove(d.id)}
+        className="text-text-muted hover:text-crimson"
+        aria-label="Remove row"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
