@@ -21,6 +21,18 @@ A single-seller relocation marketplace for offloading household items before a m
 
 **The question M1 answers:** Does the brand and the visual hold up when a friend sees it?
 
+### Progress
+
+Subgoals (one at a time, stop after each — see Working agreements):
+- [x] **Scaffold** — Next 16 + Tailwind v4 + Drizzle + Supabase client + shadcn/ui under `app/`. Weave palette wired in `globals.css`; fonts via `next/font`. Dev server boots clean (`curl /` returns 200, title + fonts + classes correct).
+- [ ] **Schema** — Drizzle schema for `listings` + `items` (claim/buyer tables stubbed empty, ready for M2). Section 11 in `index.html` is the data-model contract. `pnpm db:push` against Supabase.
+- [ ] **CSV-first bulk-add** at `/seller/add` (section 07 in `index.html`).
+- [ ] **Public listing page** at `/r/[slug]`.
+- [ ] **Item detail page** at `/r/[slug]/[itemId]` — claim button visible-but-disabled.
+- [ ] **QR + printable letter sheet** on publish.
+
+Next up: schema.
+
 **Ships in M1:**
 - Postgres schema — `listings` and `items` (claim/buyer tables stub empty, ready for M2)
 - Public listing page at `/r/[slug]` sorted by `available_from`
@@ -35,7 +47,7 @@ A single-seller relocation marketplace for offloading household items before a m
 
 ## Stack
 
-- **Next.js 15** (App Router, TypeScript, React Server Components)
+- **Next.js 16** (App Router, TypeScript, React Server Components, Turbopack)
 - **Supabase** — Postgres + Storage for photo uploads. Free tier.
 - **Drizzle ORM** — migrations + type-safe queries
 - **Tailwind CSS** — theme tokens ported from `design_system.html`
@@ -107,11 +119,23 @@ Don't spawn subagents for M1. The work is small and sequential — a single focu
 
 ## Common commands
 
-(Populated once `app/` is scaffolded — leave this section empty until then so it stays honest.)
+All commands run from inside `app/` (e.g. `cd app && pnpm dev`).
 
 ```
-# cd app && pnpm dev          — local dev server
-# cd app && pnpm db:push      — push Drizzle schema to Supabase
-# cd app && pnpm db:studio    — open Drizzle Studio
-# cd app && pnpm build        — production build
+pnpm dev            — local dev server (Turbopack, http://localhost:3000)
+pnpm build          — production build
+pnpm lint           — eslint
+pnpm db:generate    — generate a new Drizzle migration from schema changes
+pnpm db:push        — push schema directly to Supabase (dev convenience)
+pnpm db:studio      — open Drizzle Studio against DATABASE_URL
 ```
+
+Copy `app/.env.example` to `app/.env.local` and fill in Supabase credentials before running `db:*` commands.
+
+## Theming notes
+
+`src/app/globals.css` carries two layered token sets:
+- **Weave palette** (`--brand-primary`, `--bg-main`, `--forest`, `--ochre`, `--text-primary`, etc.) — the brand source of truth, used by hand-built UI.
+- **shadcn semantic tokens** (`--background`, `--primary`, `--border`, `--ring`, etc.) — mapped onto Weave so shadcn primitives render on-brand. Don't override these with the shadcn defaults; the mapping is intentional.
+
+Tailwind v4's `@theme inline` block exposes both layers as utility classes (`bg-bg-main`, `text-brand`, `border-border-weave`, plus standard `bg-primary`, `text-foreground`, etc.).
