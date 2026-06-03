@@ -439,10 +439,25 @@ export function BulkAdd() {
           }`}
         >
           {result.ok ? (
-            <p>
-              Published <strong>{result.itemCount}</strong> items. Listing live
-              at <code className="font-mono">/r/{result.slug}</code>.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p>
+                Published <strong>{result.itemCount}</strong> items. Listing live
+                at{" "}
+                <a
+                  href={`/r/${result.slug}`}
+                  className="font-mono underline underline-offset-2"
+                >
+                  /r/{result.slug}
+                </a>
+                .
+              </p>
+              <a
+                href={`/r/${result.slug}/share`}
+                className="shrink-0 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Get QR &amp; print sheet →
+              </a>
+            </div>
           ) : (
             <p>{result.error}</p>
           )}
