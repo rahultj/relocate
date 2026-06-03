@@ -115,25 +115,20 @@ export function BulkAdd() {
     patch(id, { state: STATE_CYCLE[current] });
 
   const attachPhoto = (id: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => patch(id, { photoDataUrl: reader.result as string });
-    reader.readAsDataURL(file);
+    fileToUploadDataUrl(file).then((dataUrl) =>
+      patch(id, { photoDataUrl: dataUrl }),
+    );
   };
 
   // Bulk photo drop: assign to the first rows that don't yet have a photo.
   const onBulkPhotos = (files: FileList) => {
     const list = Array.from(files);
-    setDrafts((d) => {
-      let fi = 0;
-      return d.map((row) => {
-        if (row.photoDataUrl || fi >= list.length) return row;
-        const file = list[fi++];
-        const reader = new FileReader();
-        reader.onload = () => patch(row.id, { photoDataUrl: reader.result as string });
-        reader.readAsDataURL(file);
-        return row;
-      });
-    });
+    const targets = drafts.filter((d) => !d.photoDataUrl).slice(0, list.length);
+    targets.forEach((row, i) =>
+      fileToUploadDataUrl(list[i]).then((dataUrl) =>
+        patch(row.id, { photoDataUrl: dataUrl }),
+      ),
+    );
   };
 
   // ---------- Summary ----------
@@ -171,9 +166,9 @@ export function BulkAdd() {
           originalPriceCents: parsePriceToCents(d.originalPriceText),
           originalBoxIncluded: d.originalBoxIncluded,
           availableFrom: d.availableFrom,
-          // TODO(M1): upload d.photoDataUrl to Supabase Storage and pass the
-          // public URL here. Needs SUPABASE_SERVICE_ROLE_KEY in .env.local.
-          photoUrl: null,
+          // Base64 (already downscaled on attach); the publish action uploads it
+          // to Supabase Storage and stores the public URL.
+          photoDataUrl: d.photoDataUrl ?? null,
         };
       }),
     });
@@ -471,6 +466,37 @@ export function BulkAdd() {
 
 const inputCls =
   "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
+
+// Downscale + recompress in-browser so publish payloads stay small and uploads
+// are fast (phone photos are multi-MB). Falls back to the raw file if the
+// canvas path fails (e.g. HEIC a browser can't decode).
+async function fileToUploadDataUrl(
+  file: File,
+  max = 1280,
+  quality = 0.82,
+): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", quality);
+  } catch {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+}
 
 function Field({
   label,

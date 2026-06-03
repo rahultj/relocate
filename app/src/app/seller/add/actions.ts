@@ -12,6 +12,7 @@
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { mintSlug } from "@/lib/slug";
+import { uploadItemPhoto } from "@/lib/storage";
 import type { ItemCondition } from "@/lib/format";
 
 export interface PublishListingInput {
@@ -33,7 +34,7 @@ export interface PublishItemInput {
   originalPriceCents: number | null;
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
-  photoUrl: string | null; // already uploaded to storage (TODO: M1 photo upload)
+  photoDataUrl: string | null; // base64 preview; uploaded to Storage at publish
 }
 
 export interface PublishResult {
@@ -72,6 +73,22 @@ export async function publishListing(
   }
 
   try {
+    // Upload photos before the DB transaction — keep the transaction short and
+    // avoid orphaned rows if an upload fails. Index-aligned with input.items.
+    let photoUrls: (string | null)[];
+    try {
+      photoUrls = await Promise.all(
+        input.items.map((it) =>
+          it.photoDataUrl ? uploadItemPhoto(it.photoDataUrl) : Promise.resolve(null),
+        ),
+      );
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Photo upload failed.",
+      };
+    }
+
     const result = await db.transaction(async (tx) => {
       const [listing] = await insertWithUniqueSlug((slug) =>
         tx
@@ -97,7 +114,7 @@ export async function publishListing(
       };
 
       await tx.insert(items).values(
-        input.items.map((it) => ({
+        input.items.map((it, i) => ({
           listingId: listing.id,
           slug: mintItemSlug(),
           name: it.name.trim(),
@@ -109,7 +126,7 @@ export async function publishListing(
           originalPriceCents: it.originalPriceCents,
           originalBoxIncluded: it.originalBoxIncluded,
           availableFrom: it.availableFrom,
-          photoUrl: it.photoUrl,
+          photoUrl: photoUrls[i],
           status: "listed" as const,
         })),
       );
