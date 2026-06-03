@@ -27,27 +27,21 @@ Subgoals (one at a time, stop after each — see Working agreements):
 - [x] **Scaffold** — Next 16 + Tailwind v4 + Drizzle + Supabase client + shadcn/ui under `app/`. Weave palette wired in `globals.css`; fonts via `next/font`. Dev server boots clean (`curl /` returns 200, title + fonts + classes correct).
 - [x] **Schema** — all 6 tables (section 11 contract) in `src/db/schema.ts`; M1 writes `listings`/`items`, M2 tables land ready+empty. Migration `0000` generated, `tsc` clean. Lazy `db` client in `src/db/index.ts`. **Pushed to Supabase 2026-06-02** — all 6 tables + 5 enums + indexes/FKs live in the free project (ref `asqfjnwchqfimcythbla`).
 - [x] **CSV-first bulk-add** at `/seller/add` (section 07). Drop/paste CSV → transparent overridable column mapping → editable Ready/Draft/Skip rows → publish (transactional, slug collision-retry). Pure logic in `lib/csv.ts`+`lib/format.ts`+`lib/slug.ts`, unit-sanity-tested. Page renders 200 with no DB. **Photo upload is local-preview only** — `photoUrl` writes null, `TODO(M1)` to wire Supabase Storage (needs `SUPABASE_SERVICE_ROLE_KEY`). Added a "Listing details" mini-form (title/city/pickup) since M1 has no separate listing-creation step.
-- [ ] **Public listing page** at `/r/[slug]`.
+- [x] **Public listing page** at `/r/[slug]` (section 03). Server page fetches listing + items (sorted by `available_from`, nulls last) → `<ListingFeed>` client component with All/Available/Free-now filter pills. Item rows link to `/r/[slug]/[itemId]` (detail page next). Photo or letter-initial thumb, forest "Available" chip, Cormorant price with `$` adornment / "Free". Unknown slug → 404. Built + verified via a live publish (`/r/dxb2`), pending Rahul review (2026-06-03).
 - [ ] **Item detail page** at `/r/[slug]/[itemId]` — claim button visible-but-disabled.
 - [ ] **QR + printable letter sheet** on publish.
 
-**Next up: public listing page `/r/[slug]`** — still paused; Rahul is iterating on the bulk-add visual first (morning of 2026-06-03).
+**Next up: building public listing page `/r/[slug]`** (started 2026-06-03). Bulk-add visual is signed off.
 
-### Resume here (paused 2026-06-02 evening)
+### Resume here (2026-06-03)
 
-DB is now fully wired and the write path works end to end. The pause now is to **polish the `/seller/add` bulk-add visual** before building the listing page — Rahul stopped mid-iteration on row alignment.
+Bulk-add visual pass is **done and committed (`4a4c8e3`)** — now building the public listing page `/r/[slug]`.
 
 **Env is set up** (`app/.env.local` filled, gitignored). Just `cd app && pnpm dev` to resume.
 - `DATABASE_URL` password contained an `@` → URL-encoded as `%40`. Runtime uses transaction pooler **6543**; `db:push` needs session pooler **5432** (the `db:push` invocation auto-swaps the port, and `drizzle.config.ts` now loads `.env.local`).
 - `pnpm db:push` is non-interactive here — run with `--force` (safe; reviewed). Schema already pushed.
 
-**Work in flight on `/seller/add` (committed `382984d`):**
-- Multi-column CSV merge: Company + Model → name, Remarks → description (was a bug — 2nd column matching an already-claimed field silently became "ignore").
-- Editable description/remarks line added per draft row; row set to `items-start` so price/date/pill top-align with the name.
-
-**Open / next:**
-- Rahul flagged "alignment is all off" → applied `items-start` fix, but he wants to **iterate on the row layout himself in the morning**. The right-side controls may want a baseline nudge rather than pure top-align.
-- Then: confirm bulk-add visual is good → build `/r/[slug]` → review → detail page + QR.
+**`/seller/add` bulk-add visual — resolved (`4a4c8e3`):** `DraftRow` rebuilt on the spec's CSS grid (`index.html:853`) — thumb | name+condition | price | date | state | trash, first line vertically centered, meta+description on a second line; mobile keeps a flex stack. Thumbs 64px. Delete is a `Trash2` icon (crimson hover via `--crimson`/`--destructive`), top-right on mobile / inline grid column on desktop. `$` adornment on numeric prices (hidden for Free/empty).
 
 Earlier open decisions still standing: (a) collapsed "Listing details" form on `/seller/add` vs. separate step; (b) photo upload deferred (`photoUrl` writes null, needs `SUPABASE_SERVICE_ROLE_KEY`).
 

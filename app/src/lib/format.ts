@@ -28,6 +28,13 @@ export function formatDate(iso: string): string {
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
+/** ISO date string -> "Jun 12" (status chips, no year). */
+export function formatMonthDay(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  if (!m || !d) return iso;
+  return `${MONTHS[m - 1]} ${d}`;
+}
+
 /** ISO date string -> "May 2020" (trust-signal "Bought" line, month precision). */
 export function formatMonthYear(iso: string): string {
   const [y, m] = iso.split("-").map(Number);

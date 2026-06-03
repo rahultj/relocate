@@ -35,3 +35,24 @@
 [2026-06-03T14:05:59.977Z] [log] [HMR] connected
 [2026-06-03T14:06:35.261Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [2026-06-03T14:06:35.322Z] [log] [HMR] connected
+[2026-06-03T14:13:42.788Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:13:42.826Z] [log] [Fast Refresh] done in 118ms
+[2026-06-03T14:13:59.807Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:14:00.020Z] [log] [Fast Refresh] done in 141ms
+[2026-06-03T14:14:00.188Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:14:00.191Z] [log] [Fast Refresh] done in 122ms
+[2026-06-03T14:14:00.319Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:14:00.373Z] [log] [Fast Refresh] done in 149ms
+[2026-06-03T14:14:24.751Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:14:24.784Z] [log] [Fast Refresh] done in 90ms
+[2026-06-03T14:15:08.883Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-03T14:15:08.975Z] [log] [HMR] connected
+[2026-06-03T14:17:49.058Z] [log] [Fast Refresh] rebuilding
+[2026-06-03T14:17:49.683Z] [log] [Fast Refresh] done in 752ms
+[2026-06-03T14:17:50.471Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-03T14:17:50.528Z] [log] [HMR] connected
+[2026-06-03T14:19:44.545Z] [error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[2026-06-03T14:19:44.646Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-03T14:19:44.754Z] [log] [HMR] connected
+[2026-06-03T14:19:45.356Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-06-03T14:19:45.378Z] [log] [HMR] connected
