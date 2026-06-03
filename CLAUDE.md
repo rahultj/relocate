@@ -126,6 +126,8 @@ Don't spawn subagents for M1. The work is small and sequential — a single focu
 
 ## Repo + deploy
 
+- **Live app (Vercel):** https://relocate-rahultjs-projects.vercel.app (stable production alias; per-deploy hash URLs change every push). NOT `relocate.vercel.app` — that's an unrelated project in the global namespace.
+- **Vercel env vars (Production):** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` must all be set. `NEXT_PUBLIC_*` bake in at **build time** — after changing them, push/redeploy. Gotcha that cost a long debug (2026-06-03): photo upload silently no-op'd because `NEXT_PUBLIC_SUPABASE_URL` was misnamed `EXT_PUBLIC_...` in Vercel; `lib/storage.ts` is the only server code that reads it, so nothing else broke. Photo upload verified working in prod once fixed.
 - **Repo:** https://github.com/rahultj/relocate
 - **Plan preview (Pages):** https://rahultj.github.io/relocate/
 - **App deploy:** Vercel — set up when the Next.js scaffold lands
