@@ -42,35 +42,94 @@ export function formatMonthYear(iso: string): string {
   return `${MONTHS[m - 1]} ${y}`;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function monthIndex(name: string): number {
+  return MONTHS.findIndex(
+    (mo) => mo.toLowerCase() === name.slice(0, 3).toLowerCase(),
+  );
+}
+
 /**
- * Best-effort parse of a "bought" cell into an ISO date.
- * Handles "May 2020", "Sep 2024", "2020-05", "5/2020", "2024-09-15".
- * Month-only precision lands on the first of the month. Unparseable -> null.
+ * Infer the year for a month/day with no year given. Uses the current year,
+ * bumping to next year only if the date is well in the past (>6 months) — so a
+ * "July 30" listed in spring stays this year, not next.
+ */
+function inferYear(month1: number, day: number): number {
+  const now = new Date();
+  const y = now.getFullYear();
+  const cand = new Date(y, month1 - 1, day);
+  const grace = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  grace.setMonth(grace.getMonth() - 6);
+  return cand < grace ? y + 1 : y;
+}
+
+/**
+ * Best-effort parse of a free-text date cell into an ISO date. Handles the
+ * "Bought" trust-signal formats (month precision) AND "available from"
+ * formats (full calendar dates, often without a year). US M/D/Y per project
+ * convention. Month-only precision lands on the 1st. Unparseable -> null.
+ *
+ * Recognized: "now"/"today"/"asap", "2024-09-15", "2024-09", "July 30",
+ * "Jul 30, 2026", "May 2020", "7/30/2026", "7/30", "5/2020".
  */
 export function parseLooseDate(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
 
-  // Already ISO-ish: 2024-09 or 2024-09-15
+  // "available now" style → today.
+  if (/^(now|today|asap|immediately|available(\s+now)?|anytime)$/i.test(s)) {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  // ISO-ish: 2024-09 or 2024-09-15
   const iso = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/);
   if (iso) {
     const [, y, m, d] = iso;
     return `${y}-${m.padStart(2, "0")}-${(d ?? "01").padStart(2, "0")}`;
   }
 
-  // "May 2020" / "Sep 2024"
-  const monNamed = s.match(/^([A-Za-z]{3,})\.?\s+(\d{4})$/);
-  if (monNamed) {
-    const idx = MONTHS.findIndex(
-      (mo) => mo.toLowerCase() === monNamed[1].slice(0, 3).toLowerCase(),
-    );
-    if (idx >= 0) return `${monNamed[2]}-${String(idx + 1).padStart(2, "0")}-01`;
+  // US M/D/Y: 7/30/2026 or 7/30/26
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (mdy) {
+    const mi = Number(mdy[1]);
+    const di = Number(mdy[2]);
+    let y = Number(mdy[3]);
+    if (mdy[3].length === 2) y += 2000;
+    if (mi >= 1 && mi <= 12 && di >= 1 && di <= 31)
+      return `${y}-${pad2(mi)}-${pad2(di)}`;
   }
 
-  // "5/2020" or "05/2020"
+  // Month + year: "5/2020"
   const numSlash = s.match(/^(\d{1,2})\/(\d{4})$/);
-  if (numSlash) {
-    return `${numSlash[2]}-${numSlash[1].padStart(2, "0")}-01`;
+  if (numSlash) return `${numSlash[2]}-${pad2(Number(numSlash[1]))}-01`;
+
+  // Month/day, no year: "7/30"
+  const md = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (md) {
+    const mi = Number(md[1]);
+    const di = Number(md[2]);
+    if (mi >= 1 && mi <= 12 && di >= 1 && di <= 31)
+      return `${inferYear(mi, di)}-${pad2(mi)}-${pad2(di)}`;
+  }
+
+  // Month name + day (+ optional year): "July 30", "Jul 30, 2026"
+  const namedDay = s.match(/^([A-Za-z]{3,})\.?\s+(\d{1,2})(?:,?\s*(\d{4}))?$/);
+  if (namedDay) {
+    const mi = monthIndex(namedDay[1]);
+    const di = Number(namedDay[2]);
+    if (mi >= 0 && di >= 1 && di <= 31) {
+      const y = namedDay[3] ? Number(namedDay[3]) : inferYear(mi + 1, di);
+      return `${y}-${pad2(mi + 1)}-${pad2(di)}`;
+    }
+  }
+
+  // Month name + year: "May 2020"
+  const monNamed = s.match(/^([A-Za-z]{3,})\.?\s+(\d{4})$/);
+  if (monNamed) {
+    const mi = monthIndex(monNamed[1]);
+    if (mi >= 0) return `${monNamed[2]}-${pad2(mi + 1)}-01`;
   }
 
   return null;
