@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useCallback } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   parseCsv,
@@ -510,17 +511,24 @@ function DraftRow({
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const meta = trustMeta(d);
+  // Show a "$" adornment only for numeric prices — not for "Free", empty, or
+  // a value the seller already prefixed with "$".
+  const priceTrimmed = d.priceText.trim();
+  const showDollar =
+    priceTrimmed !== "" &&
+    priceTrimmed.toLowerCase() !== "free" &&
+    !priceTrimmed.startsWith("$");
 
   return (
     <div
-      className={`flex flex-wrap items-start gap-3 rounded-xl border border-border-weave bg-bg-card p-3 sm:flex-nowrap ${
+      className={`relative flex flex-wrap items-start gap-3 rounded-xl border border-border-weave bg-bg-card p-3 sm:grid sm:grid-cols-[4rem_minmax(0,1fr)_5rem_9rem_auto_auto] sm:items-center sm:gap-x-3 sm:gap-y-2 ${
         d.state === "skip" ? "opacity-60" : ""
       }`}
     >
-      {/* Photo / placeholder */}
+      {/* Photo / placeholder — pinned top-left, spans both rows on desktop */}
       <button
         onClick={() => photoRef.current?.click()}
-        className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted"
+        className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted sm:row-span-2 sm:self-start"
       >
         {d.photoDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -543,54 +551,53 @@ function DraftRow({
         }
       />
 
-      {/* Name + condition + trust meta */}
-      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-        <div className="flex items-center gap-2">
-          <input
-            className="min-w-0 flex-1 bg-transparent font-medium text-text-primary outline-none"
-            value={d.name}
-            placeholder="Item name"
-            onChange={(e) => onPatch(d.id, { name: e.target.value })}
-          />
-          <select
-            className="rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary"
-            value={d.condition ?? ""}
-            onChange={(e) =>
-              onPatch(d.id, {
-                condition: (e.target.value || null) as ItemCondition | null,
-              })
-            }
-          >
-            <option value="">Condition…</option>
-            {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
-              <option key={c} value={c}>
-                {CONDITION_LABELS[c]}
-              </option>
-            ))}
-          </select>
-        </div>
-        {meta && <p className="mt-0.5 text-xs text-text-muted">{meta}</p>}
-        <textarea
-          className="mt-1.5 w-full resize-none bg-transparent text-sm leading-snug text-text-secondary outline-none placeholder:text-text-muted"
-          rows={d.description.includes("\n") ? 2 : 1}
-          value={d.description}
-          placeholder="Details / remarks…"
-          onChange={(e) => onPatch(d.id, { description: e.target.value })}
+      {/* Name + condition — first line, col 2 */}
+      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto sm:col-start-2 sm:row-start-1">
+        <input
+          className="min-w-0 flex-1 bg-transparent font-medium text-text-primary outline-none"
+          value={d.name}
+          placeholder="Item name"
+          onChange={(e) => onPatch(d.id, { name: e.target.value })}
         />
+        <select
+          className="rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary"
+          value={d.condition ?? ""}
+          onChange={(e) =>
+            onPatch(d.id, {
+              condition: (e.target.value || null) as ItemCondition | null,
+            })
+          }
+        >
+          <option value="">Condition…</option>
+          {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
+            <option key={c} value={c}>
+              {CONDITION_LABELS[c]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Price */}
-      <input
-        className="w-20 rounded-md border border-border-weave bg-bg-main px-2 py-1 text-sm text-text-primary outline-none"
-        value={d.priceText}
-        placeholder="$ or Free"
-        onChange={(e) => onPatch(d.id, { priceText: e.target.value })}
-      />
+      <div className="relative w-20 sm:w-full sm:col-start-3 sm:row-start-1">
+        {showDollar && (
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-text-muted">
+            $
+          </span>
+        )}
+        <input
+          className={`w-full rounded-md border border-border-weave bg-bg-main py-1 text-sm text-text-primary outline-none ${
+            showDollar ? "pl-5 pr-2" : "px-2"
+          }`}
+          value={d.priceText}
+          placeholder="$ or Free"
+          onChange={(e) => onPatch(d.id, { priceText: e.target.value })}
+        />
+      </div>
 
       {/* Available from */}
       <input
         type="date"
-        className="w-36 rounded-md border border-border-weave bg-bg-main px-2 py-1 text-sm text-text-primary outline-none"
+        className="w-36 rounded-md border border-border-weave bg-bg-main px-2 py-1 text-sm text-text-primary outline-none sm:w-full sm:col-start-4 sm:row-start-1"
         value={d.availableFrom}
         onChange={(e) =>
           onPatch(d.id, {
@@ -602,7 +609,7 @@ function DraftRow({
       {/* State pill */}
       <button
         onClick={() => onCycleState(d.id, d.state)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATE_STYLES[d.state]}`}
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:col-start-5 sm:row-start-1 ${STATE_STYLES[d.state]}`}
         title="Click to cycle Ready / Skip / Draft"
       >
         <span className="size-1.5 rounded-full bg-current" />
@@ -611,11 +618,24 @@ function DraftRow({
 
       <button
         onClick={() => onRemove(d.id)}
-        className="text-text-muted hover:text-crimson"
+        className="absolute right-2 top-2 grid size-8 shrink-0 place-items-center rounded-md text-text-muted transition-colors hover:bg-crimson/10 hover:text-crimson sm:static sm:col-start-6 sm:row-start-1"
         aria-label="Remove row"
+        title="Remove row"
       >
-        ×
+        <Trash2 className="size-4" />
       </button>
+
+      {/* Trust meta + description — second line, spans col 2 → end */}
+      <div className="w-full basis-full sm:col-start-2 sm:col-end-[-1] sm:row-start-2">
+        {meta && <p className="text-xs text-text-muted">{meta}</p>}
+        <textarea
+          className="mt-1 w-full resize-none bg-transparent text-sm leading-snug text-text-secondary outline-none placeholder:text-text-muted"
+          rows={d.description.includes("\n") ? 2 : 1}
+          value={d.description}
+          placeholder="Details / remarks…"
+          onChange={(e) => onPatch(d.id, { description: e.target.value })}
+        />
+      </div>
     </div>
   );
 }
