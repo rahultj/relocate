@@ -513,7 +513,7 @@ function DraftRow({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-3 rounded-xl border border-border-weave bg-bg-card p-3 sm:flex-nowrap ${
+      className={`flex flex-wrap items-start gap-3 rounded-xl border border-border-weave bg-bg-card p-3 sm:flex-nowrap ${
         d.state === "skip" ? "opacity-60" : ""
       }`}
     >
@@ -570,6 +570,13 @@ function DraftRow({
           </select>
         </div>
         {meta && <p className="mt-0.5 text-xs text-text-muted">{meta}</p>}
+        <textarea
+          className="mt-1.5 w-full resize-none bg-transparent text-sm leading-snug text-text-secondary outline-none placeholder:text-text-muted"
+          rows={d.description.includes("\n") ? 2 : 1}
+          value={d.description}
+          placeholder="Details / remarks…"
+          onChange={(e) => onPatch(d.id, { description: e.target.value })}
+        />
       </div>
 
       {/* Price */}

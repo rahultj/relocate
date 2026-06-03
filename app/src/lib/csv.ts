@@ -115,7 +115,23 @@ export function parseCsv(text: string): ParsedCsv {
   return { headers: headers.map((h) => h.trim()), rows };
 }
 
-/** Guess a field for each header. Each non-ignore field is assigned at most once. */
+// Fields that can absorb multiple columns, joined at import. Per spec
+// (index.html line 2449): "Company/model → name", "Remarks → description".
+// Scalar fields (price, dates, condition, box) stay one-column-only.
+export const MERGE_FIELDS = new Set<FieldKey>(["name", "description"]);
+
+// How each merge field joins its columns: name reads as one line, description
+// stacks so multiple notes stay legible.
+const MERGE_SEP: Partial<Record<FieldKey, string>> = {
+  name: " ",
+  description: "\n",
+};
+
+/**
+ * Guess a field for each header. Scalar fields are claimed at most once;
+ * merge fields (name, description) can be guessed for several columns so the
+ * seller's Company + Model and Description + Remarks combine rather than drop.
+ */
 export function mapColumns(headers: string[]): FieldKey[] {
   const taken = new Set<FieldKey>();
   return headers.map((h) => {
@@ -123,7 +139,7 @@ export function mapColumns(headers: string[]): FieldKey[] {
     for (const { field, patterns } of ALIASES) {
       if (taken.has(field)) continue;
       if (patterns.some((p) => p.test(key))) {
-        taken.add(field);
+        if (!MERGE_FIELDS.has(field)) taken.add(field);
         return field;
       }
     }
@@ -162,17 +178,25 @@ export function rowsToDrafts(
   mapping: FieldKey[],
   defaultAvailableFrom: string,
 ): ItemDraft[] {
+  // Scalar fields: first mapped column wins.
   const col = (row: string[], field: FieldKey): string => {
     const idx = mapping.indexOf(field);
     return idx >= 0 ? (row[idx] ?? "") : "";
   };
 
+  // Merge fields: every column mapped to the field, in header order, joined.
+  const merged = (row: string[], field: FieldKey): string =>
+    mapping
+      .map((f, i) => (f === field ? (row[i] ?? "").trim() : ""))
+      .filter((v) => v !== "")
+      .join(MERGE_SEP[field] ?? " ");
+
   return parsed.rows.map((row) => {
     const boxRaw = col(row, "originalBox");
     return {
       id: nextId(),
-      name: col(row, "name").trim(),
-      description: col(row, "description").trim(),
+      name: merged(row, "name"),
+      description: merged(row, "description"),
       condition: parseCondition(col(row, "condition")),
       priceText: col(row, "price").trim(),
       originalPriceText: col(row, "originalPrice").trim(),

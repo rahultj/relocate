@@ -1,5 +1,10 @@
 import { defineConfig } from "drizzle-kit";
-import "dotenv/config";
+import { config } from "dotenv";
+
+// Next.js keeps secrets in .env.local; load it (falling back to .env) so
+// drizzle-kit sees DATABASE_URL the same way the app does.
+config({ path: ".env.local" });
+config();
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
