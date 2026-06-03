@@ -28,14 +28,14 @@ Subgoals (one at a time, stop after each — see Working agreements):
 - [x] **Schema** — all 6 tables (section 11 contract) in `src/db/schema.ts`; M1 writes `listings`/`items`, M2 tables land ready+empty. Migration `0000` generated, `tsc` clean. Lazy `db` client in `src/db/index.ts`. **Pushed to Supabase 2026-06-02** — all 6 tables + 5 enums + indexes/FKs live in the free project (ref `asqfjnwchqfimcythbla`).
 - [x] **CSV-first bulk-add** at `/seller/add` (section 07). Drop/paste CSV → transparent overridable column mapping → editable Ready/Draft/Skip rows → publish (transactional, slug collision-retry). Pure logic in `lib/csv.ts`+`lib/format.ts`+`lib/slug.ts`, unit-sanity-tested. Page renders 200 with no DB. **Photo upload is local-preview only** — `photoUrl` writes null, `TODO(M1)` to wire Supabase Storage (needs `SUPABASE_SERVICE_ROLE_KEY`). Added a "Listing details" mini-form (title/city/pickup) since M1 has no separate listing-creation step.
 - [x] **Public listing page** at `/r/[slug]` (section 03). Server page fetches listing + items (sorted by `available_from`, nulls last) → `<ListingFeed>` client component with All/Available/Free-now filter pills. Item rows link to `/r/[slug]/[itemId]` (detail page next). Photo or letter-initial thumb, forest "Available" chip, Cormorant price with `$` adornment / "Free". Unknown slug → 404. Built + verified via a live publish (`/r/dxb2`), pending Rahul review (2026-06-03).
-- [ ] **Item detail page** at `/r/[slug]/[itemId]` — claim button visible-but-disabled.
+- [x] **Item detail page** at `/r/[slug]/[itemId]` (section 04). Server page loads listing+item by slug pair (404 if either missing). Square hero (photo or letter-initial), Cormorant title, insight-tinted trust-meta block (Price/Bought/Originally/Available/Condition/Pickup — rows dropped when no data), Cormorant description. Claim button **visible but disabled** with quiet "Claims open soon" note (buyer-first: disabled, not hidden). Verified at `/r/dxb2/aybz`. Pending Rahul review (2026-06-03).
 - [ ] **QR + printable letter sheet** on publish.
 
-**Next up: building public listing page `/r/[slug]`** (started 2026-06-03). Bulk-add visual is signed off.
+**Next up: QR + printable letter sheet on publish** (last M1 subgoal). Listing + detail pages built and verified; bulk-add visual signed off.
 
 ### Resume here (2026-06-03)
 
-Bulk-add visual pass is **done and committed (`4a4c8e3`)** — now building the public listing page `/r/[slug]`.
+Listing page (`60f9c8b`) and item detail page both built + verified. Remaining M1 subgoal: **QR + printable letter sheet** on publish. Earlier work: bulk-add visual pass (`4a4c8e3`).
 
 **Env is set up** (`app/.env.local` filled, gitignored). Just `cd app && pnpm dev` to resume.
 - `DATABASE_URL` password contained an `@` → URL-encoded as `%40`. Runtime uses transaction pooler **6543**; `db:push` needs session pooler **5432** (the `db:push` invocation auto-swaps the port, and `drizzle.config.ts` now loads `.env.local`).

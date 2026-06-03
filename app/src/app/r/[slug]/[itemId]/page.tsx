@@ -1,0 +1,170 @@
+// Item detail page — /r/[slug]/[itemId] (section 04, buyer surface).
+//
+// Full trust-signal meta block (price, Bought, Originally, condition, pickup)
+// rendered straight from the seller's CSV import. The claim button is visible
+// but DISABLED with a quiet "Claims open soon" label — M1 ships the surface
+// honestly; the claim/OTP flow is M2. (Buyer-first principle: disabled, not
+// hidden — see CLAUDE.md.)
+
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { listings, items } from "@/db/schema";
+import {
+  formatPrice,
+  formatDate,
+  formatMonthYear,
+  CONDITION_LABELS,
+} from "@/lib/format";
+
+export const dynamic = "force-dynamic";
+
+async function loadItem(slug: string, itemSlug: string) {
+  const [listing] = await db
+    .select()
+    .from(listings)
+    .where(eq(listings.slug, slug))
+    .limit(1);
+  if (!listing) return null;
+
+  const [item] = await db
+    .select()
+    .from(items)
+    .where(and(eq(items.listingId, listing.id), eq(items.slug, itemSlug)))
+    .limit(1);
+  if (!item) return null;
+
+  return { listing, item };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; itemId: string }>;
+}) {
+  const { slug, itemId } = await params;
+  const data = await loadItem(slug, itemId);
+  return {
+    title: data ? `${data.item.name} · Saudade` : "Item · Saudade",
+  };
+}
+
+export default async function ItemDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string; itemId: string }>;
+}) {
+  const { slug, itemId } = await params;
+  const data = await loadItem(slug, itemId);
+  if (!data) notFound();
+
+  const { listing, item } = data;
+
+  const priceLabel =
+    item.isFree || item.priceCents == null
+      ? "Free"
+      : formatPrice(item.priceCents);
+
+  const pickupPlace = [listing.neighborhood, listing.city]
+    .filter(Boolean)
+    .join(", ");
+
+  // Build the meta rows, dropping any the seller didn't provide.
+  const rows: { label: string; value: string; serif?: boolean }[] = [
+    { label: "Price", value: priceLabel, serif: true },
+  ];
+  if (item.boughtDate)
+    rows.push({ label: "Bought", value: formatMonthYear(item.boughtDate) });
+  if (item.originalPriceCents != null)
+    rows.push({
+      label: "Originally",
+      value:
+        formatPrice(item.originalPriceCents) +
+        (item.originalBoxIncluded ? " · Box included" : ""),
+    });
+  if (item.availableFrom)
+    rows.push({ label: "Available from", value: formatDate(item.availableFrom) });
+  if (item.condition)
+    rows.push({ label: "Condition", value: CONDITION_LABELS[item.condition] });
+  if (pickupPlace) rows.push({ label: "Pickup", value: pickupPlace });
+
+  return (
+    <main className="min-h-screen bg-bg-main">
+      <div className="mx-auto max-w-xl">
+        {/* Back to the listing */}
+        <Link
+          href={`/r/${slug}`}
+          className="flex items-center gap-1.5 px-6 pt-6 text-xs font-medium text-text-muted transition-colors hover:text-brand"
+        >
+          <span aria-hidden>←</span> {listing.title}
+        </Link>
+
+        {/* Hero */}
+        <div className="mt-4 grid aspect-square w-full place-items-center overflow-hidden border-y border-border-weave bg-bg-card">
+          {item.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.photoUrl}
+              alt={item.name}
+              className="size-full object-cover"
+            />
+          ) : (
+            <span className="font-serif text-8xl text-text-muted">
+              {item.name.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+
+        <div className="px-6 pb-10 pt-6">
+          <h1 className="font-serif text-3xl font-medium leading-tight text-text-primary">
+            {item.name}
+          </h1>
+
+          {/* Trust-signal meta block */}
+          <dl className="mt-4 flex flex-col gap-2 rounded-[10px] border border-insight-border bg-insight-bg px-4 py-3">
+            {rows.map((r) => (
+              <div
+                key={r.label}
+                className="flex items-center justify-between gap-4"
+              >
+                <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                  {r.label}
+                </dt>
+                <dd
+                  className={
+                    r.serif
+                      ? "font-serif text-lg font-medium text-text-primary"
+                      : "font-mono text-[11px] font-medium text-text-primary"
+                  }
+                >
+                  {r.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          {item.description && (
+            <p className="mt-4 font-serif text-base leading-relaxed text-text-primary">
+              {item.description}
+            </p>
+          )}
+
+          {/* Claim — visible but disabled until M2 wires the OTP claim flow. */}
+          <div className="mt-6">
+            <button
+              type="button"
+              disabled
+              className="w-full cursor-not-allowed rounded-lg bg-brand/40 py-3 text-sm font-medium text-white"
+            >
+              Claim this item
+            </button>
+            <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              Claims open soon
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
