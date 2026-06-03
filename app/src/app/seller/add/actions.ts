@@ -72,17 +72,6 @@ export async function publishListing(
     return { ok: false, error: "Mark at least one item Ready before publishing." };
   }
 
-  // TEMP DIAGNOSTIC — remove after debugging prod photo upload. Guarded on an
-  // env read so eslint's no-unreachable doesn't flag the code below.
-  if (process.env.NEXT_RUNTIME !== "__never__") {
-    const withPhoto = input.items.filter((i) => i.photoDataUrl).length;
-    const keyLen = (process.env.SUPABASE_SECRET_KEY ?? "").length;
-    return {
-      ok: false,
-      error: `DBG items=${input.items.length} withPhoto=${withPhoto} secretKeyLen=${keyLen}`,
-    };
-  }
-
   try {
     // Upload photos before the DB transaction — keep the transaction short and
     // avoid orphaned rows if an upload fails. Index-aligned with input.items.
