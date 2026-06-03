@@ -7,7 +7,7 @@
 
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { qrSvg } from "@/lib/qr";
@@ -57,7 +57,7 @@ export default async function SharePage({
   const rows = await db
     .select()
     .from(items)
-    .where(eq(items.listingId, listing.id))
+    .where(and(eq(items.listingId, listing.id), eq(items.unlisted, false)))
     .orderBy(asc(items.availableFrom));
 
   const { origin, host } = await baseUrl();

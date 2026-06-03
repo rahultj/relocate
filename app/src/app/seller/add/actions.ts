@@ -40,6 +40,7 @@ export interface PublishItemInput {
 export interface PublishResult {
   ok: boolean;
   slug?: string;
+  id?: string; // listing UUID — the secret manage capability
   itemCount?: number;
   error?: string;
 }
@@ -131,7 +132,11 @@ export async function publishListing(
         })),
       );
 
-      return { slug: listing.slug, itemCount: input.items.length };
+      return {
+        slug: listing.slug,
+        id: listing.id,
+        itemCount: input.items.length,
+      };
     });
 
     return { ok: true, ...result };

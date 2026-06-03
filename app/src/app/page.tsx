@@ -3,7 +3,7 @@
 // lands on a dead end. Lists straight from the DB.
 
 import Link from "next/link";
-import { desc, eq, count } from "drizzle-orm";
+import { and, desc, eq, count } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 
@@ -19,7 +19,10 @@ async function loadListings() {
       itemCount: count(items.id),
     })
     .from(listings)
-    .leftJoin(items, eq(items.listingId, listings.id))
+    .leftJoin(
+      items,
+      and(eq(items.listingId, listings.id), eq(items.unlisted, false)),
+    )
     .groupBy(listings.id)
     .orderBy(desc(listings.createdAt));
 }

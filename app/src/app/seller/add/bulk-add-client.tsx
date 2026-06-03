@@ -20,6 +20,7 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
+import { fileToUploadDataUrl } from "@/lib/image";
 import { publishListing, type PublishResult } from "./actions";
 
 const TODAY_ISO = "2026-06-02"; // build-time "today" per project context
@@ -434,24 +435,38 @@ export function BulkAdd() {
           }`}
         >
           {result.ok ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p>
-                Published <strong>{result.itemCount}</strong> items. Listing live
-                at{" "}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p>
+                  Published <strong>{result.itemCount}</strong> items. Listing
+                  live at{" "}
+                  <a
+                    href={`/r/${result.slug}`}
+                    className="font-mono underline underline-offset-2"
+                  >
+                    /r/{result.slug}
+                  </a>
+                  .
+                </p>
                 <a
-                  href={`/r/${result.slug}`}
-                  className="font-mono underline underline-offset-2"
+                  href={`/r/${result.slug}/share`}
+                  className="shrink-0 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
                 >
-                  /r/{result.slug}
+                  Get QR &amp; print sheet →
                 </a>
-                .
-              </p>
-              <a
-                href={`/r/${result.slug}/share`}
-                className="shrink-0 rounded-lg bg-forest px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-              >
-                Get QR &amp; print sheet →
-              </a>
+              </div>
+              {result.id && (
+                <p className="border-t border-forest/20 pt-3 text-text-secondary">
+                  <strong className="text-text-primary">Bookmark to edit later:</strong>{" "}
+                  <a
+                    href={`/manage/${result.id}`}
+                    className="font-mono text-sm underline underline-offset-2"
+                  >
+                    /manage/{result.id}
+                  </a>{" "}
+                  — keep this private; anyone with it can edit the listing.
+                </p>
+              )}
             </div>
           ) : (
             <p>{result.error}</p>
@@ -466,37 +481,6 @@ export function BulkAdd() {
 
 const inputCls =
   "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
-
-// Downscale + recompress in-browser so publish payloads stay small and uploads
-// are fast (phone photos are multi-MB). Falls back to the raw file if the
-// canvas path fails (e.g. HEIC a browser can't decode).
-async function fileToUploadDataUrl(
-  file: File,
-  max = 1280,
-  quality = 0.82,
-): Promise<string> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("no 2d context");
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close?.();
-    return canvas.toDataURL("image/jpeg", quality);
-  } catch {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-}
 
 function Field({
   label,

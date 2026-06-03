@@ -1,0 +1,1 @@
+ALTER TABLE "items" ADD COLUMN "unlisted" boolean DEFAULT false NOT NULL;

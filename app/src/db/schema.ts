@@ -98,6 +98,10 @@ export const items = pgTable(
     originalBoxIncluded: boolean("original_box_included"),
     photoUrl: text("photo_url"),
     status: itemStatusEnum("status").notNull().default("listed"),
+    // Soft-unlist: hidden from the buyer feed but the detail page still resolves
+    // ("No longer available") so already-shared/printed per-item QR codes never
+    // 404. Reversible. Distinct from `status` (which is the M2 claim lifecycle).
+    unlisted: boolean("unlisted").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

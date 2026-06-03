@@ -8,6 +8,13 @@
       "when": 1780412325643,
       "tag": "0000_square_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780519374383,
+      "tag": "0001_curved_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

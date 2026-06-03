@@ -5,7 +5,7 @@
 // client-side in <ListingFeed>; the header + data fetch stay on the server.
 
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { formatMonthDay } from "@/lib/format";
@@ -25,7 +25,7 @@ async function loadListing(slug: string) {
   const rows = await db
     .select()
     .from(items)
-    .where(eq(items.listingId, listing.id))
+    .where(and(eq(items.listingId, listing.id), eq(items.unlisted, false)))
     .orderBy(asc(items.availableFrom)); // nulls last (Postgres asc default)
 
   return { listing, rows };

@@ -150,18 +150,32 @@ export default async function ItemDetailPage({
             </p>
           )}
 
-          {/* Claim — visible but disabled until M2 wires the OTP claim flow. */}
+          {/* Unlisted items keep a live page (printed QR codes never 404) but
+              read honestly as gone. Otherwise: claim visible-but-disabled (M2). */}
           <div className="mt-6">
-            <button
-              type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-lg bg-brand/40 py-3 text-sm font-medium text-white"
-            >
-              Claim this item
-            </button>
-            <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-              Claims open soon
-            </p>
+            {item.unlisted ? (
+              <div className="rounded-lg border border-border-weave bg-bg-card py-3 text-center">
+                <p className="text-sm font-medium text-text-secondary">
+                  No longer available
+                </p>
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                  This item has been taken down
+                </p>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full cursor-not-allowed rounded-lg bg-brand/40 py-3 text-sm font-medium text-white"
+                >
+                  Claim this item
+                </button>
+                <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                  Claims open soon
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
