@@ -30,6 +30,7 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
+import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { uploadPhoto } from "@/lib/photo-upload";
 import { setItemPhoto } from "@/app/seller/photo-actions";
 import { updateListing, type UpdateResult, type ItemFields } from "./actions";
@@ -93,14 +94,13 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 // Shared mapper: editor row → already-parsed item fields. Used for both the
 // create and the patch payload, so the free/price logic lives in one place.
 function rowToFields(r: Row): ItemFields {
-  const t = r.priceText.trim().toLowerCase();
-  const free = t === "free" || t === "";
+  const { isFree, priceCents } = parsePriceField(r.priceText);
   return {
     name: r.name,
     description: r.description.trim() || null,
     condition: r.condition,
-    priceCents: free ? null : parsePriceToCents(r.priceText),
-    isFree: free,
+    priceCents,
+    isFree,
     boughtDate: r.boughtDate,
     originalPriceCents: parsePriceToCents(r.originalPriceText),
     originalBoxIncluded: r.originalBoxIncluded,
@@ -220,16 +220,9 @@ export function ListingEditor({
           return p ? { ...r, listed: p.listed } : r;
         }),
       );
-      save.setListed(
-        prev.filter((p) => p.itemId && p.listed).map((p) => p.itemId as string),
-        true,
-      );
-      save.setListed(
-        prev
-          .filter((p) => p.itemId && !p.listed)
-          .map((p) => p.itemId as string),
-        false,
-      );
+      const { relist, unlist } = groupByListed(prev);
+      save.setListed(relist, true);
+      save.setListed(unlist, false);
       setToast(null);
     });
   };
