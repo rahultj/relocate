@@ -7,13 +7,161 @@
 // new/replaced rows upload to Storage before the transaction (same pattern as
 // publishListing).
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { mintSlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
+import { withListing, type ActionResult } from "@/lib/with-listing";
 import type { ItemCondition } from "@/lib/format";
+
+// ============================================================ auto-save
+// Per-item mutations powering the /manage editor's auto-save. Each mirrors the
+// setItemPhoto pattern: targeted write, capability-checked + revalidated via
+// withListing. updateListing (below) is retained only for the CSV import-merge
+// commit (a deliberate bulk op behind the "Merge" button).
+//
+//   patchItem        existing row, any field edit   — idempotent (safe to retry)
+//   createItem       a new row's first save         — returns {itemId, slug}
+//   patchListingDetails  title/city/pickup edit
+//   setItemsListed   per-row + bulk list/unlist     — one UPDATE ... WHERE IN
+//
+// Listed-state note: the schema has both `status` (M2 claim lifecycle) and
+// `unlisted` (the soft-unlist buyers actually filter on). Only createItem (its
+// initial value) and setItemsListed write `unlisted`; patchItem never touches
+// it. That keeps the two fields from silently diverging.
+
+// The editable, already-parsed item fields shared by create + patch. Excludes
+// `unlisted` on purpose (see note above).
+export interface ItemFields {
+  name: string;
+  description: string | null;
+  condition: ItemCondition | null;
+  priceCents: number | null;
+  isFree: boolean;
+  boughtDate: string | null;
+  originalPriceCents: number | null;
+  originalBoxIncluded: boolean | null;
+  availableFrom: string | null;
+  photoUrl: string | null;
+}
+
+// One mapping from editor fields to DB columns, used by both create and patch.
+function toItemColumns(it: ItemFields) {
+  return {
+    name: it.name.trim(),
+    description: it.description,
+    condition: it.condition,
+    priceCents: it.isFree ? null : it.priceCents,
+    isFree: it.isFree,
+    boughtDate: it.boughtDate,
+    originalPriceCents: it.originalPriceCents,
+    originalBoxIncluded: it.originalBoxIncluded,
+    availableFrom: it.availableFrom,
+    photoUrl: it.photoUrl,
+  };
+}
+
+export async function patchItem(
+  listingId: string,
+  itemId: string,
+  fields: ItemFields,
+): Promise<ActionResult> {
+  if (!fields.name.trim()) {
+    return { ok: false, error: "Item name is required." };
+  }
+  return withListing(listingId, async (listing) => {
+    await db
+      .update(items)
+      .set(toItemColumns(fields))
+      .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)));
+    return {};
+  });
+}
+
+export async function createItem(
+  listingId: string,
+  fields: ItemFields,
+  listed: boolean,
+): Promise<ActionResult<{ itemId: string; slug: string }>> {
+  if (!fields.name.trim()) {
+    return { ok: false, error: "Item name is required." };
+  }
+  return withListing(listingId, async (listing) => {
+    // Keep the new slug unique within the listing.
+    const existing = await db
+      .select({ slug: items.slug })
+      .from(items)
+      .where(eq(items.listingId, listing.id));
+    const used = new Set(existing.map((e) => e.slug));
+    let slug = mintSlug(4);
+    while (used.has(slug)) slug = mintSlug(4);
+
+    const [row] = await db
+      .insert(items)
+      .values({
+        listingId: listing.id,
+        slug,
+        ...toItemColumns(fields),
+        unlisted: !listed,
+        status: "listed" as const,
+      })
+      .returning({ id: items.id, slug: items.slug });
+    return { itemId: row.id, slug: row.slug };
+  });
+}
+
+export interface ListingDetailsFields {
+  title: string;
+  city: string | null;
+  neighborhood: string | null;
+  pickupFrom: string | null;
+  pickupTo: string | null;
+}
+
+export async function patchListingDetails(
+  listingId: string,
+  d: ListingDetailsFields,
+): Promise<ActionResult> {
+  if (!d.title.trim()) {
+    return { ok: false, error: "A listing title is required." };
+  }
+  return withListing(listingId, async (listing) => {
+    await db
+      .update(listings)
+      .set({
+        title: d.title.trim(),
+        city: d.city,
+        neighborhood: d.neighborhood,
+        pickupFrom: d.pickupFrom,
+        pickupTo: d.pickupTo,
+      })
+      .where(eq(listings.id, listing.id));
+    return {};
+  });
+}
+
+// Per-row toggle and bulk List all / Unlist all both route here — one UPDATE
+// for the whole set, never a loop (matters at ~73 items).
+export async function setItemsListed(
+  listingId: string,
+  itemIds: string[],
+  listed: boolean,
+): Promise<ActionResult> {
+  if (itemIds.length === 0) return { ok: true };
+  return withListing(listingId, async (listing) => {
+    await db
+      .update(items)
+      .set({ unlisted: !listed })
+      .where(
+        and(eq(items.listingId, listing.id), inArray(items.id, itemIds)),
+      );
+    return {};
+  });
+}
+
+// ============================================================ bulk (import)
 
 export interface UpdateItemInput {
   itemId: string | null; // existing item id, or null for a new item

@@ -6,40 +6,26 @@
 // an already-published item immediately (no full-listing Save needed).
 
 import { and, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { listings, items } from "@/db/schema";
+import { items } from "@/db/schema";
 import { signUploads, type SignedUpload } from "@/lib/storage";
+import { withListing, type ActionResult } from "@/lib/with-listing";
 
 export async function signPhotoUploads(n: number): Promise<SignedUpload[]> {
   const count = Math.max(1, Math.min(n, 100)); // sane bound
   return signUploads(count);
 }
 
-export interface SetItemPhotoResult {
-  ok: boolean;
-  error?: string;
-}
-
 export async function setItemPhoto(
   listingId: string,
   itemId: string,
   photoUrl: string,
-): Promise<SetItemPhotoResult> {
-  const [listing] = await db
-    .select({ slug: listings.slug })
-    .from(listings)
-    .where(eq(listings.id, listingId))
-    .limit(1);
-  if (!listing) return { ok: false, error: "Listing not found." };
-
-  await db
-    .update(items)
-    .set({ photoUrl })
-    .where(and(eq(items.id, itemId), eq(items.listingId, listingId)));
-
-  revalidatePath(`/r/${listing.slug}`);
-  revalidatePath(`/r/${listing.slug}/share`);
-  revalidatePath("/");
-  return { ok: true };
+): Promise<ActionResult> {
+  return withListing(listingId, async (listing) => {
+    await db
+      .update(items)
+      .set({ photoUrl })
+      .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)));
+    return {};
+  });
 }
