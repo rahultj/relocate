@@ -5,13 +5,14 @@
 // (opens its detail page directly, for tagging items in person). The on-screen
 // toolbar prints / copies; the sheet itself is print-clean.
 
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { qrSvg } from "@/lib/qr";
 import { formatMonthDay } from "@/lib/format";
+import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ShareToolbar } from "./share-toolbar";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,11 @@ export default async function SharePage({
     .from(listings)
     .where(eq(listings.slug, slug))
     .limit(1);
-  if (!listing) notFound();
+  if (!listing) {
+    const canonical = await canonicalSlugFor(slug);
+    if (canonical) permanentRedirect(`/r/${canonical}/share`);
+    notFound();
+  }
 
   const rows = await db
     .select()
