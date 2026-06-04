@@ -46,16 +46,15 @@ Subgoals (one at a time, stop after each — see Working agreements):
 
 **Rahul's real listing:** "Rahul and Swati's Ghar Waapsi", id `262da553-11ec-4414-986a-01c9f86dcdc6`, ~73 items, all listed/public, mostly priced, few photos (he's adding them via the bulk matcher).
 
-### Resume here (2026-06-04) — NEXT: make the /manage UI more intuitive
+### Resume here (2026-06-04) — /manage auto-save SHIPPED (PR #1, pending merge)
 
-Everything above is shipped and verified live. **Next goal: polish the `/manage/[id]` editor UX** — it works but feels unintuitive (Rahul's words).
+The `/manage/[id]` editor UX polish is **done** and in review on branch `manage-autosave` ([PR #1](https://github.com/rahultj/relocate/pull/1)). Planned + reviewed (`MANAGE_UI_PLAN.md`: design 5→9, eng clean), implemented, and verified live against the real DB. **Not yet merged to main / deployed.** Next: merge PR → Vercel auto-deploys → dogfood on Rahul's real listing.
 
-**FIRST STEP (Rahul's explicit request): run a `/plan-design-review` pass on the `/manage/[id]` screen before changing any code** — rate the screen, surface the UX gaps, then plan fixes.
+What changed: single auto-save model (no Save button). The Listed/Unlisted control was the headline bug — it dimmed the row but never persisted; now it's a real switch that saves on click. Per-item server actions (`patchItem`/`createItem`/`patchListingDetails`/`setItemsListed`) mirror `setItemPhoto`, via a new `withListing()` capability+revalidate helper. `useListingSave` does debounce/coalesce + optimistic retry; new rows create on first blur. Top-right save-status pill, undo toast on bulk list/unlist, collapsed listing-details. `updateListing` retained only for CSV import-merge.
 
-Rough edges to consider (let Rahul drive the design, don't over-prescribe):
-- **Dual save model is confusing**: photos now auto-save on attach, but text edits (prices/title/details) still need the bottom "Save changes" button. The mental model "what's saved vs what needs saving?" is unclear. Consider per-field/auto-save for everything, clearer "unsaved changes" indicator, or relabeling.
-- **Dense rows + many controls**; the bulk-photo review panel, import mapping, and listing-details form all stack — information architecture could be clearer.
-- **Listed/Unlisted** affordance and the bulk toggles could be more obvious.
+Repo now has **Vitest** (`pnpm test`) — first standing suite (34 tests: pure auto-save logic + backfilled csv/format).
+
+Earlier rough edges (all addressed): dual save model, dense stacked panels, weak Listed/Unlisted affordance.
 - Consider a `/plan-design-review` pass on the manage screen.
 
 To resume: `cd app && pnpm dev`; open `/manage/<id>` (publish a throwaway listing on `/seller/add` to get a manage link, or use a test id). **Always wipe throwaway test listings from the DB when done** (scoped `delete from listings where title='…'` is allowed; unbounded wipes get blocked).
