@@ -1,8 +1,8 @@
 {
-  "pid": 71028,
-  "port": 11733,
-  "token": "68fda757-f3d7-4b9f-b267-aeb37e30fb8a",
-  "startedAt": "2026-06-03T20:53:57.507Z",
+  "pid": 27214,
+  "port": 57970,
+  "token": "f66eb66d-2dee-410f-a04a-1666f5f09537",
+  "startedAt": "2026-06-04T11:58:43.488Z",
   "serverPath": "/Users/rahuljoseph/.claude/skills/gstack/browse/src/server.ts",
   "mode": "launched"
 }

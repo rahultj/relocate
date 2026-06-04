@@ -57,6 +57,13 @@ export interface EditorItem {
 
 type Row = EditorItem & { rowKey: string };
 
+interface PhotoMatch {
+  id: string;
+  file: File;
+  previewUrl: string;
+  rowKey: string; // "" = skip
+}
+
 interface ListingMeta {
   id: string;
   slug: string;
@@ -99,6 +106,8 @@ export function ListingEditor({
   const [result, setResult] = useState<UpdateResult | null>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const bulkPhotoRef = useRef<HTMLInputElement>(null);
+  const [photoMatches, setPhotoMatches] = useState<PhotoMatch[]>([]);
   const defaultAvailableFrom = pickupFrom || TODAY_ISO;
 
   // ---------- Row editing ----------
@@ -134,6 +143,42 @@ export function ListingEditor({
     fileToUploadDataUrl(file).then((dataUrl) =>
       patch(key, { photoDataUrl: dataUrl }),
     );
+  };
+
+  // ---------- Bulk photos (drop a folder, match by filename) ----------
+
+  const onBulkPhotoFiles = (files: FileList) => {
+    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    setPhotoMatches(
+      list.map((file, i) => ({
+        id: `${file.name}-${file.size}-${i}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        rowKey: suggestRow(normLabel(file.name, true), rows),
+      })),
+    );
+  };
+
+  const setMatchRow = (id: string, rowKey: string) =>
+    setPhotoMatches((ms) =>
+      ms.map((m) => (m.id === id ? { ...m, rowKey } : m)),
+    );
+
+  const applyPhotoMatches = async () => {
+    const assigned = photoMatches.filter((m) => m.rowKey);
+    await Promise.all(
+      assigned.map(async (m) => {
+        const dataUrl = await fileToUploadDataUrl(m.file);
+        patch(m.rowKey, { photoDataUrl: dataUrl });
+      }),
+    );
+    photoMatches.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+    setPhotoMatches([]);
+  };
+
+  const cancelPhotoMatches = () => {
+    photoMatches.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+    setPhotoMatches([]);
   };
 
   // ---------- CSV intake ----------
@@ -384,6 +429,12 @@ export function ListingEditor({
               Import / re-import CSV
             </button>
             <button
+              onClick={() => bulkPhotoRef.current?.click()}
+              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
+            >
+              Bulk add photos
+            </button>
+            <button
               onClick={() => setPasteMode((v) => !v)}
               className="text-sm text-brand underline-offset-4 hover:underline"
             >
@@ -395,6 +446,14 @@ export function ListingEditor({
               accept=".csv,text/csv"
               hidden
               onChange={onCsvFile}
+            />
+            <input
+              ref={bulkPhotoRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => e.target.files && onBulkPhotoFiles(e.target.files)}
             />
           </div>
         )}
@@ -423,6 +482,65 @@ export function ListingEditor({
           </p>
         )}
       </section>
+
+      {/* Bulk photo match review */}
+      {photoMatches.length > 0 && (
+        <section className="mt-4 rounded-xl border border-border-weave bg-bg-card p-4">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-text-primary">
+              Match {photoMatches.length} photos
+            </p>
+            <button
+              className="text-sm text-text-muted hover:text-brand"
+              onClick={cancelPhotoMatches}
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-text-muted">
+            Each photo is matched to an item by filename — fix any wrong ones and
+            set duplicates to Skip, then attach.
+          </p>
+          <div className="mt-3 space-y-2">
+            {photoMatches.map((m) => (
+              <div key={m.id} className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={m.previewUrl}
+                  alt=""
+                  className="size-12 shrink-0 rounded-md border border-border-weave object-cover"
+                />
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-text-secondary">
+                  {m.file.name}
+                </span>
+                <span className="text-text-muted">→</span>
+                <select
+                  value={m.rowKey}
+                  onChange={(e) => setMatchRow(m.id, e.target.value)}
+                  className={`max-w-[45%] rounded-md border bg-bg-main px-2 py-1 text-sm ${
+                    m.rowKey
+                      ? "border-border-weave text-text-primary"
+                      : "border-ochre/40 text-text-muted"
+                  }`}
+                >
+                  <option value="">— Skip —</option>
+                  {rows.map((r) => (
+                    <option key={r.rowKey} value={r.rowKey}>
+                      {r.name || "(unnamed)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={applyPhotoMatches}
+            className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+          >
+            Attach {photoMatches.filter((m) => m.rowKey).length} photos
+          </button>
+        </section>
+      )}
 
       {/* Rows */}
       <div className="mt-6 space-y-2">
@@ -514,6 +632,35 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     photoDataUrl: null,
     listed: true,
   };
+}
+
+// ---------- Photo filename matching ----------
+
+// Normalize a label for matching: lowercase, drop extension (filenames),
+// treat - and _ as spaces, collapse whitespace.
+function normLabel(s: string, stripExt = false): string {
+  let x = s.toLowerCase();
+  if (stripExt) x = x.replace(/\.[a-z0-9]+$/, "");
+  return x.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Best-guess item rowKey for a normalized filename. Prefers an exact name
+// match, then the longest item name that the filename starts with (so
+// "ladder shelf 1" → "Ladder shelf"), then any containment. "" if no guess.
+function suggestRow(fn: string, rows: Row[]): string {
+  const cands = rows
+    .map((r) => ({ key: r.rowKey, n: normLabel(r.name) }))
+    .filter((c) => c.n);
+  const exact = cands.find((c) => c.n === fn);
+  if (exact) return exact.key;
+  const prefix = cands
+    .filter((c) => fn === c.n || fn.startsWith(c.n + " "))
+    .sort((a, b) => b.n.length - a.n.length);
+  if (prefix.length) return prefix[0].key;
+  const part = cands
+    .filter((c) => c.n.startsWith(fn) || c.n.includes(fn) || fn.includes(c.n))
+    .sort((a, b) => b.n.length - a.n.length);
+  return part.length ? part[0].key : "";
 }
 
 // ---------- Subcomponents ----------
