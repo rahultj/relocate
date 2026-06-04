@@ -48,7 +48,11 @@ Subgoals (one at a time, stop after each — see Working agreements):
 
 ### Resume here (2026-06-04) — NEXT: make the /manage UI more intuitive
 
-Everything above is shipped and verified live. **Next goal: polish the `/manage/[id]` editor UX** — it works but feels unintuitive (Rahul's words). Rough edges to consider (let Rahul drive the design, don't over-prescribe):
+Everything above is shipped and verified live. **Next goal: polish the `/manage/[id]` editor UX** — it works but feels unintuitive (Rahul's words).
+
+**FIRST STEP (Rahul's explicit request): run a `/plan-design-review` pass on the `/manage/[id]` screen before changing any code** — rate the screen, surface the UX gaps, then plan fixes.
+
+Rough edges to consider (let Rahul drive the design, don't over-prescribe):
 - **Dual save model is confusing**: photos now auto-save on attach, but text edits (prices/title/details) still need the bottom "Save changes" button. The mental model "what's saved vs what needs saving?" is unclear. Consider per-field/auto-save for everything, clearer "unsaved changes" indicator, or relabeling.
 - **Dense rows + many controls**; the bulk-photo review panel, import mapping, and listing-details form all stack — information architecture could be clearer.
 - **Listed/Unlisted** affordance and the bulk toggles could be more obvious.
