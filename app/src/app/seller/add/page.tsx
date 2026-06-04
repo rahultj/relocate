@@ -1,7 +1,7 @@
 import { BulkAdd } from "./bulk-add-client";
 
 export const metadata = {
-  title: "Add items · Saudade",
+  title: "Add items · mustgo",
 };
 
 export default function SellerAddPage() {

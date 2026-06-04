@@ -34,7 +34,7 @@ export default async function Home() {
     <main className="min-h-screen bg-bg-main">
       <div className="mx-auto max-w-xl px-6 py-16">
         <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">
-          Saudade
+          mustgo
         </p>
         <h1 className="mt-3 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-text-primary">
           Going <em className="italic text-brand">home</em>.

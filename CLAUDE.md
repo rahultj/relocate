@@ -1,6 +1,6 @@
-# Saudade — Relocation Marketplace
+# mustgo — Relocation Marketplace
 
-A single-seller relocation marketplace for offloading household items before a move. Seller is in Washington, D.C. moving to India. Working name "Saudade" — placeholder, to be replaced before launch.
+A single-seller relocation marketplace for offloading household items before a move. Seller is in Washington, D.C. moving to India. Named **mustgo** (chosen 2026-06-04, replacing the "Saudade" working placeholder).
 
 **Three principles, in order:**
 1. **Buyer-first, always.** Any feature that adds friction for the buyer to make the seller's life easier needs explicit justification.

@@ -18,7 +18,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Saudade — relocation marketplace",
+  title: "mustgo — relocation marketplace",
   description: "A single-seller marketplace for offloading household items before a move.",
 };
 

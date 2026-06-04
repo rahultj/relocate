@@ -46,7 +46,7 @@ export async function generateMetadata({
   const { slug, itemId } = await params;
   const data = await loadItem(slug, itemId);
   return {
-    title: data ? `${data.item.name} · Saudade` : "Item · Saudade",
+    title: data ? `${data.item.name} · mustgo` : "Item · mustgo",
   };
 }
 
