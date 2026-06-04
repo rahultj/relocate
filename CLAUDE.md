@@ -32,15 +32,35 @@ Subgoals (one at a time, stop after each — see Working agreements):
 - [x] **Item detail page** at `/r/[slug]/[itemId]` (section 04). Server page loads listing+item by slug pair (404 if either missing). Square hero (photo or letter-initial), Cormorant title, insight-tinted trust-meta block (Price/Bought/Originally/Available/Condition/Pickup — rows dropped when no data), Cormorant description. Claim button **visible but disabled** with quiet "Claims open soon" note (buyer-first: disabled, not hidden). Verified at `/r/dxb2/aybz`. Pending Rahul review (2026-06-03).
 - [x] **QR + printable letter sheet** at `/r/[slug]/share` (section 09). Listing QR (→ feed) + per-item QR (→ detail) on one print-clean letter sheet; `window.print()` toolbar (screen-only, `print:hidden`), copy-link. QR via `qrcode` lib → crisp SVG server-side (`lib/qr.ts`). Absolute URLs derived from request `headers()`. Post-publish success state links to it ("Get QR & print sheet"). Verified at `/r/dxb2/share`. Pending Rahul review (2026-06-03).
 
-**All five M1 subgoals built.** M1 (display + bulk-add) is feature-complete pending Rahul's end-to-end review. Possible next steps: adversarial code review of the milestone, Vercel deploy setup, or starting M2 (claim/OTP/SMS).
+**All five M1 subgoals built**, plus post-M1 enhancements (live on Vercel). See "Post-M1" + "Resume here" below.
 
-### Resume here (2026-06-03)
+### Post-M1 (shipped + deployed, 2026-06-03/04)
 
-M1 complete: scaffold, schema, bulk-add (visual `4a4c8e3`), listing page (`60f9c8b`), detail page (`9e1c0dc`), QR/share sheet. All verified locally against live test listing `/r/dxb2`. Buyer pages signed off by Rahul. **Known transient:** Supabase free-tier pooler occasionally throws `read ETIMEDOUT` (one-off 500, succeeds on retry) — not a code bug.
+- **Deployed to Vercel** — live at `https://relocate-rahultjs-projects.vercel.app` (stable prod alias; per-deploy hash URLs change each push). NOT `relocate.vercel.app` (unrelated project). Auto-deploys on push to `main`. Env vars (Production): `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` — all four required; `NEXT_PUBLIC_*` bake in at build time (push to apply). Deployment Protection is OFF (public).
+- **Minimal home index** (`src/app/page.tsx`) — lists every published listing + link to `/seller/add`.
+- **`/manage/[id]`** — append/edit a listing without changing its `/r/[slug]` URL. Access = the listing's UUID as a secret capability (shown on publish as a bookmark link). CSV re-import **matches existing items by normalized name and updates in place** (blank cells don't overwrite; new rows append). Add items by hand. Edit listing details. Files: `manage/[id]/page.tsx`, `listing-editor.tsx`, `actions.ts` (`updateListing`).
+- **Soft unlist** — `items.unlisted` column (added via direct `ALTER TABLE`; `db:push` is broken by a drizzle-kit introspection bug, apply migrations as raw SQL). Unlisted = hidden from feed/QR/home count, but detail page resolves "No longer available" (printed QR never 404s). Listed/Unlisted toggle + List all/Unlist all bulk buttons. **Imported items default to Unlisted** (stage, then list when ready).
+- **CSV dates** — `parseLooseDate` (`lib/format.ts`) now handles `now`/`today`, month+day with year inference (`July 30`), and US M/D/Y, on top of the original month+year/ISO.
+- **Bulk photo matcher** — on `/manage`, "Bulk add photos" drops a whole folder; matches each file to an item by filename (normalized, tolerant of `-1`/`_console` suffixes), review/fix in a dropdown list, then attach.
+- **Photos upload browser→Storage on attach** (not through Save). `lib/storage.ts` `signUploads()` → signed URLs; `app/seller/photo-actions.ts` (`signPhotoUploads`, `setItemPhoto`); `lib/photo-upload.ts` `uploadPhoto()` + `lib/supabase-browser.ts`. Existing items **auto-save** on upload; new rows carry the URL until Save. This fixed bulk-photo Saves hanging on Vercel's ~4.5MB function-body limit. (NOTE: `/seller/add` first-publish still sends photos as base64 through the publish action — same latent limit if many photos are attached before first publish; not yet migrated to the signed-upload path.)
+
+**Rahul's real listing:** "Rahul and Swati's Ghar Waapsi", id `262da553-11ec-4414-986a-01c9f86dcdc6`, ~73 items, all listed/public, mostly priced, few photos (he's adding them via the bulk matcher).
+
+### Resume here (2026-06-04) — NEXT: make the /manage UI more intuitive
+
+Everything above is shipped and verified live. **Next goal: polish the `/manage/[id]` editor UX** — it works but feels unintuitive (Rahul's words). Rough edges to consider (let Rahul drive the design, don't over-prescribe):
+- **Dual save model is confusing**: photos now auto-save on attach, but text edits (prices/title/details) still need the bottom "Save changes" button. The mental model "what's saved vs what needs saving?" is unclear. Consider per-field/auto-save for everything, clearer "unsaved changes" indicator, or relabeling.
+- **Dense rows + many controls**; the bulk-photo review panel, import mapping, and listing-details form all stack — information architecture could be clearer.
+- **Listed/Unlisted** affordance and the bulk toggles could be more obvious.
+- Consider a `/plan-design-review` pass on the manage screen.
+
+To resume: `cd app && pnpm dev`; open `/manage/<id>` (publish a throwaway listing on `/seller/add` to get a manage link, or use a test id). **Always wipe throwaway test listings from the DB when done** (scoped `delete from listings where title='…'` is allowed; unbounded wipes get blocked).
+
+**Known transient:** Supabase free-tier pooler occasionally throws `read ETIMEDOUT` (one-off 500, succeeds on retry) — not a code bug.
 
 **Env is set up** (`app/.env.local` filled, gitignored). Just `cd app && pnpm dev` to resume.
 - `DATABASE_URL` password contained an `@` → URL-encoded as `%40`. Runtime uses transaction pooler **6543**; `db:push` needs session pooler **5432** (the `db:push` invocation auto-swaps the port, and `drizzle.config.ts` now loads `.env.local`).
-- `pnpm db:push` is non-interactive here — run with `--force` (safe; reviewed). Schema already pushed.
+- **`pnpm db:push` is currently broken** — drizzle-kit 0.31.10 throws on introspection (`Cannot read properties of undefined (reading 'replace')` on a CHECK constraint). Apply schema changes as **raw SQL** instead (generate with `db:generate` for the SQL, then run the `ALTER`/`CREATE` directly via a `postgres` script with `--env-file=.env.local`). Dev and prod share the one Supabase project, so a schema change hits both.
 
 **`/seller/add` bulk-add visual — resolved (`4a4c8e3`):** `DraftRow` rebuilt on the spec's CSS grid (`index.html:853`) — thumb | name+condition | price | date | state | trash, first line vertically centered, meta+description on a second line; mobile keeps a flex stack. Thumbs 64px. Delete is a `Trash2` icon (crimson hover via `--crimson`/`--destructive`), top-right on mobile / inline grid column on desktop. `$` adornment on numeric prices (hidden for Free/empty).
 
