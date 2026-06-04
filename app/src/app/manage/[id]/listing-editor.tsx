@@ -63,6 +63,8 @@ export interface EditorItem {
   photoUrl: string | null; // already-uploaded URL
   photoDataUrl: string | null; // new/replacement preview
   listed: boolean;
+  // Soft-claim info (read-only); present once a buyer has claimed this item.
+  claim?: { name: string; contact: string; claimedAt: string } | null;
 }
 
 type Row = EditorItem & {
@@ -1092,6 +1094,35 @@ function EditRow({
           onBlur={blur}
         />
       </div>
+
+      {/* Claim info (read-only) — shown once a buyer has claimed this item */}
+      {r.claim && (
+        <div className="w-full basis-full rounded-lg border border-forest/25 bg-forest/[0.06] px-3 py-2 sm:col-start-2 sm:col-end-[-1] sm:row-start-3">
+          <p className="text-xs text-forest">
+            <span className="font-semibold">Claimed</span>
+            {r.claim.name ? ` by ${r.claim.name}` : ""} ·{" "}
+            <a
+              href={contactHref(r.claim.contact)}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              {r.claim.contact}
+            </a>
+            {r.claim.claimedAt ? ` · ${formatClaimDate(r.claim.claimedAt)}` : ""}
+          </p>
+        </div>
+      )}
     </div>
   );
+}
+
+// mailto: for an email, tel: for a phone — lets the seller reach out in one tap.
+function contactHref(contact: string): string {
+  return contact.includes("@") ? `mailto:${contact}` : `tel:${contact}`;
+}
+
+function formatClaimDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

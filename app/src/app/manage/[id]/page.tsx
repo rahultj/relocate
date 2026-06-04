@@ -4,9 +4,9 @@
 // acts as a secret capability (no login in M1). An unknown/garbage id 404s.
 
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { listings, items } from "@/db/schema";
+import { listings, items, claims, buyers } from "@/db/schema";
 import { ListingEditor, type EditorItem } from "./listing-editor";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,23 @@ export default async function ManagePage({
     .where(eq(items.listingId, listing.id))
     .orderBy(asc(items.availableFrom));
 
-  const initialItems: EditorItem[] = rows.map((it) => ({
+  // Soft-claim info per item, so claimed rows show who claimed + how to reach them.
+  const claimRows = await db
+    .select({
+      itemId: claims.itemId,
+      name: buyers.name,
+      contact: buyers.contact,
+      claimedAt: claims.claimedAt,
+    })
+    .from(claims)
+    .innerJoin(buyers, eq(claims.buyerId, buyers.id))
+    .innerJoin(items, eq(claims.itemId, items.id))
+    .where(and(eq(items.listingId, listing.id), eq(claims.status, "confirmed")));
+  const claimByItem = new Map(claimRows.map((c) => [c.itemId, c]));
+
+  const initialItems: EditorItem[] = rows.map((it) => {
+    const c = claimByItem.get(it.id);
+    return {
     itemId: it.id,
     slug: it.slug,
     name: it.name,
@@ -55,7 +71,18 @@ export default async function ManagePage({
     photoUrl: it.photoUrl,
     photoDataUrl: null,
     listed: !it.unlisted,
-  }));
+    claim: c
+      ? {
+          name: c.name ?? "",
+          contact: c.contact ?? "",
+          claimedAt:
+            c.claimedAt instanceof Date
+              ? c.claimedAt.toISOString()
+              : String(c.claimedAt),
+        }
+      : null,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-bg-main">

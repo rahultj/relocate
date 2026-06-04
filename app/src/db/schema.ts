@@ -113,13 +113,21 @@ export const items = pgTable(
   ],
 );
 
-// ---------- buyers · verified phone identity (M2) ----------
-// Created on first OTP verify; re-used across items in the same listing.
+// ---------- buyers · contact identity ----------
+// Soft claim (current): keyed by `contact` (email or phone, plain text), captured
+// on trust, `verified_at` null. OTP path (future M2): populates phone_hash/
+// phone_e164 + verified_at. phone_* are nullable so a soft buyer needs neither.
+// `contact` is unique → one buyer per contact (dedupe across items/devices).
 
 export const buyers = pgTable("buyers", {
   id: uuid("id").primaryKey().defaultRandom(),
-  phoneHash: text("phone_hash").notNull().unique(),
-  phoneE164: text("phone_e164").notNull(), // encrypted at rest
+  // Soft-claim identity.
+  name: text("name"),
+  contact: text("contact").unique(), // normalized email or phone (plain text)
+  contactType: text("contact_type"), // 'email' | 'phone'
+  // OTP path (future) — nullable until a buyer verifies.
+  phoneHash: text("phone_hash").unique(),
+  phoneE164: text("phone_e164"), // encrypted at rest
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   lastOtpAt: timestamp("last_otp_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
