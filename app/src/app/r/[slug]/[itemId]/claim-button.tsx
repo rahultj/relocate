@@ -55,7 +55,12 @@ export function ClaimButton({
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
 }) {
-  const [mode, setMode] = useState<Mode>("idle");
+  // Seed from server truth so first paint (pre-hydration) is correct: a claimed
+  // item shows "Claimed", not a claim button that flashes then flips. The effect
+  // below upgrades to "success" for the buyer who actually claimed it.
+  const [mode, setMode] = useState<Mode>(
+    alreadyClaimed ? "takenByOther" : "idle",
+  );
   const [buyer, setBuyer] = useState<Buyer | null>(null);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
