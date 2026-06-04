@@ -36,7 +36,7 @@ Subgoals (one at a time, stop after each — see Working agreements):
 
 ### Post-M1 (shipped + deployed, 2026-06-03/04)
 
-- **Deployed to Vercel** — live at `https://relocate-rahultjs-projects.vercel.app` (stable prod alias; per-deploy hash URLs change each push). NOT `relocate.vercel.app` (unrelated project). Auto-deploys on push to `main`. Env vars (Production): `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` — all four required; `NEXT_PUBLIC_*` bake in at build time (push to apply). Deployment Protection is OFF (public).
+- **Deployed to Vercel** — live at `https://mustgo.vercel.app` (stable prod alias; per-deploy hash URLs change each push). NOT `relocate.vercel.app` (unrelated project). Auto-deploys on push to `main`. Env vars (Production): `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` — all four required; `NEXT_PUBLIC_*` bake in at build time (push to apply). Deployment Protection is OFF (public).
 - **Minimal home index** (`src/app/page.tsx`) — lists every published listing + link to `/seller/add`.
 - **`/manage/[id]`** — append/edit a listing without changing its `/r/[slug]` URL. Access = the listing's UUID as a secret capability (shown on publish as a bookmark link). CSV re-import **matches existing items by normalized name and updates in place** (blank cells don't overwrite; new rows append). Add items by hand. Edit listing details. Files: `manage/[id]/page.tsx`, `listing-editor.tsx`, `actions.ts` (`updateListing`).
 - **Soft unlist** — `items.unlisted` column (added via direct `ALTER TABLE`; `db:push` is broken by a drizzle-kit introspection bug, apply migrations as raw SQL). Unlisted = hidden from feed/QR/home count, but detail page resolves "No longer available" (printed QR never 404s). Listed/Unlisted toggle + List all/Unlist all bulk buttons. **Imported items default to Unlisted** (stage, then list when ready).
@@ -149,7 +149,7 @@ Don't spawn subagents for M1. The work is small and sequential — a single focu
 
 ## Repo + deploy
 
-- **Live app (Vercel):** https://relocate-rahultjs-projects.vercel.app (stable production alias; per-deploy hash URLs change every push). NOT `relocate.vercel.app` — that's an unrelated project in the global namespace.
+- **Live app (Vercel):** https://mustgo.vercel.app (stable production alias; per-deploy hash URLs change every push). NOT `relocate.vercel.app` — that's an unrelated project in the global namespace.
 - **Vercel env vars (Production):** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` must all be set. `NEXT_PUBLIC_*` bake in at **build time** — after changing them, push/redeploy. Gotcha that cost a long debug (2026-06-03): photo upload silently no-op'd because `NEXT_PUBLIC_SUPABASE_URL` was misnamed `EXT_PUBLIC_...` in Vercel; `lib/storage.ts` is the only server code that reads it, so nothing else broke. Photo upload verified working in prod once fixed.
 - **Repo:** https://github.com/rahultj/relocate
 - **Plan preview (Pages):** https://rahultj.github.io/relocate/
