@@ -118,6 +118,9 @@ export function ListingEditor({
   const removeRow = (key: string) =>
     setRows((rs) => rs.filter((r) => r.rowKey !== key));
 
+  const setAllListed = (listed: boolean) =>
+    setRows((rs) => rs.map((r) => ({ ...r, listed })));
+
   const addBlankRow = () =>
     setRows((rs) => [
       ...rs,
@@ -230,7 +233,7 @@ export function ListingEditor({
       }
       const untouched = prev.length - updated;
       setImportSummary(
-        `${updated} updated · ${added} new · ${untouched} untouched`,
+        `${updated} updated · ${added} new (added as Unlisted) · ${untouched} untouched`,
       );
       return next;
     });
@@ -542,8 +545,31 @@ export function ListingEditor({
         </section>
       )}
 
+      {/* Bulk list toggle */}
+      {rows.length > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
+            {rows.length} items
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAllListed(true)}
+              className="rounded-md border border-border-alt px-2.5 py-1 text-xs font-medium text-text-secondary hover:bg-bg-hover"
+            >
+              List all
+            </button>
+            <button
+              onClick={() => setAllListed(false)}
+              className="rounded-md border border-border-alt px-2.5 py-1 text-xs font-medium text-text-secondary hover:bg-bg-hover"
+            >
+              Unlist all
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Rows */}
-      <div className="mt-6 space-y-2">
+      <div className="mt-3 space-y-2">
         {rows.map((r) => (
           <EditRow
             key={r.rowKey}
@@ -630,7 +656,10 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     availableFrom: d.availableFrom || defaultAvailableFrom,
     photoUrl: null,
     photoDataUrl: null,
-    listed: true,
+    // Imported items stage as Unlisted — the seller lists them when ready, so a
+    // re-import never silently publishes everything (matches first-publish's
+    // Draft gate).
+    listed: false,
   };
 }
 
