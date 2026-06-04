@@ -36,7 +36,7 @@ export async function generateMetadata({
     .where(eq(listings.slug, slug))
     .limit(1);
   return {
-    title: listing ? `Share · ${listing.title}` : "Share · Saudade",
+    title: listing ? `Share · ${listing.title}` : "Share · mustgo",
   };
 }
 
