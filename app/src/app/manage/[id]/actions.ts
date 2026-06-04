@@ -7,14 +7,83 @@
 // new/replaced rows upload to Storage before the transaction (same pattern as
 // publishListing).
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, ne, or, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
-import { mintSlug } from "@/lib/slug";
+import { mintSlug, toVanitySlug, isValidVanitySlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
-import { withListing, type ActionResult } from "@/lib/with-listing";
+import {
+  withListing,
+  revalidateListing,
+  type ActionResult,
+} from "@/lib/with-listing";
 import type { ItemCondition } from "@/lib/format";
+
+// Rename a listing's public slug to a readable one. The old slug is kept in
+// `previous_slugs` so existing links / printed QR 301-redirect to the new URL.
+// Uniqueness spans every listing's current slug AND every previous slug, so a
+// redirect can never be ambiguous.
+export async function setListingSlug(
+  listingId: string,
+  rawSlug: string,
+): Promise<ActionResult<{ slug: string }>> {
+  const slug = toVanitySlug(rawSlug);
+  if (!isValidVanitySlug(slug)) {
+    return {
+      ok: false,
+      error: "Use 3–40 letters, numbers, and hyphens (e.g. ghar-waapsi).",
+    };
+  }
+
+  const [listing] = await db
+    .select({
+      id: listings.id,
+      slug: listings.slug,
+      prev: listings.previousSlugs,
+    })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+  if (!listing) return { ok: false, error: "Listing not found." };
+  if (listing.slug === slug) return { ok: true, slug }; // no change
+
+  // Taken if another listing uses it as its current OR a previous slug.
+  const [clash] = await db
+    .select({ id: listings.id })
+    .from(listings)
+    .where(
+      and(
+        ne(listings.id, listingId),
+        or(
+          eq(listings.slug, slug),
+          sql`${slug} = ANY(${listings.previousSlugs})`,
+        ),
+      ),
+    )
+    .limit(1);
+  if (clash) return { ok: false, error: "That URL is already taken." };
+
+  // Keep the now-old slug as an alias; drop the new one from prev if we're
+  // reclaiming a slug this listing used before.
+  const nextPrev = Array.from(
+    new Set([...listing.prev.filter((s) => s !== slug), listing.slug]),
+  );
+
+  try {
+    await db
+      .update(listings)
+      .set({ slug, previousSlugs: nextPrev })
+      .where(eq(listings.id, listingId));
+  } catch {
+    // unique(slug) violation from a concurrent claim
+    return { ok: false, error: "That URL is already taken." };
+  }
+
+  revalidateListing(listing.slug); // old paths
+  revalidateListing(slug); // new paths
+  return { ok: true, slug };
+}
 
 // ============================================================ auto-save
 // Per-item mutations powering the /manage editor's auto-save. Each mirrors the

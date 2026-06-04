@@ -31,9 +31,15 @@ import {
   type ItemCondition,
 } from "@/lib/format";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
+import { toVanitySlug } from "@/lib/slug";
 import { uploadPhoto } from "@/lib/photo-upload";
 import { setItemPhoto } from "@/app/seller/photo-actions";
-import { updateListing, type UpdateResult, type ItemFields } from "./actions";
+import {
+  updateListing,
+  setListingSlug,
+  type UpdateResult,
+  type ItemFields,
+} from "./actions";
 import { useListingSave, type SaveStatus } from "./use-listing-save";
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
@@ -126,6 +132,28 @@ export function ListingEditor({
   const [pickupFrom, setPickupFrom] = useState(listing.pickupFrom);
   const [pickupTo, setPickupTo] = useState(listing.pickupTo);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Public slug — deliberate URL change (explicit Update, not autosaved).
+  const [slug, setSlug] = useState(listing.slug);
+  const [slugInput, setSlugInput] = useState(listing.slug);
+  const [slugBusy, setSlugBusy] = useState(false);
+  const [slugMsg, setSlugMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
+
+  const applySlug = async () => {
+    setSlugBusy(true);
+    setSlugMsg(null);
+    const res = await setListingSlug(listing.id, slugInput);
+    setSlugBusy(false);
+    if (res.ok) {
+      setSlug(res.slug);
+      setSlugInput(res.slug);
+      setSlugMsg({ ok: true, text: `Live at /r/${res.slug}` });
+    } else {
+      setSlugMsg({ ok: false, text: res.error });
+    }
+  };
 
   const [rows, setRows] = useState<Row[]>(() =>
     initialItems.map((it) => ({ ...it, rowKey: it.itemId ?? nextKey() })),
@@ -440,7 +468,7 @@ export function ListingEditor({
       </div>
       <p className="mt-3 max-w-xl text-text-secondary">
         Edits save as you go. Your link{" "}
-        <code className="font-mono text-sm">/r/{listing.slug}</code> and existing
+        <code className="font-mono text-sm">/r/{slug}</code> and existing
         item links stay the same. Re-import your CSV anytime: matching rows
         update in place.
       </p>
@@ -467,7 +495,8 @@ export function ListingEditor({
           </span>
         </button>
         {detailsOpen && (
-          <div className="grid grid-cols-1 gap-3 px-5 pb-5 sm:grid-cols-2">
+          <>
+          <div className="grid grid-cols-1 gap-3 px-5 pb-3 sm:grid-cols-2">
             <Field label="Title" className="sm:col-span-2">
               <input
                 className={inputCls}
@@ -521,6 +550,46 @@ export function ListingEditor({
               />
             </Field>
           </div>
+
+          {/* Public link — deliberate URL change, explicit Update */}
+          <div className="border-t border-border-weave px-5 py-4">
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+              Public link
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-sm text-text-muted">/r/</span>
+              <input
+                className={`${inputCls} max-w-[16rem] flex-1`}
+                value={slugInput}
+                onChange={(e) => {
+                  setSlugInput(toVanitySlug(e.target.value));
+                  setSlugMsg(null);
+                }}
+                placeholder="ghar-waapsi"
+                spellCheck={false}
+                autoCapitalize="off"
+              />
+              <button
+                onClick={applySlug}
+                disabled={slugBusy || slugInput === slug || !slugInput}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+              >
+                {slugBusy ? "Updating…" : "Update URL"}
+              </button>
+            </div>
+            {slugMsg ? (
+              <p
+                className={`mt-1.5 text-xs ${slugMsg.ok ? "text-forest" : "text-crimson"}`}
+              >
+                {slugMsg.text}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-text-muted">
+                Letters, numbers, hyphens. Your old link keeps working.
+              </p>
+            )}
+          </div>
+          </>
         )}
       </section>
 
@@ -721,7 +790,7 @@ export function ListingEditor({
           </p>
           <div className="flex items-center gap-3">
             <a
-              href={`/r/${listing.slug}`}
+              href={`/r/${slug}`}
               target="_blank"
               className="text-sm text-brand underline-offset-4 hover:underline"
             >
@@ -751,7 +820,7 @@ export function ListingEditor({
           <EditRow
             key={r.rowKey}
             row={r}
-            listingSlug={listing.slug}
+            listingSlug={slug}
             hasError={save.errorKeys.has(r.rowKey)}
             onPatch={patch}
             onBlurRow={handleRowBlur}

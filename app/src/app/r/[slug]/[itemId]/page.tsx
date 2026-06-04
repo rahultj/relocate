@@ -7,7 +7,7 @@
 // hidden — see CLAUDE.md.)
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
@@ -17,6 +17,7 @@ import {
   formatMonthYear,
   CONDITION_LABELS,
 } from "@/lib/format";
+import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ClaimButton } from "./claim-button";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,11 @@ export default async function ItemDetailPage({
 }) {
   const { slug, itemId } = await params;
   const data = await loadItem(slug, itemId);
-  if (!data) notFound();
+  if (!data) {
+    const canonical = await canonicalSlugFor(slug);
+    if (canonical) permanentRedirect(`/r/${canonical}/${itemId}`);
+    notFound();
+  }
 
   const { listing, item } = data;
 

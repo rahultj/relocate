@@ -58,8 +58,11 @@ export const messageFromRoleEnum = pgEnum("message_from_role", [
 
 export const listings = pgTable("listings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // 4-char base32, unique; collision-retry on insert (see CLAUDE.md / data conventions).
+  // 4-char base32 OR a seller-chosen vanity slug; unique; collision-retry on insert.
   slug: text("slug").notNull().unique(),
+  // Slugs this listing used before (after a rename) — resolved to a 301 redirect
+  // so old links / printed QR never break.
+  previousSlugs: text("previous_slugs").array().notNull().default([]),
   title: text("title").notNull(),
   city: text("city"),
   neighborhood: text("neighborhood"),

@@ -4,11 +4,12 @@
 // the date each item becomes available. No accounts. Filter pills run
 // client-side in <ListingFeed>; the header + data fetch stay on the server.
 
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { formatMonthDay } from "@/lib/format";
+import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ListingFeed, type FeedItem } from "./listing-feed";
 
 // Always reflect the latest publish — listings change as the seller adds items.
@@ -50,7 +51,11 @@ export default async function ListingPage({
 }) {
   const { slug } = await params;
   const data = await loadListing(slug);
-  if (!data) notFound();
+  if (!data) {
+    const canonical = await canonicalSlugFor(slug);
+    if (canonical) permanentRedirect(`/r/${canonical}`);
+    notFound();
+  }
 
   const { listing, rows } = data;
 
