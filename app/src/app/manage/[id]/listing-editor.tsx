@@ -23,7 +23,8 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
-import { fileToUploadDataUrl } from "@/lib/image";
+import { uploadPhoto } from "@/lib/photo-upload";
+import { setItemPhoto } from "@/app/seller/photo-actions";
 import { updateListing, type UpdateResult } from "./actions";
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
@@ -55,7 +56,10 @@ export interface EditorItem {
   listed: boolean;
 }
 
-type Row = EditorItem & { rowKey: string };
+type Row = EditorItem & {
+  rowKey: string;
+  uploading?: "up" | "done" | "err"; // transient photo-upload status
+};
 
 interface PhotoMatch {
   id: string;
@@ -142,11 +146,26 @@ export function ListingEditor({
       },
     ]);
 
-  const attachPhoto = (key: string, file: File) => {
-    fileToUploadDataUrl(file).then((dataUrl) =>
-      patch(key, { photoDataUrl: dataUrl }),
-    );
+  // Upload one photo straight to Storage and attach it. Existing items
+  // auto-save immediately; new rows keep the URL until the next Save (a tiny
+  // string payload). No image bytes ever go through a server-action body.
+  const uploadAndSet = async (
+    rowKey: string,
+    itemId: string | null,
+    file: File,
+  ) => {
+    patch(rowKey, { uploading: "up" });
+    try {
+      const url = await uploadPhoto(file);
+      patch(rowKey, { photoUrl: url, photoDataUrl: null, uploading: "done" });
+      if (itemId) await setItemPhoto(listing.id, itemId, url);
+    } catch {
+      patch(rowKey, { uploading: "err" });
+    }
   };
+
+  const attachPhoto = (key: string, itemId: string | null, file: File) =>
+    void uploadAndSet(key, itemId, file);
 
   // ---------- Bulk photos (drop a folder, match by filename) ----------
 
@@ -169,14 +188,19 @@ export function ListingEditor({
 
   const applyPhotoMatches = async () => {
     const assigned = photoMatches.filter((m) => m.rowKey);
-    await Promise.all(
-      assigned.map(async (m) => {
-        const dataUrl = await fileToUploadDataUrl(m.file);
-        patch(m.rowKey, { photoDataUrl: dataUrl });
-      }),
-    );
+    const itemIdByKey = new Map(rows.map((r) => [r.rowKey, r.itemId] as const));
     photoMatches.forEach((m) => URL.revokeObjectURL(m.previewUrl));
     setPhotoMatches([]);
+    // Upload with a small concurrency pool so progress shows per-row and we
+    // don't open dozens of connections at once.
+    let i = 0;
+    const worker = async () => {
+      while (i < assigned.length) {
+        const m = assigned[i++];
+        await uploadAndSet(m.rowKey, itemIdByKey.get(m.rowKey) ?? null, m.file);
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
   };
 
   const cancelPhotoMatches = () => {
@@ -736,7 +760,7 @@ function EditRow({
   listingSlug: string;
   onPatch: (key: string, p: Partial<Row>) => void;
   onRemove: (key: string) => void;
-  onAttachPhoto: (key: string, file: File) => void;
+  onAttachPhoto: (key: string, itemId: string | null, file: File) => void;
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const meta = trustMeta(r);
@@ -756,9 +780,17 @@ function EditRow({
       {/* Photo */}
       <button
         onClick={() => photoRef.current?.click()}
-        className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted sm:row-span-2 sm:self-start"
+        className={`grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-bg-main text-center text-[9px] leading-tight sm:row-span-2 sm:self-start ${
+          r.uploading === "err"
+            ? "border-crimson/50 text-crimson"
+            : "border-border-weave text-text-muted"
+        }`}
       >
-        {photoSrc ? (
+        {r.uploading === "up" ? (
+          "Uploading…"
+        ) : r.uploading === "err" ? (
+          "Failed · retry"
+        ) : photoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoSrc} alt={r.name} className="size-full object-cover" />
         ) : (
@@ -771,7 +803,7 @@ function EditRow({
         accept="image/*"
         hidden
         onChange={(e) =>
-          e.target.files?.[0] && onAttachPhoto(r.rowKey, e.target.files[0])
+          e.target.files?.[0] && onAttachPhoto(r.rowKey, r.itemId, e.target.files[0])
         }
       />
 

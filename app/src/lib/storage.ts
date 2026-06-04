@@ -42,3 +42,34 @@ export async function uploadItemPhoto(dataUrl: string): Promise<string> {
 
   return client().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
+
+export interface SignedUpload {
+  path: string;
+  token: string;
+  publicUrl: string;
+}
+
+/**
+ * Mint N short-lived signed upload URLs so the browser can upload images
+ * straight to Storage (bypassing the serverless request-body limit). The
+ * secret key signs here; the client only ever sees the per-file token.
+ */
+export async function signUploads(n: number): Promise<SignedUpload[]> {
+  const sb = client();
+  return Promise.all(
+    Array.from({ length: n }, async () => {
+      const path = `${crypto.randomUUID()}.jpg`;
+      const { data, error } = await sb.storage
+        .from(BUCKET)
+        .createSignedUploadUrl(path);
+      if (error || !data) {
+        throw new Error(`Could not sign upload: ${error?.message ?? "unknown"}`);
+      }
+      return {
+        path: data.path,
+        token: data.token,
+        publicUrl: sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,
+      };
+    }),
+  );
+}

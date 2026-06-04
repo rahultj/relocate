@@ -107,7 +107,9 @@ export async function updateListing(
 
       for (let i = 0; i < rows.length; i++) {
         const it = rows[i];
-        const newPhoto = photoUrls[i];
+        // Photos upload client-side now (it.photoUrl); the base64 path is a
+        // legacy fallback that's normally null.
+        const newPhoto = photoUrls[i] ?? it.photoUrl;
         const common = {
           name: it.name.trim(),
           description: it.description,

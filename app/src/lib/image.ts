@@ -29,3 +29,32 @@ export async function fileToUploadDataUrl(
     });
   }
 }
+
+// Same downscale, but returns a Blob for direct upload to Storage. Falls back to
+// the original file if the canvas path fails (e.g. HEIC a browser can't decode).
+export async function fileToUploadBlob(
+  file: File,
+  max = 1280,
+  quality = 0.82,
+): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob((b) => res(b), "image/jpeg", quality),
+    );
+    if (!blob) throw new Error("toBlob failed");
+    return blob;
+  } catch {
+    return file;
+  }
+}
