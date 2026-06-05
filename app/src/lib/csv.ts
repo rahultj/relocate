@@ -13,6 +13,7 @@ import {
   parseBool,
   type ItemCondition,
 } from "./format";
+import { resolveCategory, type Category } from "./category";
 
 // The fields a CSV column can map to. "ignore" = column is dropped.
 export type FieldKey =
@@ -24,6 +25,7 @@ export type FieldKey =
   | "originalPrice"
   | "originalBox"
   | "availableFrom"
+  | "category"
   | "ignore";
 
 export const FIELD_LABELS: Record<FieldKey, string> = {
@@ -35,6 +37,7 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   originalPrice: "Originally (trust signal)",
   originalBox: "Box included",
   availableFrom: "Available from",
+  category: "Category",
   ignore: "Ignore column",
 };
 
@@ -45,6 +48,7 @@ const ALIASES: { field: FieldKey; patterns: RegExp[] }[] = [
   { field: "boughtDate", patterns: [/^bought/, /purchas/, /acquired/] },
   { field: "originalBox", patterns: [/box/, /packaging/] },
   { field: "condition", patterns: [/condition/, /\bstate\b/] },
+  { field: "category", patterns: [/category/, /\btype\b/, /\bgroup\b/, /\broom\b/] },
   { field: "availableFrom", patterns: [/available/, /ready/, /pickup/] },
   { field: "price", patterns: [/price/, /asking/, /\bfree\b/, /\bcost\b/] },
   { field: "description", patterns: [/remark/, /note/, /desc/, /comment/, /detail/] },
@@ -161,6 +165,9 @@ export interface ItemDraft {
   boughtDate: string | null; // ISO
   originalBoxIncluded: boolean | null;
   availableFrom: string; // ISO, defaults to listing pickup_from
+  // Canonical category (suggested from name when the CSV omits it); null =>
+  // uncategorized, renders under "Other" in the buyer feed.
+  category: Category | null;
   photoDataUrl: string | null; // local preview; uploaded on publish
   state: "ready" | "draft" | "skip";
 }
@@ -193,9 +200,10 @@ export function rowsToDrafts(
 
   return parsed.rows.map((row) => {
     const boxRaw = col(row, "originalBox");
+    const name = merged(row, "name");
     return {
       id: nextId(),
-      name: merged(row, "name"),
+      name,
       description: merged(row, "description"),
       condition: parseCondition(col(row, "condition")),
       priceText: col(row, "price").trim(),
@@ -203,6 +211,8 @@ export function rowsToDrafts(
       boughtDate: parseLooseDate(col(row, "boughtDate")),
       originalBoxIncluded: boxRaw.trim() === "" ? null : parseBool(boxRaw),
       availableFrom: parseLooseDate(col(row, "availableFrom")) ?? defaultAvailableFrom,
+      // Explicit category wins; otherwise suggest from the name.
+      category: resolveCategory(col(row, "category"), name),
       photoDataUrl: null,
       state: "draft",
     };

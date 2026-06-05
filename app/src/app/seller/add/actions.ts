@@ -34,6 +34,7 @@ export interface PublishItemInput {
   originalPriceCents: number | null;
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
+  category: string | null;
   photoDataUrl: string | null; // base64 preview; uploaded to Storage at publish
 }
 
@@ -127,6 +128,7 @@ export async function publishListing(
           originalPriceCents: it.originalPriceCents,
           originalBoxIncluded: it.originalBoxIncluded,
           availableFrom: it.availableFrom,
+          category: it.category,
           photoUrl: photoUrls[i],
           status: "listed" as const,
         })),

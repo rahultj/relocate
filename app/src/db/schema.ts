@@ -90,6 +90,10 @@ export const items = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     condition: itemConditionEnum("condition"),
+    // Canonical category (see lib/category.ts) for grouping the buyer feed.
+    // Free text at the DB level; the app constrains it to the canonical set.
+    // Null => uncategorized ("Other" group).
+    category: text("category"),
     availableFrom: date("available_from"),
     // null price => free (see isFree).
     priceCents: integer("price_cents"),

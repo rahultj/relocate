@@ -167,6 +167,7 @@ export function BulkAdd() {
           originalPriceCents: parsePriceToCents(d.originalPriceText),
           originalBoxIncluded: d.originalBoxIncluded,
           availableFrom: d.availableFrom,
+          category: d.category,
           // Base64 (already downscaled on attach); the publish action uploads it
           // to Supabase Storage and stores the public URL.
           photoDataUrl: d.photoDataUrl ?? null,
