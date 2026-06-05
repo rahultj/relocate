@@ -46,18 +46,26 @@ Subgoals (one at a time, stop after each — see Working agreements):
 
 **Rahul's real listing:** "Rahul and Swati's Ghar Waapsi", id `262da553-11ec-4414-986a-01c9f86dcdc6`, ~73 items, all listed/public, mostly priced, few photos (he's adding them via the bulk matcher).
 
-### Resume here (2026-06-04) — /manage auto-save SHIPPED (PR #1, pending merge)
+### Resume here (last worked 2026-06-04) — all shipped + live; pick next goal
 
-The `/manage/[id]` editor UX polish is **done** and in review on branch `manage-autosave` ([PR #1](https://github.com/rahultj/relocate/pull/1)). Planned + reviewed (`MANAGE_UI_PLAN.md`: design 5→9, eng clean), implemented, and verified live against the real DB. **Not yet merged to main / deployed.** Next: merge PR → Vercel auto-deploys → dogfood on Rahul's real listing.
+Everything below is **merged to `main`, deployed to `https://mustgo.vercel.app`, and prod-verified.** Nothing is mid-flight. Four things shipped on 2026-06-04 (each: planned → eng+design review → built → tested → merged → deployed → smoke-checked):
 
-What changed: single auto-save model (no Save button). The Listed/Unlisted control was the headline bug — it dimmed the row but never persisted; now it's a real switch that saves on click. Per-item server actions (`patchItem`/`createItem`/`patchListingDetails`/`setItemsListed`) mirror `setItemPhoto`, via a new `withListing()` capability+revalidate helper. `useListingSave` does debounce/coalesce + optimistic retry; new rows create on first blur. Top-right save-status pill, undo toast on bulk list/unlist, collapsed listing-details. `updateListing` retained only for CSV import-merge.
+1. **`/manage` auto-save** (PR #1) — single save model, no Save button. Real Listed/Unlisted switch that actually persists (was the headline bug: it dimmed the row but never saved). Per-item actions (`patchItem`/`createItem`/`patchListingDetails`/`setItemsListed`) via a `withListing()` helper; `useListingSave` debounce+optimistic-retry; new rows create on first blur; top-right save-status pill; bulk undo toast; collapsed listing-details. Plan: `MANAGE_UI_PLAN.md`.
+2. **Rebrand → "mustgo"** (PR #2) — replaced the "Saudade" placeholder everywhere. URL is now `https://mustgo.vercel.app` (added that as a Vercel production domain; the project also has `relocate-blond.vercel.app`).
+3. **Soft claim** (PR #3) — M2-lite, **no OTP/SMS** (deliberate spec deviation, OTP-ready). Buyer claims with name + email-or-phone (contact = identity, browser-remembered, deduped); item flips `status=claimed`; seller sees claimant on `/manage` (mailto/tel). Plan: `SOFT_CLAIM_PLAN.md`. Real OTP/SMS M2 deferred.
+4. **Readable listing URLs** (PR #4) — sellers rename `/r/<slug>` on `/manage` ("Public link" editor); old slugs 308-redirect via `listings.previous_slugs`. Item slugs stay opaque.
 
-Repo now has **Vitest** (`pnpm test`) — first standing suite (34 tests: pure auto-save logic + backfilled csv/format).
+**Repo now has Vitest** (`pnpm test`, 47 tests): pure helpers in `lib/` (item-save, contact, slug) + backfilled csv/format.
 
-Earlier rough edges (all addressed): dual save model, dense stacked panels, weak Listed/Unlisted affordance.
-- Consider a `/plan-design-review` pass on the manage screen.
+**Open threads / possible next goals (Rahul to pick):**
+- Rahul's real listing is still `/r/bt8x` — he can rename it on `/manage` anytime (e.g. `ghar-waapsi`); not yet done.
+- A **real custom domain** is still optional/deferred (mustgo.vercel.app is fine for now).
+- Natural follow-ons to soft claim: **seller email-notify on claim** (small), or **real OTP/SMS M2** (big). Both deferred in `SOFT_CLAIM_PLAN.md`.
+- **Leftover test listing in prod:** `/r/3dtn` "Live manage test" (pre-existing, not mine) — Rahul to confirm before deleting.
 
-To resume: `cd app && pnpm dev`; open `/manage/<id>` (publish a throwaway listing on `/seller/add` to get a manage link, or use a test id). **Always wipe throwaway test listings from the DB when done** (scoped `delete from listings where title='…'` is allowed; unbounded wipes get blocked).
+**Gotcha learned:** one-off DB scripts must run from `app/` (not `/tmp`) or `postgres` won't resolve and they fail silently — always confirm a delete's row count. See memory `throwaway-cleanup-gotcha`.
+
+To resume: `cd app && pnpm dev`. **Always wipe throwaway test listings when done** (scoped `delete from listings where title='…'`; run the script from `app/`). A dev server may already be running on :3000 from a prior session.
 
 **Known transient:** Supabase free-tier pooler occasionally throws `read ETIMEDOUT` (one-off 500, succeeds on retry) — not a code bug.
 
