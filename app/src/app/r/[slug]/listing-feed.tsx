@@ -122,7 +122,7 @@ export function ListingFeed({
             <section key={g.category}>
               <h2 className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-border-weave bg-bg-main/95 px-6 pb-2 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted backdrop-blur">
                 {g.category}
-                <span className="text-border-alt">· {g.items.length}</span>
+                <span className="text-text-muted">· {g.items.length}</span>
               </h2>
               <ul>
                 {g.items.map((it) => (
