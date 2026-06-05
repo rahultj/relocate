@@ -1,8 +1,9 @@
 "use client";
 
-// Buyer-facing item feed for /r/[slug]. Filter pills run client-side over the
-// already-fetched items (section 03: "Filter pills work client-side"). Rows
-// link to the per-item detail page.
+// Buyer-facing item feed for /r/[slug]. Filters run client-side over the
+// already-fetched items: two native <select> dropdowns (Category + Availability)
+// plus a "Free only" toggle. Native selects are the minimal, on-brand way to do
+// this — they render as the OS picker on mobile. Rows link to the detail page.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -40,15 +41,56 @@ function groupByCategory(
   }));
 }
 
-type Filter = "all" | "available" | "free";
+const OTHER = "Other";
+
+// ---- availability buckets (time-range, calendar-relative) ----
+// "available by" semantics: a null date counts as available now, so each
+// horizon includes everything ready sooner. "later" is the inverse — only the
+// long-horizon items that aren't available until after this month.
+type Avail = "any" | "now" | "soon" | "month" | "later";
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const isoOffset = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+const endOfMonthISO = (() => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+})();
+const IN_TWO_WEEKS_ISO = isoOffset(14);
 
-function isAvailableNow(it: FeedItem): boolean {
-  if (it.status !== "listed") return false;
-  // No date, or a date that has arrived, counts as available now.
-  return !it.availableFrom || it.availableFrom <= TODAY_ISO;
+// Effective "ready" date: no date means it's ready today.
+const readyBy = (it: FeedItem) => it.availableFrom ?? TODAY_ISO;
+
+function matchesAvail(it: FeedItem, a: Avail): boolean {
+  if (a === "any") return true;
+  const eff = readyBy(it);
+  switch (a) {
+    case "now":
+      return eff <= TODAY_ISO;
+    case "soon":
+      return eff <= IN_TWO_WEEKS_ISO;
+    case "month":
+      return eff <= endOfMonthISO;
+    case "later":
+      return eff > endOfMonthISO;
+  }
 }
+
+const AVAIL_OPTIONS: { key: Avail; label: string }[] = [
+  { key: "any", label: "Any time" },
+  { key: "now", label: "Available now" },
+  { key: "soon", label: "Within 2 weeks" },
+  { key: "month", label: "This month" },
+  { key: "later", label: "Later" },
+];
+
+const catKey = (it: FeedItem) =>
+  it.category && (CATEGORIES as readonly string[]).includes(it.category)
+    ? it.category
+    : OTHER;
 
 export function ListingFeed({
   slug,
@@ -57,51 +99,92 @@ export function ListingFeed({
   slug: string;
   items: FeedItem[];
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [cat, setCat] = useState<string>("all");
+  const [avail, setAvail] = useState<Avail>("any");
+  const [freeOnly, setFreeOnly] = useState(false);
 
-  const shown = useMemo(() => {
-    switch (filter) {
-      case "available":
-        return items.filter(isAvailableNow);
-      case "free":
-        return items.filter((it) => it.isFree && isAvailableNow(it));
-      default:
-        return items;
+  const shown = useMemo(
+    () =>
+      items.filter(
+        (it) =>
+          (cat === "all" || catKey(it) === cat) &&
+          matchesAvail(it, avail) &&
+          (!freeOnly || it.isFree || it.priceCents == null),
+      ),
+    [items, cat, avail, freeOnly],
+  );
+
+  // Category dropdown lists only categories actually present, with counts;
+  // counts are over the full set so they don't jump as other filters change.
+  const catOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of items) {
+      const k = catKey(it);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
     }
-  }, [items, filter]);
+    const ordered = [...CATEGORIES, OTHER].filter((c) => counts.has(c));
+    return ordered.map((c) => ({ key: c, label: `${c} · ${counts.get(c)}` }));
+  }, [items]);
 
-  const availableCount = useMemo(
-    () => items.filter(isAvailableNow).length,
+  const availOptions = useMemo(
+    () =>
+      AVAIL_OPTIONS.map((o) => ({
+        ...o,
+        count: items.filter((it) => matchesAvail(it, o.key)).length,
+      })),
     [items],
   );
 
-  const filters: { key: Filter; label: string }[] = [
-    { key: "all", label: `All · ${items.length}` },
-    { key: "available", label: `Available · ${availableCount}` },
-    { key: "free", label: "Free" },
-  ];
-
   const groups = useMemo(() => groupByCategory(shown), [shown]);
-  // Suppress headers when nothing is actually categorized (a single "Other"
-  // group would just be noise) — fall back to a flat list.
-  const flat = groups.length <= 1 && (groups[0]?.category ?? "Other") === "Other";
+  // Flat list when a single category is selected (the dropdown already names
+  // it) or when nothing is meaningfully categorized (a lone "Other" group).
+  const flat =
+    cat !== "all" ||
+    (groups.length <= 1 && (groups[0]?.category ?? OTHER) === OTHER);
 
   return (
     <>
-      <div className="flex gap-2 overflow-x-auto border-b border-border-weave px-6 py-3">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              filter === f.key
-                ? "border-text-primary bg-text-primary text-bg-main"
-                : "border-border-alt text-text-secondary hover:bg-bg-hover"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border-weave px-6 py-3">
+        <select
+          aria-label="Filter by category"
+          value={cat}
+          onChange={(e) => setCat(e.target.value)}
+          className={selectCls}
+        >
+          <option value="all">All categories · {items.length}</option>
+          {catOptions.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="Filter by availability"
+          value={avail}
+          onChange={(e) => setAvail(e.target.value as Avail)}
+          className={selectCls}
+        >
+          {availOptions.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+              {o.key !== "any" ? ` · ${o.count}` : ""}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          aria-pressed={freeOnly}
+          onClick={() => setFreeOnly((v) => !v)}
+          className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+            freeOnly
+              ? "border-forest bg-forest/10 text-forest"
+              : "border-border-alt text-text-secondary hover:bg-bg-hover"
+          }`}
+        >
+          Free only
+        </button>
       </div>
 
       {shown.length === 0 ? (
@@ -218,3 +301,8 @@ function ItemRow({
     </li>
   );
 }
+
+// Native select, styled minimal + on-brand. Keep the platform's native caret
+// (truly zero-fuss, always correct on mobile) and just brand the chrome.
+const selectCls =
+  "shrink-0 cursor-pointer rounded-full border border-border-alt bg-bg-main py-1.5 pl-3 pr-2 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-ring/40";
