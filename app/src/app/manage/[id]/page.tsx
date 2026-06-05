@@ -68,6 +68,7 @@ export default async function ManagePage({
     boughtDate: it.boughtDate,
     originalBoxIncluded: it.originalBoxIncluded,
     availableFrom: it.availableFrom ?? "",
+    category: it.category,
     photoUrl: it.photoUrl,
     photoDataUrl: null,
     listed: !it.unlisted,

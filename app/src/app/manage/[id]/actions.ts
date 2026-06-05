@@ -113,6 +113,7 @@ export interface ItemFields {
   originalPriceCents: number | null;
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
+  category: string | null;
   photoUrl: string | null;
 }
 
@@ -128,6 +129,7 @@ function toItemColumns(it: ItemFields) {
     originalPriceCents: it.originalPriceCents,
     originalBoxIncluded: it.originalBoxIncluded,
     availableFrom: it.availableFrom,
+    category: it.category,
     photoUrl: it.photoUrl,
   };
 }
@@ -243,6 +245,7 @@ export interface UpdateItemInput {
   originalPriceCents: number | null;
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
+  category: string | null;
   listed: boolean; // false => unlisted (hidden from feed)
   photoDataUrl: string | null; // new/replacement upload (base64)
   photoUrl: string | null; // existing stored URL (kept when no new upload)
@@ -338,6 +341,9 @@ export async function updateListing(
           originalBoxIncluded: it.originalBoxIncluded,
           availableFrom: it.availableFrom,
           unlisted: !it.listed,
+          // A blank category on re-import must not wipe an existing one
+          // ("blank cells don't overwrite"); only set when provided.
+          ...(it.category ? { category: it.category } : {}),
         };
 
         if (it.itemId) {

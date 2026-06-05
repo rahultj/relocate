@@ -31,6 +31,7 @@ import {
   type ItemCondition,
 } from "@/lib/format";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
+import { CATEGORIES } from "@/lib/category";
 import { toVanitySlug } from "@/lib/slug";
 import { uploadPhoto } from "@/lib/photo-upload";
 import { setItemPhoto } from "@/app/seller/photo-actions";
@@ -52,6 +53,7 @@ const FIELD_ORDER: FieldKey[] = [
   "originalPrice",
   "originalBox",
   "availableFrom",
+  "category",
   "ignore",
 ];
 
@@ -66,6 +68,7 @@ export interface EditorItem {
   boughtDate: string | null;
   originalBoxIncluded: boolean | null;
   availableFrom: string;
+  category: string | null;
   photoUrl: string | null; // already-uploaded URL
   photoDataUrl: string | null; // new/replacement preview
   listed: boolean;
@@ -113,6 +116,7 @@ function rowToFields(r: Row): ItemFields {
     originalPriceCents: parsePriceToCents(r.originalPriceText),
     originalBoxIncluded: r.originalBoxIncluded,
     availableFrom: r.availableFrom || null,
+    category: r.category,
     photoUrl: r.photoUrl,
   };
 }
@@ -272,6 +276,7 @@ export function ListingEditor({
         boughtDate: null,
         originalBoxIncluded: null,
         availableFrom: defaultAvailableFrom,
+        category: null,
         photoUrl: null,
         photoDataUrl: null,
         listed: true,
@@ -424,6 +429,7 @@ export function ListingEditor({
           originalPriceCents: f.originalPriceCents,
           originalBoxIncluded: f.originalBoxIncluded,
           availableFrom: f.availableFrom,
+          category: f.category,
           listed: r.listed,
           photoDataUrl: r.photoDataUrl,
           photoUrl: r.photoUrl,
@@ -897,6 +903,7 @@ function mergeDraft(row: Row, d: ItemDraft): Row {
     boughtDate: d.boughtDate ?? row.boughtDate,
     originalBoxIncluded: d.originalBoxIncluded ?? row.originalBoxIncluded,
     availableFrom: d.availableFrom || row.availableFrom,
+    category: d.category ?? row.category,
     // itemId, slug, photoUrl, photoDataUrl, listed, rowKey preserved.
   };
 }
@@ -914,6 +921,7 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     boughtDate: d.boughtDate,
     originalBoxIncluded: d.originalBoxIncluded,
     availableFrom: d.availableFrom || defaultAvailableFrom,
+    category: d.category,
     photoUrl: null,
     photoDataUrl: null,
     // Imported items stage as Unlisted — the seller lists them when ready.
@@ -1043,10 +1051,10 @@ function EditRow({
         }
       />
 
-      {/* Name + condition */}
-      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto sm:col-start-2 sm:row-start-1">
+      {/* Name + condition + category */}
+      <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-2 gap-y-1 sm:basis-auto sm:col-start-2 sm:row-start-1">
         <input
-          className="min-w-0 flex-1 bg-transparent font-medium text-text-primary outline-none"
+          className="min-w-[7rem] flex-1 bg-transparent font-medium text-text-primary outline-none"
           value={r.name}
           placeholder="Item name"
           onChange={(e) => onPatch(r.rowKey, { name: e.target.value })}
@@ -1066,6 +1074,21 @@ function EditRow({
           {(Object.keys(CONDITION_LABELS) as ItemCondition[]).map((c) => (
             <option key={c} value={c}>
               {CONDITION_LABELS[c]}
+            </option>
+          ))}
+        </select>
+        <select
+          className="rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary"
+          value={r.category ?? ""}
+          onChange={(e) =>
+            onPatch(r.rowKey, { category: e.target.value || null })
+          }
+          onBlur={blur}
+        >
+          <option value="">Category…</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>
