@@ -69,6 +69,7 @@ export default async function ListingPage({
     isFree: it.isFree,
     status: it.status,
     photoUrl: it.photoUrl,
+    category: it.category,
   }));
 
   // Byline: "Washington, D.C. · Logan Circle · Pickup Jun 12 → Jun 24"

@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMonthDay } from "@/lib/format";
+import { CATEGORIES } from "@/lib/category";
 
 export interface FeedItem {
   slug: string;
@@ -17,6 +18,26 @@ export interface FeedItem {
   isFree: boolean;
   status: "listed" | "claimed" | "picked_up";
   photoUrl: string | null;
+  category: string | null;
+}
+
+// Group items into canonical-order category sections; uncategorized items fall
+// into "Other", which always sorts last. Empty categories are dropped.
+function groupByCategory(
+  items: FeedItem[],
+): { category: string; items: FeedItem[] }[] {
+  const known = new Set<string>(CATEGORIES);
+  const buckets = new Map<string, FeedItem[]>();
+  for (const it of items) {
+    const key = it.category && known.has(it.category) ? it.category : "Other";
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(it);
+    else buckets.set(key, [it]);
+  }
+  return CATEGORIES.filter((c) => buckets.has(c)).map((c) => ({
+    category: c,
+    items: buckets.get(c)!,
+  }));
 }
 
 type Filter = "all" | "available" | "free";
@@ -49,11 +70,21 @@ export function ListingFeed({
     }
   }, [items, filter]);
 
+  const availableCount = useMemo(
+    () => items.filter(isAvailableNow).length,
+    [items],
+  );
+
   const filters: { key: Filter; label: string }[] = [
     { key: "all", label: `All · ${items.length}` },
-    { key: "available", label: "Available" },
-    { key: "free", label: "Free now" },
+    { key: "available", label: `Available · ${availableCount}` },
+    { key: "free", label: "Free" },
   ];
+
+  const groups = useMemo(() => groupByCategory(shown), [shown]);
+  // Suppress headers when nothing is actually categorized (a single "Other"
+  // group would just be noise) — fall back to a flat list.
+  const flat = groups.length <= 1 && (groups[0]?.category ?? "Other") === "Other";
 
   return (
     <>
@@ -79,12 +110,28 @@ export function ListingFeed({
             ? "No items listed yet."
             : "Nothing matches this filter."}
         </p>
-      ) : (
+      ) : flat ? (
         <ul className="flex-1">
           {shown.map((it) => (
             <ItemRow key={it.slug} item={it} listingSlug={slug} />
           ))}
         </ul>
+      ) : (
+        <div className="flex-1">
+          {groups.map((g) => (
+            <section key={g.category}>
+              <h2 className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-border-weave bg-bg-main/95 px-6 pb-2 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted backdrop-blur">
+                {g.category}
+                <span className="text-border-alt">· {g.items.length}</span>
+              </h2>
+              <ul>
+                {g.items.map((it) => (
+                  <ItemRow key={it.slug} item={it} listingSlug={slug} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </>
   );
