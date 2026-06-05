@@ -46,7 +46,7 @@ Subgoals (one at a time, stop after each — see Working agreements):
 
 **Rahul's real listing:** "Rahul and Swati's Ghar Waapsi", id `262da553-11ec-4414-986a-01c9f86dcdc6`, ~73 items, all listed/public, mostly priced, few photos (he's adding them via the bulk matcher).
 
-### Resume here (last worked 2026-06-04) — all shipped + live; pick next goal
+### Resume here (last worked 2026-06-05) — all shipped + live; pick next goal
 
 Everything below is **merged to `main`, deployed to `https://mustgo.vercel.app`, and prod-verified.** Nothing is mid-flight. Four things shipped on 2026-06-04 (each: planned → eng+design review → built → tested → merged → deployed → smoke-checked):
 
@@ -55,10 +55,16 @@ Everything below is **merged to `main`, deployed to `https://mustgo.vercel.app`,
 3. **Soft claim** (PR #3) — M2-lite, **no OTP/SMS** (deliberate spec deviation, OTP-ready). Buyer claims with name + email-or-phone (contact = identity, browser-remembered, deduped); item flips `status=claimed`; seller sees claimant on `/manage` (mailto/tel). Plan: `SOFT_CLAIM_PLAN.md`. Real OTP/SMS M2 deferred.
 4. **Readable listing URLs** (PR #4) — sellers rename `/r/<slug>` on `/manage` ("Public link" editor); old slugs 308-redirect via `listings.previous_slugs`. Item slugs stay opaque.
 
-**Repo now has Vitest** (`pnpm test`, 47 tests): pure helpers in `lib/` (item-save, contact, slug) + backfilled csv/format.
+**Shipped 2026-06-05** (direct to `main`, commits `2325a55`→`813e601`; planned with the user → built → tested → deployed → live design-review):
+
+- **Buyer-feed design polish** (`2325a55`) — (a) photoless item-detail hero was a full `aspect-square` (~576px of empty cream) burying the title/price/Claim below the fold; now a compact `h-40` band, full square only when a real photo exists. (b) Normalized the "Free" price treatment to serif (forest, muted when claimed) across feed + detail so the price column reads as one system. Dropped the redundant "Free now" filter pill.
+- **Category browsing** (`fe8fa0c`/`4ca3f4b`/`dda651f`/`813e601`) — items now have a **category** (`items.category` text col, applied via raw SQL `scripts/add-category-column.mjs`). Fixed canonical set in `lib/category.ts` (Furniture/Kitchen/Electronics/Lighting/Bedding/Decor/Other) with synonym normalization + **keyword auto-suggest from the item name** (`suggestCategory`). CSV import maps a `category` column (alias `category|type|group|room`) and auto-suggests blanks. Buyer feed `/r/[slug]` now **groups items into sticky category sections** (canonical order, Other last, empty sections hide, filters re-group live); falls back to a flat list when nothing is categorized. `/manage` has a **per-item category dropdown** (auto-saves) and re-import threads category through (blank doesn't overwrite). Rahul's 73 live items were backfilled via `scripts/backfill-categories.ts` (dry-run by default; `--apply` to write) — all 73 auto-categorized, zero unguessed. A few guesses are debatable (Steel dustbin→Kitchen, Laundry basket→Decor, Shoe rack→Furniture) — fix on `/manage` if desired.
+
+**Repo now has Vitest** (`pnpm test`, 56 tests): pure helpers in `lib/` (item-save, contact, slug, **category**) + backfilled csv/format.
 
 **Open threads / possible next goals (Rahul to pick):**
-- Rahul's real listing is still `/r/bt8x` — he can rename it on `/manage` anytime (e.g. `ghar-waapsi`); not yet done.
+- Rahul's real listing is now at **`/r/swahul`** (renamed from `bt8x`, which 308-redirects). id `262da553-11ec-4414-986a-01c9f86dcdc6`.
+- **`/seller/add` doesn't expose category in its column-mapping UI yet** (only `/manage` does). The add flow still auto-suggests + persists category silently; surfacing it there is a small follow-on if wanted.
 - A **real custom domain** is still optional/deferred (mustgo.vercel.app is fine for now).
 - Natural follow-ons to soft claim: **seller email-notify on claim** (small), or **real OTP/SMS M2** (big). Both deferred in `SOFT_CLAIM_PLAN.md`.
 - **Leftover test listing in prod:** `/r/3dtn` "Live manage test" (pre-existing, not mine) — Rahul to confirm before deleting.
