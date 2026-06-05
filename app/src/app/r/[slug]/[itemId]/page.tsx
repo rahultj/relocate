@@ -77,9 +77,13 @@ export default async function ItemDetailPage({
     .join(", ");
 
   // Build the meta rows, dropping any the seller didn't provide.
-  const rows: { label: string; value: string; serif?: boolean }[] = [
-    { label: "Price", value: priceLabel, serif: true },
-  ];
+  const isFreeItem = item.isFree || item.priceCents == null;
+  const rows: {
+    label: string;
+    value: string;
+    serif?: boolean;
+    accent?: boolean;
+  }[] = [{ label: "Price", value: priceLabel, serif: true, accent: isFreeItem }];
   if (item.boughtDate)
     rows.push({ label: "Bought", value: formatMonthYear(item.boughtDate) });
   if (item.originalPriceCents != null)
@@ -106,8 +110,15 @@ export default async function ItemDetailPage({
           <span aria-hidden>←</span> {listing.title}
         </Link>
 
-        {/* Hero */}
-        <div className="mt-4 grid aspect-square w-full place-items-center overflow-hidden border-y border-border-weave bg-bg-card">
+        {/* Hero — a full square earns its space only when there's a real photo.
+            Photoless items get a compact letter band so the title, price, and
+            claim button stay near the top of the fold instead of below a giant
+            empty square. */}
+        <div
+          className={`mt-4 grid w-full place-items-center overflow-hidden border-y border-border-weave bg-bg-card ${
+            item.photoUrl ? "aspect-square" : "h-40"
+          }`}
+        >
           {item.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -116,7 +127,7 @@ export default async function ItemDetailPage({
               className="size-full object-cover"
             />
           ) : (
-            <span className="font-serif text-8xl text-text-muted">
+            <span className="font-serif text-7xl text-text-muted">
               {item.name.charAt(0).toUpperCase()}
             </span>
           )}
@@ -140,7 +151,9 @@ export default async function ItemDetailPage({
                 <dd
                   className={
                     r.serif
-                      ? "font-serif text-lg font-medium text-text-primary"
+                      ? `font-serif text-lg font-medium ${
+                          r.accent ? "text-forest" : "text-text-primary"
+                        }`
                       : "font-mono text-[11px] font-medium text-text-primary"
                   }
                 >

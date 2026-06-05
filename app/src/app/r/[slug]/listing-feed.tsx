@@ -157,9 +157,9 @@ function ItemRow({
           }`}
         >
           {it.isFree || it.priceCents == null ? (
-            <span className="font-sans text-[11px] font-medium uppercase tracking-[0.12em] text-forest">
-              Free
-            </span>
+            // Match the priced treatment (serif, same size) so the price column
+            // reads as one system; forest keeps "Free" as a positive signal.
+            <span className={claimed ? "" : "text-forest"}>Free</span>
           ) : (
             <>
               <span className="text-[13px] text-text-muted">$</span>
