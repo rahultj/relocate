@@ -38,6 +38,7 @@ import { setItemPhoto } from "@/app/seller/photo-actions";
 import {
   updateListing,
   setListingSlug,
+  releaseClaim,
   type UpdateResult,
   type ItemFields,
 } from "./actions";
@@ -221,6 +222,25 @@ export function ListingEditor({
 
   const removeRow = (key: string) =>
     setRows((rs) => rs.filter((r) => r.rowKey !== key));
+
+  // Seller releases a buyer's claim → item returns to the feed (listed). Clear
+  // the claim badge optimistically; restore it if the server call fails.
+  const releaseRowClaim = async (key: string) => {
+    const row = rowsRef.current.find((r) => r.rowKey === key);
+    if (!row?.itemId || !row.claim) return false;
+    const prevClaim = row.claim;
+    setRows((rs) =>
+      rs.map((r) => (r.rowKey === key ? { ...r, claim: null } : r)),
+    );
+    const res = await releaseClaim(listing.id, row.itemId);
+    if (!res.ok) {
+      setRows((rs) =>
+        rs.map((r) => (r.rowKey === key ? { ...r, claim: prevClaim } : r)),
+      );
+      return false;
+    }
+    return true;
+  };
 
   const toggleListed = (key: string) => {
     const next = rowsRef.current.map((r) =>
@@ -833,6 +853,7 @@ export function ListingEditor({
             onToggleListed={toggleListed}
             onRemove={removeRow}
             onAttachPhoto={attachPhoto}
+            onReleaseClaim={releaseRowClaim}
           />
         ))}
         {rows.length === 0 && (
@@ -995,6 +1016,7 @@ function EditRow({
   onToggleListed,
   onRemove,
   onAttachPhoto,
+  onReleaseClaim,
 }: {
   row: Row;
   listingSlug: string;
@@ -1004,8 +1026,11 @@ function EditRow({
   onToggleListed: (key: string) => void;
   onRemove: (key: string) => void;
   onAttachPhoto: (key: string, itemId: string | null, file: File) => void;
+  onReleaseClaim: (key: string) => Promise<boolean>;
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
+  const [confirmRelease, setConfirmRelease] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const meta = trustMeta(r);
   const photoSrc = r.photoDataUrl ?? r.photoUrl;
   const priceTrimmed = r.priceText.trim();
@@ -1189,7 +1214,7 @@ function EditRow({
 
       {/* Claim info (read-only) — shown once a buyer has claimed this item */}
       {r.claim && (
-        <div className="w-full basis-full rounded-lg border border-forest/25 bg-forest/[0.06] px-3 py-2 sm:col-start-2 sm:col-end-[-1] sm:row-start-3">
+        <div className="flex w-full basis-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-lg border border-forest/25 bg-forest/[0.06] px-3 py-2 sm:col-start-2 sm:col-end-[-1] sm:row-start-3">
           <p className="text-xs text-forest">
             <span className="font-semibold">Claimed</span>
             {r.claim.name ? ` by ${r.claim.name}` : ""} ·{" "}
@@ -1201,6 +1226,41 @@ function EditRow({
             </a>
             {r.claim.claimedAt ? ` · ${formatClaimDate(r.claim.claimedAt)}` : ""}
           </p>
+          {confirmRelease ? (
+            <span className="flex items-center gap-2 text-xs text-text-secondary">
+              Put back in the feed?
+              <button
+                type="button"
+                disabled={releasing}
+                onClick={async () => {
+                  setReleasing(true);
+                  await onReleaseClaim(r.rowKey);
+                  // success unmounts this block; failure restores the claim.
+                  setReleasing(false);
+                  setConfirmRelease(false);
+                }}
+                className="font-medium text-crimson underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                {releasing ? "Releasing…" : "Yes, release"}
+              </button>
+              <button
+                type="button"
+                disabled={releasing}
+                onClick={() => setConfirmRelease(false)}
+                className="text-text-muted underline-offset-2 hover:underline"
+              >
+                cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmRelease(true)}
+              className="shrink-0 font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-crimson hover:underline"
+            >
+              Release claim
+            </button>
+          )}
         </div>
       )}
     </div>

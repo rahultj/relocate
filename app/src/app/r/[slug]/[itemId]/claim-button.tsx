@@ -10,7 +10,7 @@
 // buyers' contacts).
 
 import { useEffect, useState } from "react";
-import { claimItem, type ClaimResult } from "./actions";
+import { claimItem, unclaimItem, type ClaimResult } from "./actions";
 
 const BUYER_KEY = "mustgo_buyer";
 const CLAIMS_KEY = "mustgo_claims";
@@ -66,6 +66,8 @@ export function ClaimButton({
   const [contact, setContact] = useState("");
   const [contactShown, setContactShown] = useState(""); // for success copy
   const [error, setError] = useState<string | null>(null);
+  const [confirmUnclaim, setConfirmUnclaim] = useState(false);
+  const [unclaiming, setUnclaiming] = useState(false);
 
   // Resolve the starting state from server truth + localStorage. This must run
   // post-mount: localStorage doesn't exist during SSR, so the component renders
@@ -96,6 +98,36 @@ export function ClaimButton({
         localStorage.setItem(CLAIMS_KEY, JSON.stringify([...claimed, itemId]));
     } catch {
       /* private mode / storage full — non-fatal; success still shows */
+    }
+  };
+
+  // Release this device's claim. Authorized server-side by the remembered
+  // contact (a confirmed claim must exist for it). On success we drop the item
+  // from the local claimed-set and return to the one-tap state so the buyer
+  // could re-claim — or someone else can.
+  const unclaim = async () => {
+    const c = (readBuyer()?.contact ?? contactShown).trim();
+    if (!c) return;
+    setUnclaiming(true);
+    setError(null);
+    let res: ClaimResult;
+    try {
+      res = await unclaimItem(listingId, itemId, c);
+    } catch {
+      res = { ok: false, reason: "taken" };
+    }
+    setUnclaiming(false);
+    if (res.ok) {
+      try {
+        const claimed = readClaimed().filter((id) => id !== itemId);
+        localStorage.setItem(CLAIMS_KEY, JSON.stringify(claimed));
+      } catch {
+        /* non-fatal */
+      }
+      setConfirmUnclaim(false);
+      setMode(readBuyer() ? "oneTap" : "idle");
+    } else {
+      setError("Couldn't release the claim — please retry.");
     }
   };
 
@@ -146,6 +178,42 @@ export function ClaimButton({
           ) : null}{" "}
           to set up pickup. Keep an eye out.
         </p>
+        {error && (
+          <p className="mt-2 text-xs text-crimson" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
+          {confirmUnclaim ? (
+            <span className="flex items-center gap-2 text-text-secondary">
+              Change your mind?
+              <button
+                type="button"
+                onClick={unclaim}
+                disabled={unclaiming}
+                className="font-medium text-crimson underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                {unclaiming ? "Releasing…" : "Yes, release it"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmUnclaim(false)}
+                disabled={unclaiming}
+                className="text-text-muted underline-offset-2 hover:underline"
+              >
+                keep it
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmUnclaim(true)}
+              className="text-text-muted underline-offset-2 hover:underline"
+            >
+              No longer need it? Release this claim
+            </button>
+          )}
+        </div>
       </div>
     );
   }

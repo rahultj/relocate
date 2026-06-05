@@ -10,7 +10,7 @@
 import { and, eq, ne, or, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { listings, items } from "@/db/schema";
+import { listings, items, claims } from "@/db/schema";
 import { mintSlug, toVanitySlug, isValidVanitySlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
 import {
@@ -228,6 +228,37 @@ export async function setItemsListed(
       .where(
         and(eq(items.listingId, listing.id), inArray(items.id, itemIds)),
       );
+    return {};
+  });
+}
+
+// Seller-side claim release. When a buyer flakes/no-shows, the seller puts the
+// item back in the feed: confirmed claim → 'cancelled', item status → 'listed'.
+// Capability-checked via withListing; the item's `unlisted` flag (feed
+// visibility) is left as-is, so the item returns exactly to its prior shelf.
+export async function releaseClaim(
+  listingId: string,
+  itemId: string,
+): Promise<ActionResult> {
+  return withListing(listingId, async (listing) => {
+    await db.transaction(async (tx) => {
+      // Scope the claim cancel to this listing's item (capability boundary).
+      const owned = await tx
+        .select({ id: items.id })
+        .from(items)
+        .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)))
+        .limit(1);
+      if (owned.length === 0) throw new Error("Item not found.");
+
+      await tx
+        .update(claims)
+        .set({ status: "cancelled" })
+        .where(and(eq(claims.itemId, itemId), eq(claims.status, "confirmed")));
+      await tx
+        .update(items)
+        .set({ status: "listed" })
+        .where(and(eq(items.id, itemId), eq(items.status, "claimed")));
+    });
     return {};
   });
 }
