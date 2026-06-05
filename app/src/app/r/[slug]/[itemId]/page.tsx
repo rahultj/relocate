@@ -110,24 +110,22 @@ export default async function ItemDetailPage({
           <span aria-hidden>←</span> {listing.title}
         </Link>
 
-        {/* Hero — a full square earns its space only when there's a real photo.
-            Photoless items get a compact letter band so the title, price, and
-            claim button stay near the top of the fold instead of below a giant
-            empty square. */}
-        <div
-          className={`mt-4 grid w-full place-items-center overflow-hidden border-y border-border-weave bg-bg-card ${
-            item.photoUrl ? "aspect-square" : "h-40"
-          }`}
-        >
+        {/* Hero — show the real photo whole (object-contain), never cropped:
+            a round table or a portrait shot keeps its shape, with a little
+            cream letterbox rather than a center-crop. Capped height so a tall
+            photo doesn't push the title and claim button off the fold.
+            Photoless items get a compact letter band instead of a big empty
+            square. */}
+        <div className="mt-4 flex w-full justify-center overflow-hidden border-y border-border-weave bg-bg-card">
           {item.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={item.photoUrl}
               alt={item.name}
-              className="size-full object-cover"
+              className="max-h-[28rem] w-auto max-w-full object-contain"
             />
           ) : (
-            <span className="font-serif text-7xl text-text-muted">
+            <span className="grid h-40 w-full place-items-center font-serif text-7xl text-text-muted">
               {item.name.charAt(0).toUpperCase()}
             </span>
           )}
