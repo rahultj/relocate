@@ -75,6 +75,8 @@ export interface EditorItem {
   listed: boolean;
   // Soft-claim info (read-only); present once a buyer has claimed this item.
   claim?: { name: string; contact: string; claimedAt: string } | null;
+  // Waitlist (read-only), ordered; people to reach out to if the item frees up.
+  waitlist?: { name: string; contact: string }[];
 }
 
 type Row = EditorItem & {
@@ -1289,6 +1291,30 @@ function EditRow({
               Release claim
             </button>
           )}
+        </div>
+      )}
+
+      {/* Waitlist (read-only) — who to reach out to if this item frees up */}
+      {r.waitlist && r.waitlist.length > 0 && (
+        <div className="w-full basis-full rounded-lg border border-ochre/30 bg-ochre/[0.07] px-3 py-2 sm:col-start-2 sm:col-end-[-1]">
+          <p className="text-xs text-text-secondary">
+            <span className="font-semibold text-ochre-dark">
+              Waiting ({r.waitlist.length})
+            </span>
+            {": "}
+            {r.waitlist.map((w, i) => (
+              <span key={w.contact || i}>
+                {i > 0 && <span className="text-border-alt"> · </span>}
+                {w.name ? `${w.name} ` : ""}
+                <a
+                  href={contactHref(w.contact)}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {w.contact}
+                </a>
+              </span>
+            ))}
+          </p>
         </div>
       )}
     </div>

@@ -55,6 +55,26 @@ export default async function ManagePage({
     .where(and(eq(items.listingId, listing.id), eq(claims.status, "confirmed")));
   const claimByItem = new Map(claimRows.map((c) => [c.itemId, c]));
 
+  // Waitlist per item (ordered), so the seller can reach out manually.
+  const waitRows = await db
+    .select({
+      itemId: claims.itemId,
+      name: buyers.name,
+      contact: buyers.contact,
+      position: claims.position,
+    })
+    .from(claims)
+    .innerJoin(buyers, eq(claims.buyerId, buyers.id))
+    .innerJoin(items, eq(claims.itemId, items.id))
+    .where(and(eq(items.listingId, listing.id), eq(claims.status, "waitlist")))
+    .orderBy(asc(claims.position));
+  const waitByItem = new Map<string, { name: string; contact: string }[]>();
+  for (const w of waitRows) {
+    const list = waitByItem.get(w.itemId) ?? [];
+    list.push({ name: w.name ?? "", contact: w.contact ?? "" });
+    waitByItem.set(w.itemId, list);
+  }
+
   const initialItems: EditorItem[] = rows.map((it) => {
     const c = claimByItem.get(it.id);
     return {
@@ -87,6 +107,7 @@ export default async function ManagePage({
               : String(c.claimedAt),
         }
       : null,
+    waitlist: waitByItem.get(it.id) ?? [],
     };
   });
 

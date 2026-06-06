@@ -1,19 +1,26 @@
 "use client";
 
-// Soft-claim UI for the item detail page. All states from SOFT_CLAIM_PLAN.md:
-// default → form → claiming → claimed-by-you (success, carries the trust) /
-// returning-buyer one-tap / claimed-by-someone-else / lost-the-race.
-//
-// Identity is browser-remembered (no account): localStorage holds {name, contact}
-// (so later claims are one-tap) and the set of itemIds this device has claimed
-// (so revisiting a claimed item shows the success state, never leaking other
-// buyers' contacts).
+// Soft-claim + waitlist UI for the item detail page.
+//   listed:   idle / oneTap → form → claiming → success (claimed-by-you)
+//   claimed:  takenByOther → (join) → form/one-tap → waitlisted (#N)
+// Identity is browser-remembered (no account): localStorage holds {name,contact}
+// (so later claims/joins are one-tap), the set of itemIds this device claimed
+// (mustgo_claims), and the waitlist positions it holds (mustgo_waitlist) — so a
+// revisit shows the right state without ever leaking other buyers' contacts.
 
 import { useEffect, useState } from "react";
-import { claimItem, unclaimItem, type ClaimResult } from "./actions";
+import {
+  claimItem,
+  unclaimItem,
+  joinWaitlist,
+  leaveWaitlist,
+  type ClaimResult,
+  type WaitlistResult,
+} from "./actions";
 
 const BUYER_KEY = "mustgo_buyer";
 const CLAIMS_KEY = "mustgo_claims";
+const WAITLIST_KEY = "mustgo_waitlist";
 
 interface Buyer {
   name: string;
@@ -38,13 +45,25 @@ function readClaimed(): string[] {
   }
 }
 
+function readWaitlist(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(WAITLIST_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+type Intent = "claim" | "waitlist";
+
 type Mode =
-  | "idle" // listed, no remembered buyer → show Claim button
-  | "form" // entering name + contact
+  | "idle" // listed, no remembered buyer → Claim button
+  | "form" // entering name + contact (claim or waitlist, per intent)
   | "oneTap" // listed, remembered buyer → one-tap "Claim as <name>"
-  | "claiming"
+  | "busy" // submitting claim or waitlist
   | "success" // claimed by this buyer
-  | "takenByOther"; // claimed by someone else
+  | "takenByOther" // claimed by someone else → offer waitlist
+  | "waitlisted"; // on the waitlist (#position)
 
 export function ClaimButton({
   listingId,
@@ -55,25 +74,26 @@ export function ClaimButton({
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
 }) {
-  // Seed from server truth so first paint (pre-hydration) is correct: a claimed
-  // item shows "Claimed", not a claim button that flashes then flips. The effect
-  // below upgrades to "success" for the buyer who actually claimed it.
+  // Seed from server truth so first paint (pre-hydration) is correct. The effect
+  // below upgrades to the buyer-specific state (success / waitlisted).
   const [mode, setMode] = useState<Mode>(
     alreadyClaimed ? "takenByOther" : "idle",
   );
+  const [intent, setIntent] = useState<Intent>("claim");
   const [buyer, setBuyer] = useState<Buyer | null>(null);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [contactShown, setContactShown] = useState(""); // for success copy
+  const [contactShown, setContactShown] = useState(""); // for success/waitlist copy
+  const [position, setPosition] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmUnclaim, setConfirmUnclaim] = useState(false);
   const [unclaiming, setUnclaiming] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
-  // Resolve the starting state from server truth + localStorage. This must run
-  // post-mount: localStorage doesn't exist during SSR, so the component renders
-  // a neutral "idle" first, then syncs to the remembered identity on the client.
-  // (Legitimate external-system sync — the case react-hooks/set-state-in-effect
-  // explicitly allows.)
+  // Resolve the starting state from server truth + localStorage. Post-mount:
+  // localStorage doesn't exist during SSR, so we render a neutral state first,
+  // then sync. (Legitimate external-system sync.)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const remembered = readBuyer();
@@ -83,14 +103,24 @@ export function ClaimButton({
       setContactShown(remembered.contact);
     }
     if (alreadyClaimed) {
-      setMode(readClaimed().includes(itemId) ? "success" : "takenByOther");
+      if (readClaimed().includes(itemId)) {
+        setMode("success");
+      } else {
+        const pos = readWaitlist()[itemId];
+        if (pos != null) {
+          setPosition(pos);
+          setMode("waitlisted");
+        } else {
+          setMode("takenByOther");
+        }
+      }
     } else {
       setMode(remembered ? "oneTap" : "idle");
     }
   }, [alreadyClaimed, itemId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const persistSuccess = (b: Buyer) => {
+  const persistClaim = (b: Buyer) => {
     try {
       localStorage.setItem(BUYER_KEY, JSON.stringify(b));
       const claimed = readClaimed();
@@ -101,10 +131,18 @@ export function ClaimButton({
     }
   };
 
-  // Release this device's claim. Authorized server-side by the remembered
-  // contact (a confirmed claim must exist for it). On success we drop the item
-  // from the local claimed-set and return to the one-tap state so the buyer
-  // could re-claim — or someone else can.
+  const persistWaitlist = (b: Buyer, pos: number) => {
+    try {
+      localStorage.setItem(BUYER_KEY, JSON.stringify(b));
+      const w = readWaitlist();
+      w[itemId] = pos;
+      localStorage.setItem(WAITLIST_KEY, JSON.stringify(w));
+    } catch {
+      /* non-fatal */
+    }
+  };
+
+  // Release this device's claim → back to one-tap (or idle).
   const unclaim = async () => {
     const c = (readBuyer()?.contact ?? contactShown).trim();
     if (!c) return;
@@ -131,9 +169,72 @@ export function ClaimButton({
     }
   };
 
-  const submit = async (n: string, c: string) => {
+  // Leave the waitlist → back to the "Claimed · join the waitlist" state.
+  const leave = async () => {
+    const c = (readBuyer()?.contact ?? contactShown).trim();
+    if (!c) return;
+    setLeaving(true);
     setError(null);
-    setMode("claiming");
+    let res: ClaimResult;
+    try {
+      res = await leaveWaitlist(listingId, itemId, c);
+    } catch {
+      res = { ok: false, reason: "notfound" };
+    }
+    setLeaving(false);
+    if (res.ok) {
+      try {
+        const w = readWaitlist();
+        delete w[itemId];
+        localStorage.setItem(WAITLIST_KEY, JSON.stringify(w));
+      } catch {
+        /* non-fatal */
+      }
+      setConfirmLeave(false);
+      setPosition(null);
+      setMode("takenByOther");
+    } else {
+      setError("Couldn't leave the waitlist — please retry.");
+    }
+  };
+
+  const submit = async (n: string, c: string, act: Intent) => {
+    setError(null);
+    setMode("busy");
+
+    if (act === "waitlist") {
+      let res: WaitlistResult;
+      try {
+        res = await joinWaitlist(listingId, itemId, n, c);
+      } catch {
+        res = { ok: false, reason: "invalid" };
+      }
+      if (res.ok) {
+        persistWaitlist({ name: n.trim(), contact: c.trim() }, res.position);
+        setContactShown(c.trim());
+        setPosition(res.position);
+        setMode("waitlisted");
+        return;
+      }
+      if (res.reason === "available") {
+        // Freed up while they were deciding — steer them to claim it.
+        setIntent("claim");
+        setMode(readBuyer() ? "oneTap" : "idle");
+        setError("Good news — this is available now. Claim it!");
+        return;
+      }
+      if (res.reason === "holder") {
+        // They already hold the claim — show that, not a waitlist.
+        setMode("success");
+        return;
+      }
+      setIntent("waitlist");
+      setMode("form");
+      setError("Enter your name and a valid email or phone.");
+      return;
+    }
+
+    // claim
     let res: ClaimResult;
     try {
       res = await claimItem(listingId, itemId, n, c);
@@ -141,19 +242,29 @@ export function ClaimButton({
       res = { ok: false, reason: "taken" }; // network/unknown → safe generic
     }
     if (res.ok) {
-      persistSuccess({ name: n.trim(), contact: c.trim() });
+      persistClaim({ name: n.trim(), contact: c.trim() });
       setContactShown(c.trim());
       setMode("success");
       return;
     }
     if (res.reason === "taken") {
+      // Someone else got it — offer the waitlist instead of a dead end.
       setMode("takenByOther");
-      setError("Someone just claimed this a moment ago. Sorry!");
+      setError("Someone just claimed this. Join the waitlist to be next.");
     } else {
-      // invalid (or notfound) → back to the form with a hint
+      setIntent("claim");
       setMode("form");
       setError("Enter your name and a valid email or phone.");
     }
+  };
+
+  // Start a waitlist join: one-tap if remembered, else the form.
+  const startWaitlist = () => {
+    setError(null);
+    setIntent("waitlist");
+    const remembered = readBuyer();
+    if (remembered) submit(remembered.name, remembered.contact, "waitlist");
+    else setMode("form");
   };
 
   // ---- render ----
@@ -218,6 +329,67 @@ export function ClaimButton({
     );
   }
 
+  if (mode === "waitlisted") {
+    return (
+      <div
+        className="mt-6 rounded-lg border border-forest/30 bg-forest/[0.07] p-4"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="flex items-center gap-2 text-sm font-semibold text-forest">
+          <span aria-hidden>✓</span> You&rsquo;re on the waitlist
+          {position != null ? ` · #${position}` : ""}
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">
+          If this item frees up, the seller will reach out
+          {contactShown ? (
+            <>
+              {" "}
+              at <span className="font-medium text-text-primary">{contactShown}</span>
+            </>
+          ) : null}
+          . No need to check back.
+        </p>
+        {error && (
+          <p className="mt-2 text-xs text-crimson" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
+          {confirmLeave ? (
+            <span className="flex items-center gap-2 text-text-secondary">
+              Leave the line?
+              <button
+                type="button"
+                onClick={leave}
+                disabled={leaving}
+                className="font-medium text-crimson underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                {leaving ? "Leaving…" : "Yes, leave"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmLeave(false)}
+                disabled={leaving}
+                className="text-text-muted underline-offset-2 hover:underline"
+              >
+                stay
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmLeave(true)}
+              className="text-text-muted underline-offset-2 hover:underline"
+            >
+              Leave the waitlist
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (mode === "takenByOther") {
     return (
       <div className="mt-6" role="status" aria-live="polite">
@@ -228,8 +400,15 @@ export function ClaimButton({
         >
           Claimed
         </button>
+        <button
+          type="button"
+          onClick={startWaitlist}
+          className="mt-2 w-full rounded-lg border border-brand/50 py-3 text-sm font-medium text-brand transition-colors hover:bg-brand/5"
+        >
+          Join the waitlist
+        </button>
         <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-          {error ?? "Someone grabbed this one first"}
+          {error ?? "Be next in line if it frees up"}
         </p>
       </div>
     );
@@ -242,12 +421,19 @@ export function ClaimButton({
         <button
           type="button"
           onClick={() =>
-            oneTap ? submit(buyer.name, buyer.contact) : setMode("form")
+            oneTap
+              ? submit(buyer.name, buyer.contact, "claim")
+              : (setIntent("claim"), setMode("form"))
           }
           className="w-full rounded-lg bg-brand py-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
         >
           {oneTap ? `Claim as ${buyer.name}` : "Claim this item"}
         </button>
+        {error && (
+          <p className="mt-2 text-center text-xs text-forest" role="status">
+            {error}
+          </p>
+        )}
         {oneTap ? (
           <p className="mt-2 text-center text-xs text-text-muted">
             {buyer.contact} ·{" "}
@@ -260,6 +446,7 @@ export function ClaimButton({
                 setBuyer(null);
                 setName("");
                 setContact("");
+                setIntent("claim");
                 setMode("form");
               }}
               className="text-brand underline-offset-2 hover:underline"
@@ -276,14 +463,15 @@ export function ClaimButton({
     );
   }
 
-  // form + claiming
-  const busy = mode === "claiming";
+  // form + busy. The form serves both claim and waitlist (per `intent`).
+  const busy = mode === "busy";
+  const waitlisting = intent === "waitlist";
   return (
     <form
       className="mt-6"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!busy) submit(name, contact);
+        if (!busy) submit(name, contact, intent);
       }}
     >
       <label className="block">
@@ -312,7 +500,9 @@ export function ClaimButton({
         />
       </label>
       <p className="mt-2 text-xs leading-relaxed text-text-muted">
-        Shared only with the seller, to arrange pickup. Nothing posted publicly.
+        {waitlisting
+          ? "Shared only with the seller, who'll reach out if the item frees up. Nothing posted publicly."
+          : "Shared only with the seller, to arrange pickup. Nothing posted publicly."}
       </p>
       {error && (
         <p className="mt-1 text-xs text-crimson" role="alert">
@@ -324,7 +514,13 @@ export function ClaimButton({
         disabled={busy}
         className="mt-3 w-full rounded-lg bg-brand py-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-70"
       >
-        {busy ? "Claiming…" : "Claim it"}
+        {busy
+          ? waitlisting
+            ? "Joining…"
+            : "Claiming…"
+          : waitlisting
+            ? "Join the waitlist"
+            : "Claim it"}
       </button>
     </form>
   );

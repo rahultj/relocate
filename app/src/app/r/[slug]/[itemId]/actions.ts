@@ -15,7 +15,7 @@
 //        c. insert claim (confirmed), no-op if this buyer already holds it
 //     4. revalidate buyer surfaces
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items, buyers, claims } from "@/db/schema";
 import { revalidateListing } from "@/lib/with-listing";
@@ -24,6 +24,10 @@ import { normalizeContact } from "@/lib/contact";
 export type ClaimResult =
   | { ok: true }
   | { ok: false; reason: "taken" | "invalid" | "notfound" };
+
+export type WaitlistResult =
+  | { ok: true; position: number }
+  | { ok: false; reason: "available" | "invalid" | "holder" | "notfound" };
 
 class TakenError extends Error {}
 
@@ -153,6 +157,135 @@ export async function unclaimItem(
   });
 
   if (!released) return { ok: false, reason: "notfound" };
+  revalidateListing(listing.slug);
+  return { ok: true };
+}
+
+// Join the waitlist for an already-claimed item. No OTP/SMS: contact is the
+// identity (same trust model as claimItem). Records interest only — the seller
+// reaches out manually if the item frees up (no auto-promotion). Returns the
+// buyer's 1-based position in line.
+export async function joinWaitlist(
+  listingId: string,
+  itemId: string,
+  name: string,
+  contact: string,
+): Promise<WaitlistResult> {
+  const norm = normalizeContact(contact);
+  const trimmedName = name.trim();
+  if (!trimmedName || !norm) return { ok: false, reason: "invalid" };
+
+  const [listing] = await db
+    .select({ id: listings.id, slug: listings.slug })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+  if (!listing) return { ok: false, reason: "notfound" };
+
+  let result: WaitlistResult = { ok: false, reason: "notfound" };
+  await db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({ status: items.status })
+      .from(items)
+      .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)))
+      .limit(1);
+    if (!item) return; // notfound
+    // Only claimed items have a waitlist; if it's free, tell the UI to claim.
+    if (item.status === "listed") {
+      result = { ok: false, reason: "available" };
+      return;
+    }
+
+    const [buyer] = await tx
+      .insert(buyers)
+      .values({
+        name: trimmedName,
+        contact: norm.contact,
+        contactType: norm.type,
+      })
+      .onConflictDoUpdate({
+        target: buyers.contact,
+        set: { name: trimmedName },
+      })
+      .returning({ id: buyers.id });
+
+    // Don't waitlist the person who already holds the claim.
+    const [held] = await tx
+      .select({ id: claims.id })
+      .from(claims)
+      .where(
+        and(
+          eq(claims.itemId, itemId),
+          eq(claims.buyerId, buyer.id),
+          eq(claims.status, "confirmed"),
+        ),
+      )
+      .limit(1);
+    if (held) {
+      result = { ok: false, reason: "holder" };
+      return;
+    }
+
+    // Next position = current max waitlist position + 1 (computed in-txn).
+    const [{ max }] = await tx
+      .select({ max: sql<number>`coalesce(max(${claims.position}), 0)` })
+      .from(claims)
+      .where(and(eq(claims.itemId, itemId), eq(claims.status, "waitlist")));
+    const position = Number(max) + 1;
+
+    await tx
+      .insert(claims)
+      .values({ itemId, buyerId: buyer.id, status: "waitlist", position })
+      .onConflictDoUpdate({
+        target: [claims.itemId, claims.buyerId],
+        // Revive a left/cancelled row to the back of the line.
+        set: { status: "waitlist", position, claimedAt: new Date() },
+      });
+
+    result = { ok: true, position };
+  });
+
+  if (result.ok) revalidateListing(listing.slug);
+  return result;
+}
+
+// Leave the waitlist. Authorized by the remembered contact (a waitlist row must
+// exist for it), mirroring unclaimItem.
+export async function leaveWaitlist(
+  listingId: string,
+  itemId: string,
+  contact: string,
+): Promise<ClaimResult> {
+  const norm = normalizeContact(contact);
+  if (!norm) return { ok: false, reason: "invalid" };
+
+  const [listing] = await db
+    .select({ id: listings.id, slug: listings.slug })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+  if (!listing) return { ok: false, reason: "notfound" };
+
+  const [buyer] = await db
+    .select({ id: buyers.id })
+    .from(buyers)
+    .where(eq(buyers.contact, norm.contact))
+    .limit(1);
+  if (!buyer) return { ok: false, reason: "notfound" };
+
+  const left = await db
+    .update(claims)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(claims.itemId, itemId),
+        eq(claims.buyerId, buyer.id),
+        eq(claims.status, "waitlist"),
+      ),
+    )
+    .returning({ id: claims.id });
+
+  if (left.length === 0) return { ok: false, reason: "notfound" };
   revalidateListing(listing.slug);
   return { ok: true };
 }
