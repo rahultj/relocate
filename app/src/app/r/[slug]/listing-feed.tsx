@@ -106,7 +106,7 @@ export function ListingFeed({
       if (it.availableFrom && it.availableFrom > TODAY_ISO)
         futureDates.add(it.availableFrom);
     const opts: { key: Avail; label: string }[] = [
-      { key: "any", label: "Any time" },
+      { key: "any", label: "Availability" },
     ];
     if (hasNow) opts.push({ key: "now", label: "Available now" });
     for (const date of [...futureDates].sort())
