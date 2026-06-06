@@ -87,12 +87,16 @@ export default async function ListingPage({
       <div className="mx-auto flex min-h-screen max-w-xl flex-col">
         <header className="border-b border-border-weave px-6 pb-4 pt-9">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">
-            {listing.title}
+            mustgo
           </p>
           <h1 className="mt-1 font-serif text-3xl font-medium leading-tight text-text-primary">
-            {feedItems.length} {feedItems.length === 1 ? "thing" : "things"},
-            going home.
+            {listing.title}
           </h1>
+          {listing.intro && (
+            <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-text-secondary">
+              {listing.intro}
+            </p>
+          )}
           {bylineParts.length > 0 && (
             <p className="mt-2 text-sm text-text-secondary">
               {bylineParts.map((part, i) => (

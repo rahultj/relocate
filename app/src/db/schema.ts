@@ -64,6 +64,9 @@ export const listings = pgTable("listings", {
   // so old links / printed QR never break.
   previousSlugs: text("previous_slugs").array().notNull().default([]),
   title: text("title").notNull(),
+  // Seller's move story — a short paragraph shown under the title on the buyer
+  // header (why/when they're moving). Null => header shows title + byline only.
+  intro: text("intro"),
   city: text("city"),
   neighborhood: text("neighborhood"),
   pickupFrom: date("pickup_from"),

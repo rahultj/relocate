@@ -93,6 +93,7 @@ interface ListingMeta {
   id: string;
   slug: string;
   title: string;
+  intro: string;
   city: string;
   neighborhood: string;
   pickupFrom: string;
@@ -132,6 +133,7 @@ export function ListingEditor({
   const save = useListingSave(listing.id);
 
   const [title, setTitle] = useState(listing.title);
+  const [intro, setIntro] = useState(listing.intro);
   const [city, setCity] = useState(listing.city);
   const [neighborhood, setNeighborhood] = useState(listing.neighborhood);
   const [pickupFrom, setPickupFrom] = useState(listing.pickupFrom);
@@ -328,6 +330,7 @@ export function ListingEditor({
   const pushDetails = (over: Partial<ListingMeta>) => {
     save.saveDetails({
       title: over.title ?? title,
+      intro: (over.intro ?? intro).trim() || null,
       city: (over.city ?? city).trim() || null,
       neighborhood: (over.neighborhood ?? neighborhood).trim() || null,
       pickupFrom: (over.pickupFrom ?? pickupFrom) || null,
@@ -530,6 +533,17 @@ export function ListingEditor({
                 onChange={(e) => {
                   setTitle(e.target.value);
                   pushDetails({ title: e.target.value });
+                }}
+              />
+            </Field>
+            <Field label="Intro · your move story" className="sm:col-span-2">
+              <textarea
+                className={`${inputCls} min-h-[5rem] resize-y`}
+                value={intro}
+                placeholder="Why and when you're moving — shown under the title on your public page. A line or two."
+                onChange={(e) => {
+                  setIntro(e.target.value);
+                  pushDetails({ intro: e.target.value });
                 }}
               />
             </Field>
