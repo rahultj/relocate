@@ -111,6 +111,21 @@ export default async function ManagePage({
     };
   });
 
+  // Top-of-page overview of every item with claim activity (claimed or
+  // waitlisted), so the seller doesn't have to scroll the whole list to find
+  // who claimed what. Jump-links target the per-row anchors below.
+  const claimSummary = rows
+    .filter((it) => claimByItem.has(it.id) || (waitByItem.get(it.id)?.length ?? 0) > 0)
+    .map((it) => {
+      const c = claimByItem.get(it.id);
+      return {
+        itemId: it.id,
+        name: it.name,
+        claimant: c ? { name: c.name ?? "", contact: c.contact ?? "" } : null,
+        waiting: waitByItem.get(it.id)?.length ?? 0,
+      };
+    });
+
   return (
     <main className="min-h-screen bg-bg-main">
       <ListingEditor
@@ -125,6 +140,7 @@ export default async function ManagePage({
           pickupTo: listing.pickupTo ?? "",
         }}
         initialItems={initialItems}
+        claimSummary={claimSummary}
       />
     </main>
   );

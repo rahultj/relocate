@@ -125,12 +125,21 @@ function rowToFields(r: Row): ItemFields {
   };
 }
 
+export interface ClaimSummaryEntry {
+  itemId: string;
+  name: string;
+  claimant: { name: string; contact: string } | null;
+  waiting: number;
+}
+
 export function ListingEditor({
   listing,
   initialItems,
+  claimSummary = [],
 }: {
   listing: ListingMeta;
   initialItems: EditorItem[];
+  claimSummary?: ClaimSummaryEntry[];
 }) {
   const save = useListingSave(listing.id);
 
@@ -517,6 +526,50 @@ export function ListingEditor({
         item links stay the same. Re-import your CSV anytime: matching rows
         update in place.
       </p>
+
+      {/* Claims overview — every item with a claim or waitlist, with a jump
+          link to its row (so it's not buried in a long list). */}
+      {claimSummary.length > 0 && (
+        <section className="mt-6 rounded-xl border border-forest/25 bg-forest/[0.05] px-4 py-3">
+          <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-forest">
+            {claimSummary.filter((e) => e.claimant).length} claimed ·{" "}
+            {claimSummary.reduce((n, e) => n + e.waiting, 0)} waiting
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {claimSummary.map((e) => (
+              <li
+                key={e.itemId}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+              >
+                <a
+                  href={`#item-${e.itemId}`}
+                  className="font-medium text-text-primary underline-offset-2 hover:text-brand hover:underline"
+                >
+                  {e.name}
+                </a>
+                {e.claimant ? (
+                  <span className="text-text-secondary">
+                    — {e.claimant.name || "claimed"}{" "}
+                    <a
+                      href={contactHref(e.claimant.contact)}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {e.claimant.contact}
+                    </a>
+                  </span>
+                ) : (
+                  <span className="text-text-muted">— available</span>
+                )}
+                {e.waiting > 0 && (
+                  <span className="rounded-full bg-ochre/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ochre-dark">
+                    {e.waiting} waiting
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Listing details — collapsed by default */}
       <section className="mt-8 rounded-xl border border-border-weave bg-bg-card">
@@ -1072,7 +1125,8 @@ function EditRow({
 
   return (
     <div
-      className={`relative flex flex-wrap items-start gap-3 rounded-xl border bg-bg-card p-3 sm:grid sm:grid-cols-[4rem_minmax(0,1fr)_5rem_9rem_auto_auto] sm:items-center sm:gap-x-3 sm:gap-y-2 ${
+      id={r.itemId ? `item-${r.itemId}` : undefined}
+      className={`relative flex flex-wrap items-start gap-3 scroll-mt-4 rounded-xl border bg-bg-card p-3 sm:grid sm:grid-cols-[4rem_minmax(0,1fr)_5rem_9rem_auto_auto] sm:items-center sm:gap-x-3 sm:gap-y-2 ${
         hasError ? "border-crimson/50" : "border-border-weave"
       } ${r.listed ? "" : "opacity-60"}`}
     >
