@@ -89,41 +89,28 @@ export function ListingFeed({
     [items, cat, avail, freeOnly],
   );
 
-  // Category dropdown lists only categories actually present, with counts;
-  // counts are over the full set so they don't jump as other filters change.
+  // Category dropdown lists only the categories actually present (canonical
+  // order, Other last).
   const catOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const it of items) {
-      const k = catKey(it);
-      counts.set(k, (counts.get(k) ?? 0) + 1);
-    }
-    const ordered = [...CATEGORIES, OTHER].filter((c) => counts.has(c));
-    return ordered.map((c) => ({ key: c, label: `${c} · ${counts.get(c)}` }));
+    const present = new Set(items.map(catKey));
+    return [...CATEGORIES, OTHER].filter((c) => present.has(c));
   }, [items]);
 
   // Availability options built from the listing's real dates: "Available now"
   // (ready today/past or undated) + one option per distinct future date,
-  // ascending. Counts partition the set, so they stay meaningful.
+  // ascending.
   const availOptions = useMemo(() => {
-    const nowCount = items.filter(isReadyNow).length;
-    const futureCounts = new Map<string, number>();
-    for (const it of items) {
+    const hasNow = items.some(isReadyNow);
+    const futureDates = new Set<string>();
+    for (const it of items)
       if (it.availableFrom && it.availableFrom > TODAY_ISO)
-        futureCounts.set(
-          it.availableFrom,
-          (futureCounts.get(it.availableFrom) ?? 0) + 1,
-        );
-    }
+        futureDates.add(it.availableFrom);
     const opts: { key: Avail; label: string }[] = [
       { key: "any", label: "Any time" },
     ];
-    if (nowCount > 0)
-      opts.push({ key: "now", label: `Available now · ${nowCount}` });
-    for (const date of [...futureCounts.keys()].sort())
-      opts.push({
-        key: date,
-        label: `From ${formatMonthDay(date)} · ${futureCounts.get(date)}`,
-      });
+    if (hasNow) opts.push({ key: "now", label: "Available now" });
+    for (const date of [...futureDates].sort())
+      opts.push({ key: date, label: `From ${formatMonthDay(date)}` });
     return opts;
   }, [items]);
 
@@ -143,10 +130,10 @@ export function ListingFeed({
           onChange={(e) => setCat(e.target.value)}
           className={selectCls}
         >
-          <option value="all">All categories · {items.length}</option>
-          {catOptions.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
+          <option value="all">All categories</option>
+          {catOptions.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>
