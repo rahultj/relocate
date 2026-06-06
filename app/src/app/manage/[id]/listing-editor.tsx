@@ -415,15 +415,29 @@ export function ListingEditor({
       const k = norm(r.name);
       if (k && !byName.has(k)) byName.set(k, i);
     });
+    // Track which existing rows the merge actually changed. Only new + changed
+    // rows get sent to the server — rewriting all ~70 items in one transaction
+    // overruns Vercel's function timeout and rolls the whole import back, so a
+    // re-import that "just adds a few" would silently no-op. See updateListing.
+    const changedKeys = new Set<string>();
+    const fieldsKey = (r: Row) =>
+      JSON.stringify([rowToFields(r), r.listed]);
     for (const d of incoming) {
       const k = norm(d.name);
       const idx = k ? byName.get(k) : undefined;
-      if (idx != null) next[idx] = mergeDraft(next[idx], d);
-      else {
+      if (idx != null) {
+        const before = next[idx];
+        const merged = mergeDraft(before, d);
+        next[idx] = merged;
+        if (fieldsKey(before) !== fieldsKey(merged)) changedKeys.add(merged.rowKey);
+      } else {
         next.push(draftToRow(d, defaultAvailableFrom));
         if (k) byName.set(k, next.length - 1);
       }
     }
+    // New rows (no itemId) + existing rows whose values changed. Unchanged
+    // existing items are left untouched server-side (updateListing never deletes).
+    const toWrite = next.filter((r) => !r.itemId || changedKeys.has(r.rowKey));
 
     setParsed(null);
     setMapping([]);
@@ -439,7 +453,7 @@ export function ListingEditor({
       neighborhood: neighborhood.trim() || null,
       pickupFrom: pickupFrom || null,
       pickupTo: pickupTo || null,
-      items: next.map((r) => {
+      items: toWrite.map((r) => {
         const f = rowToFields(r);
         return {
           itemId: r.itemId,

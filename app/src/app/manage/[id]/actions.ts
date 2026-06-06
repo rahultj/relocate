@@ -358,6 +358,10 @@ export async function updateListing(
         return s;
       };
 
+      // New rows insert in one batched statement; existing rows update in
+      // place. Only changed/new rows reach here (the client filters), so this
+      // stays well under Vercel's function timeout even on big listings.
+      const inserts: (typeof items.$inferInsert)[] = [];
       for (let i = 0; i < rows.length; i++) {
         const it = rows[i];
         // Photos upload client-side now (it.photoUrl); the base64 path is a
@@ -387,7 +391,7 @@ export async function updateListing(
               and(eq(items.id, it.itemId), eq(items.listingId, listing.id)),
             );
         } else {
-          await tx.insert(items).values({
+          inserts.push({
             listingId: listing.id,
             slug: mintItemSlug(),
             ...common,
@@ -396,6 +400,7 @@ export async function updateListing(
           });
         }
       }
+      if (inserts.length > 0) await tx.insert(items).values(inserts);
     });
 
     // Reflect changes immediately on the buyer surfaces + home index.

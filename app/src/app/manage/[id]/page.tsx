@@ -11,6 +11,11 @@ import { ListingEditor, type EditorItem } from "./listing-editor";
 
 export const dynamic = "force-dynamic";
 
+// Server actions on this route (CSV import-merge especially) can touch many
+// rows. The client now sends only new/changed rows, but give the function
+// headroom anyway so a heavy edit never times out mid-transaction.
+export const maxDuration = 60;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const metadata = { title: "Manage listing · mustgo" };
