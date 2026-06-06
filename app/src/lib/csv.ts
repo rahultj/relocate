@@ -124,11 +124,12 @@ export function parseCsv(text: string): ParsedCsv {
 // Scalar fields (price, dates, condition, box) stay one-column-only.
 export const MERGE_FIELDS = new Set<FieldKey>(["name", "description"]);
 
-// How each merge field joins its columns: name reads as one line, description
-// stacks so multiple notes stay legible.
+// How each merge field joins its columns: name reads as one line; description
+// joins with " | " so e.g. Company/model and Remarks stay visually separate
+// (a raw "\n" collapses to a space in HTML and runs them together).
 const MERGE_SEP: Partial<Record<FieldKey, string>> = {
   name: " ",
-  description: "\n",
+  description: " | ",
 };
 
 /**

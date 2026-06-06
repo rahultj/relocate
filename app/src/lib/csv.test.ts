@@ -91,6 +91,26 @@ describe("rowsToDrafts", () => {
     expect(d.state).toBe("draft");
   });
 
+  it("joins multiple description columns with ' | '", () => {
+    const parsed = {
+      headers: ["Item", "Model", "Remarks"],
+      rows: [["Humidifier", "Vornado EV100, White", "New filter"]],
+    };
+    const mapping: FieldKey[] = ["name", "description", "description"];
+    const [d] = rowsToDrafts(parsed, mapping, "2026-06-01");
+    expect(d.description).toBe("Vornado EV100, White | New filter");
+  });
+
+  it("skips blank columns when joining a description", () => {
+    const parsed = {
+      headers: ["Item", "Model", "Remarks"],
+      rows: [["Lamp", "West Elm", ""]],
+    };
+    const mapping: FieldKey[] = ["name", "description", "description"];
+    const [d] = rowsToDrafts(parsed, mapping, "2026-06-01");
+    expect(d.description).toBe("West Elm"); // no trailing " | "
+  });
+
   it("falls back to defaultAvailableFrom when no date column", () => {
     const parsed = { headers: ["Item"], rows: [["Lamp"]] };
     const [d] = rowsToDrafts(parsed, ["name"], "2026-06-01");
