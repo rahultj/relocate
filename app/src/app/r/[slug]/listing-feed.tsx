@@ -43,49 +43,24 @@ function groupByCategory(
 
 const OTHER = "Other";
 
-// ---- availability buckets (time-range, calendar-relative) ----
-// "available by" semantics: a null date counts as available now, so each
-// horizon includes everything ready sooner. "later" is the inverse — only the
-// long-horizon items that aren't available until after this month.
-type Avail = "any" | "now" | "soon" | "month" | "later";
+// ---- availability: the listing's actual "available from" dates ----
+// Rather than synthetic relative windows, the dropdown lists the real dates
+// items free up on (the seller stages the move date by date). Each date is a
+// distinct cohort, so the options partition the set. `avail` holds "any",
+// "now" (ready today/past or undated), or an exact ISO date.
+type Avail = "any" | "now" | (string & {});
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
-const isoOffset = (days: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-const endOfMonthISO = (() => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
-})();
-const IN_TWO_WEEKS_ISO = isoOffset(14);
 
 // Effective "ready" date: no date means it's ready today.
 const readyBy = (it: FeedItem) => it.availableFrom ?? TODAY_ISO;
+const isReadyNow = (it: FeedItem) => readyBy(it) <= TODAY_ISO;
 
 function matchesAvail(it: FeedItem, a: Avail): boolean {
   if (a === "any") return true;
-  const eff = readyBy(it);
-  switch (a) {
-    case "now":
-      return eff <= TODAY_ISO;
-    case "soon":
-      return eff <= IN_TWO_WEEKS_ISO;
-    case "month":
-      return eff <= endOfMonthISO;
-    case "later":
-      return eff > endOfMonthISO;
-  }
+  if (a === "now") return isReadyNow(it);
+  return it.availableFrom === a; // exact future date cohort
 }
-
-const AVAIL_OPTIONS: { key: Avail; label: string }[] = [
-  { key: "any", label: "Any time" },
-  { key: "now", label: "Available now" },
-  { key: "soon", label: "Within 2 weeks" },
-  { key: "month", label: "This month" },
-  { key: "later", label: "Later" },
-];
 
 const catKey = (it: FeedItem) =>
   it.category && (CATEGORIES as readonly string[]).includes(it.category)
@@ -126,14 +101,31 @@ export function ListingFeed({
     return ordered.map((c) => ({ key: c, label: `${c} · ${counts.get(c)}` }));
   }, [items]);
 
-  const availOptions = useMemo(
-    () =>
-      AVAIL_OPTIONS.map((o) => ({
-        ...o,
-        count: items.filter((it) => matchesAvail(it, o.key)).length,
-      })),
-    [items],
-  );
+  // Availability options built from the listing's real dates: "Available now"
+  // (ready today/past or undated) + one option per distinct future date,
+  // ascending. Counts partition the set, so they stay meaningful.
+  const availOptions = useMemo(() => {
+    const nowCount = items.filter(isReadyNow).length;
+    const futureCounts = new Map<string, number>();
+    for (const it of items) {
+      if (it.availableFrom && it.availableFrom > TODAY_ISO)
+        futureCounts.set(
+          it.availableFrom,
+          (futureCounts.get(it.availableFrom) ?? 0) + 1,
+        );
+    }
+    const opts: { key: Avail; label: string }[] = [
+      { key: "any", label: "Any time" },
+    ];
+    if (nowCount > 0)
+      opts.push({ key: "now", label: `Available now · ${nowCount}` });
+    for (const date of [...futureCounts.keys()].sort())
+      opts.push({
+        key: date,
+        label: `From ${formatMonthDay(date)} · ${futureCounts.get(date)}`,
+      });
+    return opts;
+  }, [items]);
 
   const groups = useMemo(() => groupByCategory(shown), [shown]);
   // Flat list when a single category is selected (the dropdown already names
@@ -168,7 +160,6 @@ export function ListingFeed({
           {availOptions.map((o) => (
             <option key={o.key} value={o.key}>
               {o.label}
-              {o.key !== "any" ? ` · ${o.count}` : ""}
             </option>
           ))}
         </select>
