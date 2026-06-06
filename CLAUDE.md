@@ -75,7 +75,7 @@ Everything below is **merged to `main`, deployed to `https://mustgo.vercel.app`,
 **Open threads / possible next goals (Rahul to pick):**
 - Rahul's real listing is **`/r/swahul`** (renamed from `bt8x`, which 308-redirects). id `262da553-11ec-4414-986a-01c9f86dcdc6`. **~86 items** now (re-imported 2026-06-06, up from 73).
 - **Intro copy:** a placeholder move-story `intro` is live on the real listing — Rahul to reword on `/manage` (autosaves, no redeploy).
-- **Waitlist is manual** (`7dae6de`): seller sees waiters + contacts on `/manage` and reaches out by hand. **Auto-promote the next in line + notify** is the natural follow-on but needs SMS/email → deferred to real M2.
+- **Waitlist is manual** (`7dae6de`): seller sees waiters + contacts on `/manage` and reaches out by hand. **→ Next planned goal: waitlist auto-promotion.** Releasing a claim should promote the #1 waiter (item stays claimed, never re-opens to the feed); seller still notifies manually; plus a small `myItemStatus` lookup so the promoted buyer sees it on return. Full executable plan: **`WAITLIST_PROMOTION_PLAN.md`** (drafted 2026-06-06, not started). No schema change for the core.
 - **`/seller/add` doesn't expose category in its column-mapping UI yet** (only `/manage` does). The add flow still auto-suggests + persists category silently; surfacing it there is a small follow-on if wanted.
 - A **real custom domain** is still optional/deferred (mustgo.vercel.app is fine for now).
 - Natural follow-ons to soft claim: **seller email-notify on claim/waitlist** (small), or **real OTP/SMS M2** (big).
