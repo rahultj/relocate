@@ -80,12 +80,17 @@ export function ListingFeed({
 
   const shown = useMemo(
     () =>
-      items.filter(
-        (it) =>
-          (cat === "all" || catKey(it) === cat) &&
-          matchesAvail(it, avail) &&
-          (!freeOnly || it.isFree || it.priceCents == null),
-      ),
+      items
+        .filter(
+          (it) =>
+            (cat === "all" || catKey(it) === cat) &&
+            matchesAvail(it, avail) &&
+            (!freeOnly || it.isFree || it.priceCents == null),
+        )
+        // Soonest-available first. `readyBy` maps undated/past items to today,
+        // so "available now" leads (the server's nulls-last sort would bury
+        // them otherwise). Grouping preserves this order within each category.
+        .sort((a, b) => readyBy(a).localeCompare(readyBy(b))),
     [items, cat, avail, freeOnly],
   );
 
