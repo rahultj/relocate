@@ -5,12 +5,33 @@
 // plus a "Free only" toggle. Native selects are the minimal, on-brand way to do
 // this — they render as the OS picker on mobile. Rows link to the detail page.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMonthDay } from "@/lib/format";
 import { CATEGORIES } from "@/lib/category";
+import { joinWaitlist, type WaitlistResult } from "./[itemId]/actions";
+
+const BUYER_KEY = "mustgo_buyer";
+const WAITLIST_KEY = "mustgo_waitlist";
+
+interface Buyer { name: string; contact: string; }
+
+function readBuyer(): Buyer | null {
+  try {
+    const raw = localStorage.getItem(BUYER_KEY);
+    return raw ? (JSON.parse(raw) as Buyer) : null;
+  } catch { return null; }
+}
+
+function readWaitlist(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(WAITLIST_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch { return {}; }
+}
 
 export interface FeedItem {
+  id: string; // UUID — used for localStorage keys + server actions
   slug: string;
   name: string;
   description: string | null;
@@ -70,9 +91,11 @@ const catKey = (it: FeedItem) =>
 export function ListingFeed({
   slug,
   items,
+  listingId,
 }: {
   slug: string;
   items: FeedItem[];
+  listingId: string;
 }) {
   const [cat, setCat] = useState<string>("all");
   const [avail, setAvail] = useState<Avail>("any");
@@ -179,7 +202,7 @@ export function ListingFeed({
       ) : flat ? (
         <ul className="flex-1">
           {shown.map((it) => (
-            <ItemRow key={it.slug} item={it} listingSlug={slug} />
+            <ItemRow key={it.slug} item={it} listingSlug={slug} listingId={listingId} />
           ))}
         </ul>
       ) : (
@@ -192,7 +215,7 @@ export function ListingFeed({
               </h2>
               <ul>
                 {g.items.map((it) => (
-                  <ItemRow key={it.slug} item={it} listingSlug={slug} />
+                  <ItemRow key={it.slug} item={it} listingSlug={slug} listingId={listingId} />
                 ))}
               </ul>
             </section>
@@ -206,18 +229,21 @@ export function ListingFeed({
 function ItemRow({
   item: it,
   listingSlug,
+  listingId,
 }: {
   item: FeedItem;
   listingSlug: string;
+  listingId: string;
 }) {
   const claimed = it.status !== "listed";
   const future = it.availableFrom && it.availableFrom > TODAY_ISO;
 
   return (
-    <li>
+    // border-b on <li> so the waitlist CTA row (outside <Link>) stays inside the border
+    <li className="border-b border-border-weave">
       <Link
         href={`/r/${listingSlug}/${it.slug}`}
-        className="flex items-start gap-3.5 border-b border-border-weave px-6 py-3.5 transition-colors hover:bg-bg-card"
+        className="flex items-start gap-3.5 px-6 py-3.5 transition-colors hover:bg-bg-card"
       >
         {/* Thumb */}
         <div
@@ -281,7 +307,93 @@ function ItemRow({
           )}
         </div>
       </Link>
+
+      {/* Waitlist CTA — outside <Link> so it doesn't trigger navigation */}
+      {claimed && (
+        <div className="flex items-center gap-3.5 px-6 pb-3">
+          {/* spacer aligns the CTA with the body text (thumb width) */}
+          <div className="size-[72px] shrink-0" aria-hidden />
+          <WaitlistCta
+            listingId={listingId}
+            itemId={it.id}
+            itemSlug={it.slug}
+            listingSlug={listingSlug}
+          />
+        </div>
+      )}
     </li>
+  );
+}
+
+function WaitlistCta({
+  listingId,
+  itemId,
+  itemSlug,
+  listingSlug,
+}: {
+  listingId: string;
+  itemId: string;
+  itemSlug: string;
+  listingSlug: string;
+}) {
+  const [joined, setJoined] = useState(false);
+  const [position, setPosition] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const pos = readWaitlist()[itemId];
+    if (pos != null) {
+      setPosition(pos);
+      setJoined(true);
+    }
+  }, [itemId]);
+
+  if (joined) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-ochre/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-ochre">
+        Waitlisted{position != null ? ` · #${position}` : ""}
+      </span>
+    );
+  }
+
+  const handleJoin = async () => {
+    const buyer = readBuyer();
+    if (!buyer) {
+      // No remembered identity — send to detail page for the full form.
+      window.location.href = `/r/${listingSlug}/${itemSlug}`;
+      return;
+    }
+    setBusy(true);
+    let res: WaitlistResult;
+    try {
+      res = await joinWaitlist(listingId, itemId, buyer.name, buyer.contact);
+    } catch {
+      res = { ok: false, reason: "invalid" };
+    }
+    setBusy(false);
+    if (res.ok) {
+      try {
+        const w = readWaitlist();
+        w[itemId] = res.position;
+        localStorage.setItem(WAITLIST_KEY, JSON.stringify(w));
+      } catch { /* non-fatal */ }
+      setPosition(res.position);
+      setJoined(true);
+    } else {
+      // Anything else (error, race, available) → hand off to the detail page.
+      window.location.href = `/r/${listingSlug}/${itemSlug}`;
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleJoin}
+      disabled={busy}
+      className="text-[11px] font-medium text-brand underline-offset-2 hover:underline disabled:opacity-60"
+    >
+      {busy ? "Joining…" : "Join the waitlist →"}
+    </button>
   );
 }
 

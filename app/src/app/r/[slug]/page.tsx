@@ -61,6 +61,7 @@ export default async function ListingPage({
 
   // Trim to a serializable DTO for the client feed.
   const feedItems: FeedItem[] = rows.map((it) => ({
+    id: it.id,
     slug: it.slug,
     name: it.name,
     description: it.description,
@@ -111,7 +112,7 @@ export default async function ListingPage({
           )}
         </header>
 
-        <ListingFeed slug={slug} items={feedItems} />
+        <ListingFeed slug={slug} items={feedItems} listingId={listing.id} />
       </div>
     </main>
   );
