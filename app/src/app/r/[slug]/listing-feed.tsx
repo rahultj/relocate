@@ -251,8 +251,15 @@ function ItemRow({
           )}
           <div className="mt-2 flex items-center gap-2 font-mono text-[11px] tracking-[0.02em] text-text-muted">
             {claimed ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-bg-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-text-muted">
-                Claimed
+              // Claimed items aren't a dead end: surface the waitlist option
+              // right here so buyers don't have to tap through to discover it.
+              // The row already links to the detail page, where the join form
+              // lives — this is the affordance, not a duplicate flow.
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center rounded-full bg-bg-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-text-muted">
+                  Claimed
+                </span>
+                <span className="font-medium text-brand">Join waitlist ›</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-forest">
