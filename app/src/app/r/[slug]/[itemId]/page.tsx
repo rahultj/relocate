@@ -18,6 +18,7 @@ import {
   CONDITION_LABELS,
 } from "@/lib/format";
 import { canonicalSlugFor } from "@/lib/listing-slug";
+import { ContactButton } from "@/components/contact-button";
 import { ClaimButton } from "./claim-button";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +132,7 @@ export default async function ItemDetailPage({
           )}
         </div>
 
-        <div className="px-6 pb-10 pt-6">
+        <div className="px-6 pb-28 pt-6">
           <h1 className="font-serif text-3xl font-medium leading-tight text-text-primary">
             {item.name}
           </h1>
@@ -187,6 +188,7 @@ export default async function ItemDetailPage({
           )}
         </div>
       </div>
+      <ContactButton />
     </main>
   );
 }
