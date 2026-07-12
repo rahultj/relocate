@@ -98,7 +98,9 @@ export function ListingFeed({
   // order, Other last).
   const catOptions = useMemo(() => {
     const present = new Set(items.map(catKey));
-    return [...CATEGORIES, OTHER].filter((c) => present.has(c));
+    // CATEGORIES already ends with "Other" (canonical order, Other last), so
+    // filter it directly — don't re-append OTHER or it renders twice (dup key).
+    return CATEGORIES.filter((c) => present.has(c));
   }, [items]);
 
   // Availability options built from the listing's real dates: "Available now"
