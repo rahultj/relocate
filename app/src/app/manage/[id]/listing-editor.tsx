@@ -499,10 +499,28 @@ export function ListingEditor({
   // ---------- Derived ----------
 
   const counts = useMemo(() => {
-    const c = { listed: 0, unlisted: 0 };
-    rows.forEach((r) => (r.listed ? c.listed++ : c.unlisted++));
+    const c = { listed: 0, unlisted: 0, claimed: 0, waitlisted: 0 };
+    rows.forEach((r) => {
+      if (r.listed) c.listed++;
+      else c.unlisted++;
+      if (r.claim) c.claimed++;
+      if ((r.waitlist?.length ?? 0) > 0) c.waitlisted++;
+    });
     return c;
   }, [rows]);
+
+  // Filter the item list so the seller can collapse a long listing down to
+  // just the rows with claim activity. "Claimed" = someone holds it now;
+  // "Waitlisted" = people are waiting on it (whether or not it's claimed).
+  const [rowFilter, setRowFilter] = useState<"all" | "claimed" | "waitlisted">(
+    "all",
+  );
+  const visibleRows = useMemo(() => {
+    if (rowFilter === "claimed") return rows.filter((r) => r.claim);
+    if (rowFilter === "waitlisted")
+      return rows.filter((r) => (r.waitlist?.length ?? 0) > 0);
+    return rows;
+  }, [rows, rowFilter]);
 
   // ============================================================ render
 
@@ -898,6 +916,34 @@ export function ListingEditor({
             {counts.unlisted > 0 && <> · {counts.unlisted} unlisted</>}
           </p>
           <div className="flex items-center gap-3">
+            {(counts.claimed > 0 || counts.waitlisted > 0) && (
+              <div className="inline-flex overflow-hidden rounded-lg border border-border-alt">
+                <FilterTab
+                  active={rowFilter === "all"}
+                  onClick={() => setRowFilter("all")}
+                >
+                  All
+                </FilterTab>
+                {counts.claimed > 0 && (
+                  <FilterTab
+                    active={rowFilter === "claimed"}
+                    onClick={() => setRowFilter("claimed")}
+                    borderLeft
+                  >
+                    Claimed {counts.claimed}
+                  </FilterTab>
+                )}
+                {counts.waitlisted > 0 && (
+                  <FilterTab
+                    active={rowFilter === "waitlisted"}
+                    onClick={() => setRowFilter("waitlisted")}
+                    borderLeft
+                  >
+                    Waitlisted {counts.waitlisted}
+                  </FilterTab>
+                )}
+              </div>
+            )}
             <a
               href={`/r/${slug}`}
               target="_blank"
@@ -925,7 +971,7 @@ export function ListingEditor({
 
       {/* Rows */}
       <div className="mt-3 space-y-2">
-        {rows.map((r) => (
+        {visibleRows.map((r) => (
           <EditRow
             key={r.rowKey}
             row={r}
@@ -939,6 +985,17 @@ export function ListingEditor({
             onReleaseClaim={releaseRowClaim}
           />
         ))}
+        {rows.length > 0 && visibleRows.length === 0 && (
+          <p className="rounded-xl border border-dashed border-border-alt bg-bg-card px-4 py-8 text-center text-sm text-text-muted">
+            No {rowFilter} items.{" "}
+            <button
+              onClick={() => setRowFilter("all")}
+              className="text-brand underline-offset-2 hover:underline"
+            >
+              Show all
+            </button>
+          </p>
+        )}
         {rows.length === 0 && (
           <p className="rounded-xl border border-dashed border-border-alt bg-bg-card px-4 py-8 text-center text-sm text-text-muted">
             No items yet. Add one or import a CSV.
@@ -1058,6 +1115,35 @@ function suggestRow(fn: string, rows: Row[]): string {
 }
 
 // ---------- Subcomponents ----------
+
+// Segmented filter tab for the item-list header (All / Claimed / Waitlisted).
+function FilterTab({
+  active,
+  onClick,
+  borderLeft = false,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  borderLeft?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-3 py-1 text-xs font-medium ${
+        borderLeft ? "border-l border-border-alt" : ""
+      } ${
+        active
+          ? "bg-forest/10 text-forest"
+          : "text-text-secondary hover:bg-bg-hover"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const inputCls =
   "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
