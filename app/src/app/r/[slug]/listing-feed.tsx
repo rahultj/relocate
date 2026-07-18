@@ -87,10 +87,18 @@ export function ListingFeed({
             matchesAvail(it, avail) &&
             (!freeOnly || it.isFree || it.priceCents == null),
         )
-        // Soonest-available first. `readyBy` maps undated/past items to today,
-        // so "available now" leads (the server's nulls-last sort would bury
-        // them otherwise). Grouping preserves this order within each category.
-        .sort((a, b) => readyBy(a).localeCompare(readyBy(b))),
+        // Unclaimed first, then soonest-available. Claimed items sink to the
+        // bottom (of the flat list, or within each category section) so buyers
+        // see what they can actually take before the "Join waitlist" leftovers.
+        // `readyBy` maps undated/past items to today, so "available now" leads
+        // the server's nulls-last sort would bury them otherwise). Grouping
+        // preserves this order within each category.
+        .sort((a, b) => {
+          const claimedA = a.status !== "listed" ? 1 : 0;
+          const claimedB = b.status !== "listed" ? 1 : 0;
+          if (claimedA !== claimedB) return claimedA - claimedB;
+          return readyBy(a).localeCompare(readyBy(b));
+        }),
     [items, cat, avail, freeOnly],
   );
 
