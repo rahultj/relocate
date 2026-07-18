@@ -297,8 +297,11 @@ function ItemRow({
                   markdown (original > asking). Small, muted, stacked above. */}
               {it.originalPriceCents != null &&
                 it.originalPriceCents > it.priceCents && (
-                  <div className="font-mono text-[11px] font-normal text-text-muted line-through">
-                    ${Math.round(it.originalPriceCents / 100)}
+                  <div className="font-mono text-[11px] font-normal text-text-muted">
+                    Orig.{" "}
+                    <span className="line-through">
+                      ${Math.round(it.originalPriceCents / 100)}
+                    </span>
                   </div>
                 )}
               <span className="text-[13px] text-text-muted">$</span>

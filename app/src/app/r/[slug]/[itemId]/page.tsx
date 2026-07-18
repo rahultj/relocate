@@ -176,8 +176,9 @@ export default async function ItemDetailPage({
                   }
                 >
                   {r.struck && (
-                    <span className="font-mono text-[11px] font-normal text-text-muted line-through">
-                      {r.struck}
+                    <span className="font-mono text-[11px] font-normal text-text-muted">
+                      Orig.{" "}
+                      <span className="line-through">{r.struck}</span>
                     </span>
                   )}
                   {r.value}
