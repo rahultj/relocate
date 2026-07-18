@@ -79,21 +79,40 @@ export default async function ItemDetailPage({
 
   // Build the meta rows, dropping any the seller didn't provide.
   const isFreeItem = item.isFree || item.priceCents == null;
+  // A real markdown: struck original anchors the deal right on the Price row.
+  const showDiscount =
+    !isFreeItem &&
+    item.originalPriceCents != null &&
+    item.priceCents != null &&
+    item.originalPriceCents > item.priceCents;
   const rows: {
     label: string;
     value: string;
+    struck?: string;
     serif?: boolean;
     accent?: boolean;
-  }[] = [{ label: "Price", value: priceLabel, serif: true, accent: isFreeItem }];
+  }[] = [
+    {
+      label: "Price",
+      value: priceLabel,
+      struck: showDiscount ? formatPrice(item.originalPriceCents!) : undefined,
+      serif: true,
+      accent: isFreeItem,
+    },
+  ];
   if (item.boughtDate)
     rows.push({ label: "Bought", value: formatMonthYear(item.boughtDate) });
-  if (item.originalPriceCents != null)
+  // "Originally" as its own row only when it isn't already struck on Price
+  // (avoids showing $200 twice). Box-included info is preserved either way.
+  if (item.originalPriceCents != null && !showDiscount)
     rows.push({
       label: "Originally",
       value:
         formatPrice(item.originalPriceCents) +
         (item.originalBoxIncluded ? " · Box included" : ""),
     });
+  else if (showDiscount && item.originalBoxIncluded)
+    rows.push({ label: "Box", value: "Included" });
   if (item.availableFrom)
     rows.push({ label: "Available from", value: formatDate(item.availableFrom) });
   if (item.condition)
@@ -150,12 +169,17 @@ export default async function ItemDetailPage({
                 <dd
                   className={
                     r.serif
-                      ? `font-serif text-lg font-medium ${
+                      ? `flex items-baseline gap-2 font-serif text-lg font-medium ${
                           r.accent ? "text-forest" : "text-text-primary"
                         }`
                       : "font-mono text-[11px] font-medium text-text-primary"
                   }
                 >
+                  {r.struck && (
+                    <span className="font-mono text-[11px] font-normal text-text-muted line-through">
+                      {r.struck}
+                    </span>
+                  )}
                   {r.value}
                 </dd>
               </div>

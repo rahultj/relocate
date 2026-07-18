@@ -67,6 +67,7 @@ export default async function ListingPage({
     description: it.description,
     availableFrom: it.availableFrom,
     priceCents: it.priceCents,
+    originalPriceCents: it.originalPriceCents,
     isFree: it.isFree,
     status: it.status,
     photoUrl: it.photoUrl,

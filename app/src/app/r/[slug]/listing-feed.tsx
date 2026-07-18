@@ -16,6 +16,7 @@ export interface FeedItem {
   description: string | null;
   availableFrom: string | null; // ISO
   priceCents: number | null;
+  originalPriceCents: number | null;
   isFree: boolean;
   status: "listed" | "claimed" | "picked_up";
   photoUrl: string | null;
@@ -292,6 +293,14 @@ function ItemRow({
             <span className={claimed ? "" : "text-forest"}>Free</span>
           ) : (
             <>
+              {/* Struck original anchors the deal — only when it's a real
+                  markdown (original > asking). Small, muted, stacked above. */}
+              {it.originalPriceCents != null &&
+                it.originalPriceCents > it.priceCents && (
+                  <div className="font-mono text-[11px] font-normal text-text-muted line-through">
+                    ${Math.round(it.originalPriceCents / 100)}
+                  </div>
+                )}
               <span className="text-[13px] text-text-muted">$</span>
               {Math.round(it.priceCents / 100)}
             </>
