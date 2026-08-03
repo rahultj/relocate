@@ -121,7 +121,13 @@ export default async function ManagePage({
       return {
         itemId: it.id,
         name: it.name,
+        category: it.category ?? null,
         claimant: c ? { name: c.name ?? "", contact: c.contact ?? "" } : null,
+        claimedAt: c
+          ? c.claimedAt instanceof Date
+            ? c.claimedAt.toISOString()
+            : String(c.claimedAt)
+          : null,
         waiting: waitByItem.get(it.id)?.length ?? 0,
       };
     });
@@ -134,6 +140,7 @@ export default async function ManagePage({
           slug: listing.slug,
           title: listing.title,
           intro: listing.intro ?? "",
+          contact: listing.contact ?? "",
           city: listing.city ?? "",
           neighborhood: listing.neighborhood ?? "",
           pickupFrom: listing.pickupFrom ?? "",

@@ -96,6 +96,7 @@ interface ListingMeta {
   slug: string;
   title: string;
   intro: string;
+  contact: string;
   city: string;
   neighborhood: string;
   pickupFrom: string;
@@ -128,7 +129,9 @@ function rowToFields(r: Row): ItemFields {
 export interface ClaimSummaryEntry {
   itemId: string;
   name: string;
+  category: string | null;
   claimant: { name: string; contact: string } | null;
+  claimedAt: string | null;
   waiting: number;
 }
 
@@ -145,6 +148,7 @@ export function ListingEditor({
 
   const [title, setTitle] = useState(listing.title);
   const [intro, setIntro] = useState(listing.intro);
+  const [contact, setContact] = useState(listing.contact);
   const [city, setCity] = useState(listing.city);
   const [neighborhood, setNeighborhood] = useState(listing.neighborhood);
   const [pickupFrom, setPickupFrom] = useState(listing.pickupFrom);
@@ -342,6 +346,7 @@ export function ListingEditor({
     save.saveDetails({
       title: over.title ?? title,
       intro: (over.intro ?? intro).trim() || null,
+      contact: (over.contact ?? contact).trim() || null,
       city: (over.city ?? city).trim() || null,
       neighborhood: (over.neighborhood ?? neighborhood).trim() || null,
       pickupFrom: (over.pickupFrom ?? pickupFrom) || null,
@@ -527,49 +532,9 @@ export function ListingEditor({
         update in place.
       </p>
 
-      {/* Claims overview — every item with a claim or waitlist, with a jump
-          link to its row (so it's not buried in a long list). */}
-      {claimSummary.length > 0 && (
-        <section className="mt-6 rounded-xl border border-forest/25 bg-forest/[0.05] px-4 py-3">
-          <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-forest">
-            {claimSummary.filter((e) => e.claimant).length} claimed ·{" "}
-            {claimSummary.reduce((n, e) => n + e.waiting, 0)} waiting
-          </p>
-          <ul className="mt-2 flex flex-col gap-1.5">
-            {claimSummary.map((e) => (
-              <li
-                key={e.itemId}
-                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
-              >
-                <a
-                  href={`#item-${e.itemId}`}
-                  className="font-medium text-text-primary underline-offset-2 hover:text-brand hover:underline"
-                >
-                  {e.name}
-                </a>
-                {e.claimant ? (
-                  <span className="text-text-secondary">
-                    — {e.claimant.name || "claimed"}{" "}
-                    <a
-                      href={contactHref(e.claimant.contact)}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {e.claimant.contact}
-                    </a>
-                  </span>
-                ) : (
-                  <span className="text-text-muted">— available</span>
-                )}
-                {e.waiting > 0 && (
-                  <span className="rounded-full bg-ochre/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ochre-dark">
-                    {e.waiting} waiting
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Claims overview — every item with a claim or waitlist, filterable +
+          sortable, with a jump link to each row. */}
+      {claimSummary.length > 0 && <ClaimsOverview entries={claimSummary} />}
 
       {/* Listing details — collapsed by default */}
       <section className="mt-8 rounded-xl border border-border-weave bg-bg-card">
@@ -613,6 +578,17 @@ export function ListingEditor({
                 onChange={(e) => {
                   setIntro(e.target.value);
                   pushDetails({ intro: e.target.value });
+                }}
+              />
+            </Field>
+            <Field label="Contact · phone or email" className="sm:col-span-2">
+              <input
+                className={inputCls}
+                value={contact}
+                placeholder="Phone or email buyers can reach you at — shown on your public page so they can ask before claiming."
+                onChange={(e) => {
+                  setContact(e.target.value);
+                  pushDetails({ contact: e.target.value });
                 }}
               />
             </Field>
@@ -1385,4 +1361,189 @@ function formatClaimDate(iso: string): string {
   return Number.isNaN(d.getTime())
     ? ""
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Filterable / sortable overview of every item with claim activity. Keeps the
+// seller from scrolling a long undifferentiated list — search, narrow by
+// claimant / category / status, and sort by most recent.
+type ClaimSortKey = "recent" | "name" | "waiting";
+type ClaimStatusFilter = "all" | "claimed" | "waitlist";
+
+function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<ClaimStatusFilter>("all");
+  const [claimant, setClaimant] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState<ClaimSortKey>("recent");
+
+  // Distinct claimant names + categories present, for the dropdowns.
+  const claimants = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) {
+      const n = e.claimant?.name?.trim();
+      if (n) set.add(n);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) if (e.category) set.add(e.category);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = entries.filter((e) => {
+      if (status === "claimed" && !e.claimant) return false;
+      if (status === "waitlist" && e.waiting === 0) return false;
+      if (claimant !== "all" && e.claimant?.name?.trim() !== claimant)
+        return false;
+      if (category !== "all" && e.category !== category) return false;
+      if (q) {
+        const hay = `${e.name} ${e.claimant?.name ?? ""} ${
+          e.claimant?.contact ?? ""
+        }`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const sorted = [...rows];
+    if (sort === "name") {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === "waiting") {
+      sorted.sort((a, b) => b.waiting - a.waiting);
+    } else {
+      // recent: newest claim first, unclaimed (waitlist-only) rows last
+      sorted.sort((a, b) => {
+        const ta = a.claimedAt ? Date.parse(a.claimedAt) : -Infinity;
+        const tb = b.claimedAt ? Date.parse(b.claimedAt) : -Infinity;
+        return tb - ta;
+      });
+    }
+    return sorted;
+  }, [entries, query, status, claimant, category, sort]);
+
+  const claimedTotal = entries.filter((e) => e.claimant).length;
+  const waitingTotal = entries.reduce((n, e) => n + e.waiting, 0);
+  const selectClass =
+    "rounded-lg border border-forest/25 bg-bg-main px-2.5 py-1.5 text-sm text-text-primary focus:border-forest focus:outline-none";
+
+  return (
+    <section className="mt-6 rounded-xl border border-forest/25 bg-forest/[0.05] px-4 py-3">
+      <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-forest">
+        {claimedTotal} claimed · {waitingTotal} waiting
+      </p>
+
+      {/* Filter / sort controls */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search item or claimant…"
+          className={`${selectClass} min-w-[10rem] flex-1`}
+        />
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as ClaimStatusFilter)}
+          className={selectClass}
+          aria-label="Filter by status"
+        >
+          <option value="all">All</option>
+          <option value="claimed">Claimed</option>
+          <option value="waitlist">Has waitlist</option>
+        </select>
+        {claimants.length > 0 && (
+          <select
+            value={claimant}
+            onChange={(e) => setClaimant(e.target.value)}
+            className={selectClass}
+            aria-label="Filter by claimant"
+          >
+            <option value="all">All claimants</option>
+            {claimants.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
+        {categories.length > 0 && (
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className={selectClass}
+            aria-label="Filter by category"
+          >
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as ClaimSortKey)}
+          className={selectClass}
+          aria-label="Sort"
+        >
+          <option value="recent">Most recent</option>
+          <option value="name">Name A–Z</option>
+          <option value="waiting">Most waiting</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="mt-3 text-sm text-text-muted">No matching claims.</p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-1.5">
+          {filtered.map((e) => (
+            <li
+              key={e.itemId}
+              className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+            >
+              <a
+                href={`#item-${e.itemId}`}
+                className="font-medium text-text-primary underline-offset-2 hover:text-brand hover:underline"
+              >
+                {e.name}
+              </a>
+              {e.category && (
+                <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-text-muted">
+                  {e.category}
+                </span>
+              )}
+              {e.claimant ? (
+                <span className="text-text-secondary">
+                  — {e.claimant.name || "claimed"}{" "}
+                  <a
+                    href={contactHref(e.claimant.contact)}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {e.claimant.contact}
+                  </a>
+                  {e.claimedAt && (
+                    <span className="text-text-muted">
+                      {" "}
+                      · {formatClaimDate(e.claimedAt)}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-text-muted">— available</span>
+              )}
+              {e.waiting > 0 && (
+                <span className="rounded-full bg-ochre/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ochre-dark">
+                  {e.waiting} waiting
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
