@@ -140,7 +140,6 @@ export default async function ManagePage({
           slug: listing.slug,
           title: listing.title,
           intro: listing.intro ?? "",
-          contact: listing.contact ?? "",
           city: listing.city ?? "",
           neighborhood: listing.neighborhood ?? "",
           pickupFrom: listing.pickupFrom ?? "",

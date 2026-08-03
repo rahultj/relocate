@@ -35,14 +35,3 @@ export function normalizeContact(raw: string): NormalizedContact | null {
   if (digits.length < 7) return null;
   return { contact: (hasPlus ? "+" : "") + digits, type: "phone" };
 }
-
-/**
- * Build a clickable href for a seller's free-text contact. Email → mailto:,
- * phone → tel: (digits only, taps into Messages/Phone on mobile). Returns null
- * if the value isn't a plausible contact, so callers can fall back to plain text.
- */
-export function contactHref(raw: string): string | null {
-  const n = normalizeContact(raw);
-  if (!n) return null;
-  return n.type === "email" ? `mailto:${n.contact}` : `tel:${n.contact}`;
-}

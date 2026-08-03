@@ -96,7 +96,6 @@ interface ListingMeta {
   slug: string;
   title: string;
   intro: string;
-  contact: string;
   city: string;
   neighborhood: string;
   pickupFrom: string;
@@ -148,7 +147,6 @@ export function ListingEditor({
 
   const [title, setTitle] = useState(listing.title);
   const [intro, setIntro] = useState(listing.intro);
-  const [contact, setContact] = useState(listing.contact);
   const [city, setCity] = useState(listing.city);
   const [neighborhood, setNeighborhood] = useState(listing.neighborhood);
   const [pickupFrom, setPickupFrom] = useState(listing.pickupFrom);
@@ -346,7 +344,6 @@ export function ListingEditor({
     save.saveDetails({
       title: over.title ?? title,
       intro: (over.intro ?? intro).trim() || null,
-      contact: (over.contact ?? contact).trim() || null,
       city: (over.city ?? city).trim() || null,
       neighborhood: (over.neighborhood ?? neighborhood).trim() || null,
       pickupFrom: (over.pickupFrom ?? pickupFrom) || null,
@@ -578,17 +575,6 @@ export function ListingEditor({
                 onChange={(e) => {
                   setIntro(e.target.value);
                   pushDetails({ intro: e.target.value });
-                }}
-              />
-            </Field>
-            <Field label="Contact · phone or email" className="sm:col-span-2">
-              <input
-                className={inputCls}
-                value={contact}
-                placeholder="Phone or email buyers can reach you at — shown on your public page so they can ask before claiming."
-                onChange={(e) => {
-                  setContact(e.target.value);
-                  pushDetails({ contact: e.target.value });
                 }}
               />
             </Field>

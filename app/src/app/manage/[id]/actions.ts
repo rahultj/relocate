@@ -186,7 +186,6 @@ export async function createItem(
 export interface ListingDetailsFields {
   title: string;
   intro: string | null;
-  contact: string | null;
   city: string | null;
   neighborhood: string | null;
   pickupFrom: string | null;
@@ -206,7 +205,6 @@ export async function patchListingDetails(
       .set({
         title: d.title.trim(),
         intro: d.intro,
-        contact: d.contact,
         city: d.city,
         neighborhood: d.neighborhood,
         pickupFrom: d.pickupFrom,
