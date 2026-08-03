@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { normalizeContact } from "./contact";
+import { normalizeContact, contactHref } from "./contact";
+
+describe("contactHref", () => {
+  it("builds an sms: link for phones (SMS is the medium)", () => {
+    expect(contactHref("(202) 555-0147")).toBe("sms:2025550147");
+    expect(contactHref("+1 617 230 7788")).toBe("sms:+16172307788");
+  });
+  it("builds a mailto: link for emails", () => {
+    expect(contactHref("Priya@Gmail.com")).toBe("mailto:priya@gmail.com");
+  });
+  it("returns null for junk", () => {
+    expect(contactHref("nope@")).toBeNull();
+    expect(contactHref("123")).toBeNull();
+    expect(contactHref("")).toBeNull();
+  });
+});
 
 describe("normalizeContact", () => {
   it("detects and lowercases emails", () => {

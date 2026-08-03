@@ -19,6 +19,19 @@ import {
   type ActionResult,
 } from "@/lib/with-listing";
 import type { ItemCondition } from "@/lib/format";
+import type { SellerContact } from "@/lib/seller-contact";
+
+// Drop blank contacts and trim fields before persisting — keeps the jsonb clean
+// and lets the buyer button reliably hide when nothing real is set.
+function sanitizeContacts(contacts: SellerContact[]): SellerContact[] {
+  return (contacts ?? [])
+    .map((c) => ({
+      name: c.name?.trim() || undefined,
+      value: c.value?.trim() ?? "",
+      primary: c.primary || undefined,
+    }))
+    .filter((c) => c.value);
+}
 
 // Rename a listing's public slug to a readable one. The old slug is kept in
 // `previous_slugs` so existing links / printed QR 301-redirect to the new URL.
@@ -186,6 +199,7 @@ export async function createItem(
 export interface ListingDetailsFields {
   title: string;
   intro: string | null;
+  sellerContacts: SellerContact[];
   city: string | null;
   neighborhood: string | null;
   pickupFrom: string | null;
@@ -205,6 +219,7 @@ export async function patchListingDetails(
       .set({
         title: d.title.trim(),
         intro: d.intro,
+        sellerContacts: sanitizeContacts(d.sellerContacts),
         city: d.city,
         neighborhood: d.neighborhood,
         pickupFrom: d.pickupFrom,

@@ -1,22 +1,19 @@
-// Hardcoded seller contact numbers for the "Contact us" floating button.
-// Single-seller app, so no per-listing config or schema change (see CLAUDE.md
-// working agreements). Swati is the primary contact.
+// Per-listing seller contact shape for the buyer-facing "Contact us" button.
 //
-// SMS is the medium (principle #2): the numbers render as visible text so a
-// desktop visitor can text from their own phone, and as `sms:` links so a
-// mobile visitor taps straight into their messaging app.
+// Multi-seller: each listing stores its own contacts in `listings.seller_contacts`
+// (a jsonb array of these). There is NO hardcoded global contact — a listing with
+// no contacts set simply shows no button. Set/edited by the seller on /manage.
+//
+// SMS is the medium (principle #2): `value` is a free-text phone or email; the
+// UI derives the right href (sms:/tel: for phones, mailto: for emails) via
+// `contactHref` in lib/contact.ts, so a mobile visitor taps straight into their
+// messaging app and a desktop visitor can read/copy the number.
 
 export interface SellerContact {
-  name: string;
-  /** Digits-only E.164 (with leading "+") for the sms: href. */
-  e164: string;
-  /** Pretty display form. */
-  display: string;
+  /** Who this reaches (e.g. "Swati"). Optional — falls back to the value. */
+  name?: string;
+  /** Free-text phone or email the buyer can reach. */
+  value: string;
   /** The primary person to reach — emphasized in the UI. */
   primary?: boolean;
 }
-
-export const SELLER_CONTACTS: SellerContact[] = [
-  { name: "Swati", e164: "+16172307788", display: "+1 617 230 7788", primary: true },
-  { name: "Rahul", e164: "+18572069533", display: "+1 857 206 9533" },
-];

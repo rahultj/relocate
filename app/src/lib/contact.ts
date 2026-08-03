@@ -35,3 +35,15 @@ export function normalizeContact(raw: string): NormalizedContact | null {
   if (digits.length < 7) return null;
   return { contact: (hasPlus ? "+" : "") + digits, type: "phone" };
 }
+
+/**
+ * Build a tappable href for a free-text seller contact:
+ *  - phone → `sms:` (SMS is the medium — principle #2)
+ *  - email → `mailto:`
+ * Returns null if the value is neither a plausible phone nor email.
+ */
+export function contactHref(raw: string): string | null {
+  const n = normalizeContact(raw);
+  if (!n) return null;
+  return n.type === "email" ? `mailto:${n.contact}` : `sms:${n.contact}`;
+}

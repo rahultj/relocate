@@ -213,7 +213,7 @@ export default async function ItemDetailPage({
           )}
         </div>
       </div>
-      <ContactButton />
+      <ContactButton contacts={listing.sellerContacts} />
     </main>
   );
 }
