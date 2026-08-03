@@ -67,6 +67,10 @@ export const listings = pgTable("listings", {
   // Seller's move story — a short paragraph shown under the title on the buyer
   // header (why/when they're moving). Null => header shows title + byline only.
   intro: text("intro"),
+  // Seller's reach-me contact (phone or email, free text). Shown on the buyer
+  // header + footer so buyers can ask before claiming. Pre-M2 stand-in for the
+  // proxy-number/SMS flow. Null => no contact shown.
+  contact: text("contact"),
   city: text("city"),
   neighborhood: text("neighborhood"),
   pickupFrom: date("pickup_from"),
