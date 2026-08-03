@@ -116,6 +116,11 @@ export const items = pgTable(
     boughtDate: date("bought_date"),
     originalPriceCents: integer("original_price_cents"),
     originalBoxIncluded: boolean("original_box_included"),
+    // Per-item Venmo so a buyer can pay the specific roommate who owns the item.
+    // Handle stored without a leading "@"; link is the explicit profile URL when
+    // given, else derived from the handle. Both null => no Venmo for this item.
+    venmoHandle: text("venmo_handle"),
+    venmoLink: text("venmo_link"),
     photoUrl: text("photo_url"),
     status: itemStatusEnum("status").notNull().default("listed"),
     // Soft-unlist: hidden from the buyer feed but the detail page still resolves

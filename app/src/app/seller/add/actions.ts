@@ -14,6 +14,7 @@ import { listings, items } from "@/db/schema";
 import { mintSlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
 import type { ItemCondition } from "@/lib/format";
+import { normalizeVenmo } from "@/lib/venmo";
 
 export interface PublishListingInput {
   title: string;
@@ -35,6 +36,8 @@ export interface PublishItemInput {
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
   category: string | null;
+  venmoHandle: string | null;
+  venmoLink: string | null;
   photoDataUrl: string | null; // base64 preview; uploaded to Storage at publish
 }
 
@@ -116,7 +119,9 @@ export async function publishListing(
       };
 
       await tx.insert(items).values(
-        input.items.map((it, i) => ({
+        input.items.map((it, i) => {
+          const venmo = normalizeVenmo({ handle: it.venmoHandle, link: it.venmoLink });
+          return {
           listingId: listing.id,
           slug: mintItemSlug(),
           name: it.name.trim(),
@@ -129,9 +134,12 @@ export async function publishListing(
           originalBoxIncluded: it.originalBoxIncluded,
           availableFrom: it.availableFrom,
           category: it.category,
+          venmoHandle: venmo.handle,
+          venmoLink: venmo.link,
           photoUrl: photoUrls[i],
           status: "listed" as const,
-        })),
+          };
+        }),
       );
 
       return {

@@ -17,6 +17,7 @@ import {
   type ClaimResult,
   type WaitlistResult,
 } from "./actions";
+import { venmoPayHref, venmoDisplayHandle } from "@/lib/venmo";
 
 const BUYER_KEY = "mustgo_buyer";
 const CLAIMS_KEY = "mustgo_claims";
@@ -69,10 +70,14 @@ export function ClaimButton({
   listingId,
   itemId,
   alreadyClaimed,
+  venmoHandle,
+  venmoLink,
 }: {
   listingId: string;
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
+  venmoHandle: string | null;
+  venmoLink: string | null;
 }) {
   // Seed from server truth so first paint (pre-hydration) is correct. The effect
   // below upgrades to the buyer-specific state (success / waitlisted).
@@ -293,6 +298,18 @@ export function ClaimButton({
           <p className="mt-2 text-xs text-crimson" role="alert">
             {error}
           </p>
+        )}
+        {venmoPayHref({ handle: venmoHandle, link: venmoLink }) && (
+          <a
+            href={venmoPayHref({ handle: venmoHandle, link: venmoLink })!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#008CFF] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Pay{" "}
+            {venmoDisplayHandle({ handle: venmoHandle, link: venmoLink }) ?? "the owner"}{" "}
+            on Venmo <span aria-hidden>→</span>
+          </a>
         )}
         <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
           {confirmUnclaim ? (

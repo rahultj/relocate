@@ -26,6 +26,8 @@ export type FieldKey =
   | "originalBox"
   | "availableFrom"
   | "category"
+  | "venmoHandle"
+  | "venmoLink"
   | "ignore";
 
 export const FIELD_LABELS: Record<FieldKey, string> = {
@@ -38,12 +40,18 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   originalBox: "Box included",
   availableFrom: "Available from",
   category: "Category",
+  venmoHandle: "Venmo handle",
+  venmoLink: "Venmo link",
   ignore: "Ignore column",
 };
 
 // Header alias table. First match wins; checked in declaration order so more
 // specific fields (originalPrice) are tested before looser ones (price).
 const ALIASES: { field: FieldKey; patterns: RegExp[] }[] = [
+  // Venmo link before handle so "Venmo Link" claims the link and plain "Venmo"
+  // claims the handle (both scalar, claimed once).
+  { field: "venmoLink", patterns: [/venmo.*link/, /venmo.*url/] },
+  { field: "venmoHandle", patterns: [/venmo/] },
   { field: "originalPrice", patterns: [/^original/, /msrp/, /retail/, /\bpaid\b/, /bought.*price/] },
   { field: "boughtDate", patterns: [/^bought/, /purchas/, /acquired/] },
   { field: "originalBox", patterns: [/box/, /packaging/] },
@@ -169,6 +177,9 @@ export interface ItemDraft {
   // Canonical category (suggested from name when the CSV omits it); null =>
   // uncategorized, renders under "Other" in the buyer feed.
   category: Category | null;
+  // Per-item Venmo (raw seller text; normalized at persist via lib/venmo).
+  venmoHandle: string;
+  venmoLink: string;
   photoDataUrl: string | null; // local preview; uploaded on publish
   state: "ready" | "draft" | "skip";
 }
@@ -214,6 +225,8 @@ export function rowsToDrafts(
       availableFrom: parseLooseDate(col(row, "availableFrom")) ?? defaultAvailableFrom,
       // Explicit category wins; otherwise suggest from the name.
       category: resolveCategory(col(row, "category"), name),
+      venmoHandle: col(row, "venmoHandle").trim(),
+      venmoLink: col(row, "venmoLink").trim(),
       photoDataUrl: null,
       state: "draft",
     };

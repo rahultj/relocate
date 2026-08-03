@@ -94,6 +94,8 @@ export default async function ManagePage({
     originalBoxIncluded: it.originalBoxIncluded,
     availableFrom: it.availableFrom ?? "",
     category: it.category,
+    venmoHandle: it.venmoHandle ?? "",
+    venmoLink: it.venmoLink ?? "",
     photoUrl: it.photoUrl,
     photoDataUrl: null,
     listed: !it.unlisted,

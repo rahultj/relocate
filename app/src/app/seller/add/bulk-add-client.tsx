@@ -33,6 +33,9 @@ const FIELD_ORDER: FieldKey[] = [
   "originalPrice",
   "originalBox",
   "availableFrom",
+  "category",
+  "venmoHandle",
+  "venmoLink",
   "ignore",
 ];
 
@@ -168,6 +171,8 @@ export function BulkAdd() {
           originalBoxIncluded: d.originalBoxIncluded,
           availableFrom: d.availableFrom,
           category: d.category,
+          venmoHandle: d.venmoHandle.trim() || null,
+          venmoLink: d.venmoLink.trim() || null,
           // Base64 (already downscaled on attach); the publish action uploads it
           // to Supabase Storage and stores the public URL.
           photoDataUrl: d.photoDataUrl ?? null,
