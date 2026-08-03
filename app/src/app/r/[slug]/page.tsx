@@ -115,7 +115,7 @@ export default async function ListingPage({
 
         <ListingFeed slug={slug} items={feedItems} />
       </div>
-      <ContactButton />
+      <ContactButton contacts={listing.sellerContacts} />
     </main>
   );
 }

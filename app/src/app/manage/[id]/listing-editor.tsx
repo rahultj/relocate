@@ -13,6 +13,7 @@
 // only save signal. See use-listing-save.ts for the engine.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import {
   parseCsv,
   mapColumns,
@@ -33,6 +34,7 @@ import {
 import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
 import { toVanitySlug } from "@/lib/slug";
+import type { SellerContact } from "@/lib/seller-contact";
 import { uploadPhoto } from "@/lib/photo-upload";
 import { setItemPhoto } from "@/app/seller/photo-actions";
 import {
@@ -96,6 +98,7 @@ interface ListingMeta {
   slug: string;
   title: string;
   intro: string;
+  sellerContacts: SellerContact[];
   city: string;
   neighborhood: string;
   pickupFrom: string;
@@ -147,6 +150,9 @@ export function ListingEditor({
 
   const [title, setTitle] = useState(listing.title);
   const [intro, setIntro] = useState(listing.intro);
+  const [sellerContacts, setSellerContacts] = useState<SellerContact[]>(
+    listing.sellerContacts,
+  );
   const [city, setCity] = useState(listing.city);
   const [neighborhood, setNeighborhood] = useState(listing.neighborhood);
   const [pickupFrom, setPickupFrom] = useState(listing.pickupFrom);
@@ -344,12 +350,30 @@ export function ListingEditor({
     save.saveDetails({
       title: over.title ?? title,
       intro: (over.intro ?? intro).trim() || null,
+      sellerContacts: over.sellerContacts ?? sellerContacts,
       city: (over.city ?? city).trim() || null,
       neighborhood: (over.neighborhood ?? neighborhood).trim() || null,
       pickupFrom: (over.pickupFrom ?? pickupFrom) || null,
       pickupTo: (over.pickupTo ?? pickupTo) || null,
     });
   };
+
+  // Seller contact rows (buyer "Contact us" button). Each edit re-saves the
+  // whole array through the same debounced details path.
+  const commitContacts = (next: SellerContact[]) => {
+    setSellerContacts(next);
+    pushDetails({ sellerContacts: next });
+  };
+  const updateContact = (i: number, patch: Partial<SellerContact>) =>
+    commitContacts(
+      sellerContacts.map((c, j) => (j === i ? { ...c, ...patch } : c)),
+    );
+  const addContact = () =>
+    commitContacts([...sellerContacts, { name: "", value: "" }]);
+  const removeContact = (i: number) =>
+    commitContacts(sellerContacts.filter((_, j) => j !== i));
+  const setPrimary = (i: number) =>
+    commitContacts(sellerContacts.map((c, j) => ({ ...c, primary: j === i })));
 
   const detailsSummary = useMemo(() => {
     const parts = [city.trim(), neighborhood.trim()].filter(Boolean);
@@ -577,6 +601,64 @@ export function ListingEditor({
                   pushDetails({ intro: e.target.value });
                 }}
               />
+            </Field>
+            <Field
+              label="Contact · shown on your public page"
+              className="sm:col-span-2"
+            >
+              <div className="flex flex-col gap-2">
+                {sellerContacts.length === 0 && (
+                  <p className="text-xs text-text-muted">
+                    No contact set — buyers won&apos;t see a &ldquo;Contact
+                    us&rdquo; button. Add a phone or email so they can reach you.
+                  </p>
+                )}
+                {sellerContacts.map((c, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2">
+                    <input
+                      className={`${inputCls} w-28 flex-none`}
+                      value={c.name ?? ""}
+                      placeholder="Name"
+                      onChange={(e) => updateContact(i, { name: e.target.value })}
+                    />
+                    <input
+                      className={`${inputCls} min-w-[10rem] flex-1`}
+                      value={c.value}
+                      placeholder="Phone or email"
+                      onChange={(e) =>
+                        updateContact(i, { value: e.target.value })
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPrimary(i)}
+                      className={`rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                        c.primary
+                          ? "bg-brand/10 text-brand"
+                          : "text-text-muted hover:bg-bg-hover"
+                      }`}
+                      title="Mark as primary contact"
+                    >
+                      Primary
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeContact(i)}
+                      aria-label="Remove contact"
+                      className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-bg-hover hover:text-[var(--crimson)]"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addContact}
+                  className="self-start rounded-lg border border-border-alt px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+                >
+                  + Add contact
+                </button>
+              </div>
             </Field>
             <Field label="City">
               <input

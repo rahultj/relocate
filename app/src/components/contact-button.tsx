@@ -10,9 +10,10 @@
 
 import { useEffect, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
-import { SELLER_CONTACTS } from "@/lib/seller-contact";
+import type { SellerContact } from "@/lib/seller-contact";
+import { contactHref } from "@/lib/contact";
 
-export function ContactButton() {
+export function ContactButton({ contacts }: { contacts: SellerContact[] }) {
   const [open, setOpen] = useState(false);
 
   // Close on Escape for keyboard users.
@@ -24,6 +25,10 @@ export function ContactButton() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  // No contacts set for this listing → no button at all (no global fallback).
+  const usable = (contacts ?? []).filter((c) => c.value?.trim());
+  if (usable.length === 0) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 print:hidden">
@@ -67,16 +72,17 @@ export function ContactButton() {
             </div>
 
             <ul className="mt-3 flex flex-col gap-2">
-              {SELLER_CONTACTS.map((c) => (
-                <li key={c.e164}>
-                  <a
-                    href={`sms:${c.e164}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border-weave bg-bg-main px-3 py-2.5 transition-colors hover:border-brand-light hover:bg-bg-hover"
-                  >
+              {usable.map((c, i) => {
+                const href = contactHref(c.value);
+                const value = c.value.trim();
+                const inner = (
+                  <>
                     <span className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium text-text-primary">
-                        {c.name}
-                      </span>
+                      {c.name?.trim() && (
+                        <span className="text-sm font-medium text-text-primary">
+                          {c.name.trim()}
+                        </span>
+                      )}
                       {c.primary && (
                         <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-brand">
                           Primary
@@ -84,11 +90,27 @@ export function ContactButton() {
                       )}
                     </span>
                     <span className="font-mono text-[13px] text-text-secondary">
-                      {c.display}
+                      {value}
                     </span>
-                  </a>
-                </li>
-              ))}
+                  </>
+                );
+                const cls =
+                  "flex items-center justify-between gap-3 rounded-lg border border-border-weave bg-bg-main px-3 py-2.5";
+                return (
+                  <li key={`${value}-${i}`}>
+                    {href ? (
+                      <a
+                        href={href}
+                        className={`${cls} transition-colors hover:border-brand-light hover:bg-bg-hover`}
+                      >
+                        {inner}
+                      </a>
+                    ) : (
+                      <div className={cls}>{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

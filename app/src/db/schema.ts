@@ -18,9 +18,12 @@ import {
   boolean,
   date,
   timestamp,
+  jsonb,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import type { SellerContact } from "@/lib/seller-contact";
 
 // ---------- Enums ----------
 
@@ -67,6 +70,13 @@ export const listings = pgTable("listings", {
   // Seller's move story — a short paragraph shown under the title on the buyer
   // header (why/when they're moving). Null => header shows title + byline only.
   intro: text("intro"),
+  // Per-listing seller contact(s), shown on the buyer "Contact us" button.
+  // Each entry is { name?, value (phone or email), primary? }. Empty => no
+  // button. Replaces the old hardcoded global seller-contact constant.
+  sellerContacts: jsonb("seller_contacts")
+    .$type<SellerContact[]>()
+    .notNull()
+    .default([]),
   city: text("city"),
   neighborhood: text("neighborhood"),
   pickupFrom: date("pickup_from"),
