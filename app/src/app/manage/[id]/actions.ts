@@ -20,6 +20,16 @@ import {
 } from "@/lib/with-listing";
 import type { ItemCondition } from "@/lib/format";
 import type { SellerContact } from "@/lib/seller-contact";
+import { normalizeVenmo } from "@/lib/venmo";
+
+// Venmo columns for the re-import merge, honoring "blank cells don't overwrite":
+// returns {} when the seller left both fields empty, so an existing item's Venmo
+// survives a re-import that omits it.
+function venmoColumns(handle: string | null, link: string | null) {
+  if (!(handle ?? "").trim() && !(link ?? "").trim()) return {};
+  const v = normalizeVenmo({ handle, link });
+  return { venmoHandle: v.handle, venmoLink: v.link };
+}
 
 // Drop blank contacts and trim fields before persisting — keeps the jsonb clean
 // and lets the buyer button reliably hide when nothing real is set.
@@ -127,11 +137,14 @@ export interface ItemFields {
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
   category: string | null;
+  venmoHandle: string | null;
+  venmoLink: string | null;
   photoUrl: string | null;
 }
 
 // One mapping from editor fields to DB columns, used by both create and patch.
 function toItemColumns(it: ItemFields) {
+  const venmo = normalizeVenmo({ handle: it.venmoHandle, link: it.venmoLink });
   return {
     name: it.name.trim(),
     description: it.description,
@@ -143,6 +156,8 @@ function toItemColumns(it: ItemFields) {
     originalBoxIncluded: it.originalBoxIncluded,
     availableFrom: it.availableFrom,
     category: it.category,
+    venmoHandle: venmo.handle,
+    venmoLink: venmo.link,
     photoUrl: it.photoUrl,
   };
 }
@@ -294,6 +309,8 @@ export interface UpdateItemInput {
   originalBoxIncluded: boolean | null;
   availableFrom: string | null;
   category: string | null;
+  venmoHandle: string | null;
+  venmoLink: string | null;
   listed: boolean; // false => unlisted (hidden from feed)
   photoDataUrl: string | null; // new/replacement upload (base64)
   photoUrl: string | null; // existing stored URL (kept when no new upload)
@@ -396,6 +413,8 @@ export async function updateListing(
           // A blank category on re-import must not wipe an existing one
           // ("blank cells don't overwrite"); only set when provided.
           ...(it.category ? { category: it.category } : {}),
+          // Same guard for Venmo: only write when the seller provided a value.
+          ...venmoColumns(it.venmoHandle, it.venmoLink),
         };
 
         if (it.itemId) {

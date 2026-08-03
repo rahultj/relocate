@@ -68,6 +68,45 @@ describe("mapColumns", () => {
   it("maps unknown headers to ignore", () => {
     expect(mapColumns(["whatsit"])).toEqual(["ignore"]);
   });
+
+  it("maps Venmo columns (link before handle) from Mayowa's real CSV", () => {
+    expect(
+      mapColumns([
+        "Listing NO.",
+        "Item",
+        "Price",
+        "Venmo",
+        "Venmo Link",
+        "Date Acquired",
+        "Original Price",
+        "Available for Pickup from",
+        "Description",
+      ]),
+    ).toEqual([
+      "ignore", // Listing NO. — correctly dropped
+      "name",
+      "price",
+      "venmoHandle",
+      "venmoLink",
+      "boughtDate",
+      "originalPrice",
+      "availableFrom",
+      "description",
+    ]);
+  });
+});
+
+describe("rowsToDrafts — Venmo", () => {
+  it("carries the Venmo handle + link onto the draft (data not dropped)", () => {
+    const parsed = {
+      headers: ["Item", "Venmo", "Venmo Link"],
+      rows: [["Couch", "@theMayowa", "venmo.com/theMayowa"]],
+    };
+    const mapping: FieldKey[] = ["name", "venmoHandle", "venmoLink"];
+    const [d] = rowsToDrafts(parsed, mapping, "");
+    expect(d.venmoHandle).toBe("@theMayowa");
+    expect(d.venmoLink).toBe("venmo.com/theMayowa");
+  });
 });
 
 describe("rowsToDrafts", () => {

@@ -209,6 +209,8 @@ export default async function ItemDetailPage({
               listingId={listing.id}
               itemId={item.id}
               alreadyClaimed={item.status !== "listed"}
+              venmoHandle={item.venmoHandle}
+              venmoLink={item.venmoLink}
             />
           )}
         </div>

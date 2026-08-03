@@ -57,6 +57,8 @@ const FIELD_ORDER: FieldKey[] = [
   "originalBox",
   "availableFrom",
   "category",
+  "venmoHandle",
+  "venmoLink",
   "ignore",
 ];
 
@@ -72,6 +74,8 @@ export interface EditorItem {
   originalBoxIncluded: boolean | null;
   availableFrom: string;
   category: string | null;
+  venmoHandle: string; // raw seller text; normalized at persist
+  venmoLink: string;
   photoUrl: string | null; // already-uploaded URL
   photoDataUrl: string | null; // new/replacement preview
   listed: boolean;
@@ -124,6 +128,8 @@ function rowToFields(r: Row): ItemFields {
     originalBoxIncluded: r.originalBoxIncluded,
     availableFrom: r.availableFrom || null,
     category: r.category,
+    venmoHandle: r.venmoHandle.trim() || null,
+    venmoLink: r.venmoLink.trim() || null,
     photoUrl: r.photoUrl,
   };
 }
@@ -318,6 +324,8 @@ export function ListingEditor({
         originalBoxIncluded: null,
         availableFrom: defaultAvailableFrom,
         category: null,
+        venmoHandle: "",
+        venmoLink: "",
         photoUrl: null,
         photoDataUrl: null,
         listed: true,
@@ -504,6 +512,8 @@ export function ListingEditor({
           originalBoxIncluded: f.originalBoxIncluded,
           availableFrom: f.availableFrom,
           category: f.category,
+          venmoHandle: f.venmoHandle,
+          venmoLink: f.venmoLink,
           listed: r.listed,
           photoDataUrl: r.photoDataUrl,
           photoUrl: r.photoUrl,
@@ -1052,6 +1062,8 @@ function mergeDraft(row: Row, d: ItemDraft): Row {
     originalBoxIncluded: d.originalBoxIncluded ?? row.originalBoxIncluded,
     availableFrom: d.availableFrom || row.availableFrom,
     category: d.category ?? row.category,
+    venmoHandle: d.venmoHandle || row.venmoHandle,
+    venmoLink: d.venmoLink || row.venmoLink,
     // itemId, slug, photoUrl, photoDataUrl, listed, rowKey preserved.
   };
 }
@@ -1070,6 +1082,8 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     originalBoxIncluded: d.originalBoxIncluded,
     availableFrom: d.availableFrom || defaultAvailableFrom,
     category: d.category,
+    venmoHandle: d.venmoHandle,
+    venmoLink: d.venmoLink,
     photoUrl: null,
     photoDataUrl: null,
     // Imported items stage as Unlisted — the seller lists them when ready.
@@ -1245,6 +1259,18 @@ function EditRow({
             </option>
           ))}
         </select>
+        <input
+          className="w-28 rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary outline-none"
+          value={r.venmoHandle}
+          placeholder="@venmo"
+          aria-label="Venmo handle (buyer pays here after claiming)"
+          title="Venmo handle — buyers see a 'Pay on Venmo' button after they claim this item"
+          onChange={(e) =>
+            // Clear the stored link so it re-derives from the new handle.
+            onPatch(r.rowKey, { venmoHandle: e.target.value, venmoLink: "" })
+          }
+          onBlur={blur}
+        />
       </div>
 
       {/* Price */}
