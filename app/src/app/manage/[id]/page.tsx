@@ -8,6 +8,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items, claims, buyers } from "@/db/schema";
 import { ListingEditor, type EditorItem } from "./listing-editor";
+import { photoList } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
 
@@ -96,8 +97,7 @@ export default async function ManagePage({
     category: it.category,
     venmoHandle: it.venmoHandle ?? "",
     venmoLink: it.venmoLink ?? "",
-    photoUrl: it.photoUrl,
-    photoDataUrl: null,
+    photoUrls: photoList(it),
     listed: !it.unlisted,
     sold: it.status === "picked_up",
     claim: c

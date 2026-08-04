@@ -10,21 +10,24 @@ import { db } from "@/db";
 import { items } from "@/db/schema";
 import { signUploads, type SignedUpload } from "@/lib/storage";
 import { withListing, type ActionResult } from "@/lib/with-listing";
+import { photoColumns } from "@/lib/photos";
 
 export async function signPhotoUploads(n: number): Promise<SignedUpload[]> {
   const count = Math.max(1, Math.min(n, 100)); // sane bound
   return signUploads(count);
 }
 
-export async function setItemPhoto(
+// Set the full ordered photo set for an already-published item (first = cover).
+// Writes the array and keeps the legacy `photoUrl` cover mirror in sync.
+export async function setItemPhotos(
   listingId: string,
   itemId: string,
-  photoUrl: string,
+  urls: string[],
 ): Promise<ActionResult> {
   return withListing(listingId, async (listing) => {
     await db
       .update(items)
-      .set({ photoUrl })
+      .set(photoColumns(urls))
       .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)));
     return {};
   });

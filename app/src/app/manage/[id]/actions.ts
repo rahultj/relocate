@@ -21,6 +21,7 @@ import {
 import type { ItemCondition } from "@/lib/format";
 import type { SellerContact } from "@/lib/seller-contact";
 import { normalizeVenmo } from "@/lib/venmo";
+import { photoColumns } from "@/lib/photos";
 
 // Venmo columns for the re-import merge, honoring "blank cells don't overwrite":
 // returns {} when the seller left both fields empty, so an existing item's Venmo
@@ -139,7 +140,7 @@ export interface ItemFields {
   category: string | null;
   venmoHandle: string | null;
   venmoLink: string | null;
-  photoUrl: string | null;
+  photoUrls: string[]; // ordered; [0] = cover (photoUrl mirror synced here)
 }
 
 // One mapping from editor fields to DB columns, used by both create and patch.
@@ -158,7 +159,7 @@ function toItemColumns(it: ItemFields) {
     category: it.category,
     venmoHandle: venmo.handle,
     venmoLink: venmo.link,
-    photoUrl: it.photoUrl,
+    ...photoColumns(it.photoUrls),
   };
 }
 
@@ -370,8 +371,9 @@ export interface UpdateItemInput {
   venmoHandle: string | null;
   venmoLink: string | null;
   listed: boolean; // false => unlisted (hidden from feed)
-  photoDataUrl: string | null; // new/replacement upload (base64)
-  photoUrl: string | null; // existing stored URL (kept when no new upload)
+  // CSV re-import never carries photos (managed via the photo strip). Kept as a
+  // legacy base64 hook; always null in practice now.
+  photoDataUrl: string | null;
 }
 
 export interface UpdateListingInput {
@@ -454,9 +456,9 @@ export async function updateListing(
       const inserts: (typeof items.$inferInsert)[] = [];
       for (let i = 0; i < rows.length; i++) {
         const it = rows[i];
-        // Photos upload client-side now (it.photoUrl); the base64 path is a
-        // legacy fallback that's normally null.
-        const newPhoto = photoUrls[i] ?? it.photoUrl;
+        // Re-import never adds photos (they're managed via the photo strip);
+        // the base64 path is a legacy fallback that's normally null.
+        const newPhoto = photoUrls[i] ?? null;
         const common = {
           name: it.name.trim(),
           description: it.description,
@@ -476,9 +478,11 @@ export async function updateListing(
         };
 
         if (it.itemId) {
+          // Existing items: leave photos untouched (managed via the photo strip,
+          // not CSV) — "photos are untouched" on re-import.
           await tx
             .update(items)
-            .set(newPhoto ? { ...common, photoUrl: newPhoto } : common)
+            .set(common)
             .where(
               and(eq(items.id, it.itemId), eq(items.listingId, listing.id)),
             );
@@ -487,7 +491,7 @@ export async function updateListing(
             listingId: listing.id,
             slug: mintItemSlug(),
             ...common,
-            photoUrl: newPhoto,
+            ...photoColumns(newPhoto ? [newPhoto] : []),
             status: "listed" as const,
           });
         }

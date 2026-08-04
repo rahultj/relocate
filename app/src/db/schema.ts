@@ -121,6 +121,10 @@ export const items = pgTable(
     // given, else derived from the handle. Both null => no Venmo for this item.
     venmoHandle: text("venmo_handle"),
     venmoLink: text("venmo_link"),
+    // Photos, in order — photoUrls[0] is the cover. Source of truth for the
+    // item detail gallery. `photoUrl` below is kept as a synced mirror of the
+    // cover (photoUrls[0]) so the feed/manage thumbs need no change.
+    photoUrls: text("photo_urls").array().notNull().default([]),
     photoUrl: text("photo_url"),
     status: itemStatusEnum("status").notNull().default("listed"),
     // Soft-unlist: hidden from the buyer feed but the detail page still resolves

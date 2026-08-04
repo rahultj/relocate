@@ -22,6 +22,7 @@ import {
   type ItemCondition,
 } from "@/lib/format";
 import { fileToUploadDataUrl } from "@/lib/image";
+import { MAX_PHOTOS } from "@/lib/photos";
 import { publishListing, type PublishResult } from "./actions";
 
 const TODAY_ISO = "2026-06-02"; // build-time "today" per project context
@@ -119,21 +120,42 @@ export function BulkAdd() {
   const cycleState = (id: string, current: StateKind) =>
     patch(id, { state: STATE_CYCLE[current] });
 
-  const attachPhoto = (id: string, file: File) => {
-    fileToUploadDataUrl(file).then((dataUrl) =>
-      patch(id, { photoDataUrl: dataUrl }),
+  // Append one or more photos to a draft (cover first), capped at MAX_PHOTOS.
+  const attachPhotos = (id: string, files: File[]) => {
+    const imgs = files.filter((f) => f.type.startsWith("image/"));
+    Promise.all(imgs.map((f) => fileToUploadDataUrl(f))).then((dataUrls) =>
+      setDrafts((ds) =>
+        ds.map((row) =>
+          row.id === id
+            ? {
+                ...row,
+                photoDataUrls: [...row.photoDataUrls, ...dataUrls].slice(
+                  0,
+                  MAX_PHOTOS,
+                ),
+              }
+            : row,
+        ),
+      ),
     );
   };
+
+  const removePhoto = (id: string, idx: number) =>
+    setDrafts((ds) =>
+      ds.map((row) =>
+        row.id === id
+          ? { ...row, photoDataUrls: row.photoDataUrls.filter((_, i) => i !== idx) }
+          : row,
+      ),
+    );
 
   // Bulk photo drop: assign to the first rows that don't yet have a photo.
   const onBulkPhotos = (files: FileList) => {
     const list = Array.from(files);
-    const targets = drafts.filter((d) => !d.photoDataUrl).slice(0, list.length);
-    targets.forEach((row, i) =>
-      fileToUploadDataUrl(list[i]).then((dataUrl) =>
-        patch(row.id, { photoDataUrl: dataUrl }),
-      ),
-    );
+    const targets = drafts
+      .filter((d) => d.photoDataUrls.length === 0)
+      .slice(0, list.length);
+    targets.forEach((row, i) => attachPhotos(row.id, [list[i]]));
   };
 
   // ---------- Summary ----------
@@ -174,9 +196,9 @@ export function BulkAdd() {
           category: d.category,
           venmoHandle: d.venmoHandle.trim() || null,
           venmoLink: d.venmoLink.trim() || null,
-          // Base64 (already downscaled on attach); the publish action uploads it
-          // to Supabase Storage and stores the public URL.
-          photoDataUrl: d.photoDataUrl ?? null,
+          // Base64 previews (already downscaled on attach); the publish action
+          // uploads each to Supabase Storage and stores the public URLs.
+          photoDataUrls: d.photoDataUrls,
         };
       }),
     });
@@ -405,7 +427,8 @@ export function BulkAdd() {
                 onPatch={patch}
                 onRemove={removeRow}
                 onCycleState={cycleState}
-                onAttachPhoto={attachPhoto}
+                onAttachPhotos={attachPhotos}
+                onRemovePhoto={removePhoto}
               />
             ))}
           </div>
@@ -539,13 +562,15 @@ function DraftRow({
   onPatch,
   onRemove,
   onCycleState,
-  onAttachPhoto,
+  onAttachPhotos,
+  onRemovePhoto,
 }: {
   draft: ItemDraft;
   onPatch: (id: string, p: Partial<ItemDraft>) => void;
   onRemove: (id: string) => void;
   onCycleState: (id: string, s: StateKind) => void;
-  onAttachPhoto: (id: string, file: File) => void;
+  onAttachPhotos: (id: string, files: File[]) => void;
+  onRemovePhoto: (id: string, idx: number) => void;
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const meta = trustMeta(d);
@@ -563,30 +588,41 @@ function DraftRow({
         d.state === "skip" ? "opacity-60" : ""
       }`}
     >
-      {/* Photo / placeholder — pinned top-left, spans both rows on desktop */}
+      {/* Photo (cover) — tap to add; a strip of all photos sits below */}
       <button
         onClick={() => photoRef.current?.click()}
-        className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted sm:row-span-2 sm:self-start"
+        title={d.photoDataUrls.length > 1 ? `${d.photoDataUrls.length} photos` : "Add photos"}
+        className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-weave bg-bg-main text-[10px] text-text-muted sm:row-span-2 sm:self-start"
       >
-        {d.photoDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={d.photoDataUrl}
-            alt={d.name}
-            className="size-full object-cover"
-          />
+        {d.photoDataUrls[0] ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={d.photoDataUrls[0]}
+              alt={d.name}
+              className="size-full object-cover"
+            />
+            {d.photoDataUrls.length > 1 && (
+              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[9px] font-medium text-white">
+                {d.photoDataUrls.length}
+              </span>
+            )}
+          </>
         ) : (
-          "+ Photo"
+          "+ Photos"
         )}
       </button>
       <input
         ref={photoRef}
         type="file"
         accept="image/*"
+        multiple
         hidden
-        onChange={(e) =>
-          e.target.files?.[0] && onAttachPhoto(d.id, e.target.files[0])
-        }
+        onChange={(e) => {
+          if (e.target.files?.length)
+            onAttachPhotos(d.id, Array.from(e.target.files));
+          e.target.value = "";
+        }}
       />
 
       {/* Name + condition — first line, col 2 */}
@@ -674,6 +710,37 @@ function DraftRow({
           onChange={(e) => onPatch(d.id, { description: e.target.value })}
         />
       </div>
+
+      {/* Photo strip — cover first; remove with ×, add more with the tile */}
+      {d.photoDataUrls.length > 0 && (
+        <div className="flex w-full basis-full flex-wrap items-center gap-2 sm:col-start-2 sm:col-end-[-1]">
+          {d.photoDataUrls.map((src, i) => (
+            <div key={i} className="relative size-12 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                className={`size-full rounded-md border object-cover ${
+                  i === 0 ? "border-brand" : "border-border-weave"
+                }`}
+              />
+              {i === 0 && (
+                <span className="absolute inset-x-0 bottom-0 rounded-b-md bg-brand/85 text-center text-[8px] font-medium uppercase tracking-wide text-white">
+                  Cover
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onRemovePhoto(d.id, i)}
+                aria-label="Remove photo"
+                className="absolute -right-1.5 -top-1.5 grid size-4 place-items-center rounded-full bg-text-primary text-[10px] leading-none text-white shadow"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
