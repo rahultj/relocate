@@ -4,6 +4,8 @@ import {
   mapColumns,
   rowsToDrafts,
   describeMapping,
+  buildTemplateCsv,
+  TEMPLATE_HEADERS,
   type FieldKey,
 } from "./csv";
 
@@ -93,6 +95,35 @@ describe("mapColumns", () => {
       "availableFrom",
       "description",
     ]);
+  });
+});
+
+describe("CSV template", () => {
+  it("every template header auto-maps to a real field (no Ignore)", () => {
+    const mapped = mapColumns(TEMPLATE_HEADERS);
+    expect(mapped).not.toContain("ignore");
+    expect(mapped).toEqual([
+      "name", // Item
+      "price",
+      "condition",
+      "boughtDate",
+      "originalPrice",
+      "availableFrom",
+      "category",
+      "venmoHandle",
+      "venmoLink",
+      "description",
+    ]);
+  });
+
+  it("buildTemplateCsv round-trips: re-parsing it maps cleanly", () => {
+    const parsed = parseCsv(buildTemplateCsv());
+    expect(parsed.headers).toEqual(TEMPLATE_HEADERS);
+    expect(mapColumns(parsed.headers)).not.toContain("ignore");
+    // The example rows carry a real Venmo handle through to the draft.
+    const drafts = rowsToDrafts(parsed, mapColumns(parsed.headers), "");
+    expect(drafts[0].venmoHandle).toBe("@you");
+    expect(drafts[0].name).toBe("Orange couch");
   });
 });
 

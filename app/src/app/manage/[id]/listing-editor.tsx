@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
+import { CsvHelp } from "@/components/csv-help";
 import {
   parseCsv,
   mapColumns,
@@ -857,6 +858,15 @@ export function ListingEditor({
               hidden
               onChange={(e) => e.target.files && onBulkPhotoFiles(e.target.files)}
             />
+            <p className="w-full px-1 text-xs leading-relaxed text-text-muted">
+              Tip: name photo files like the item (
+              <span className="font-mono">orange couch.jpg</span>) so{" "}
+              <span className="font-medium text-text-secondary">Bulk add photos</span>{" "}
+              auto-matches them — you can fix any mismatches after.
+            </p>
+            <div className="w-full">
+              <CsvHelp />
+            </div>
           </div>
         )}
 

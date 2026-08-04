@@ -3,6 +3,7 @@
 import { useRef, useState, useMemo, useCallback } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CsvHelp } from "@/components/csv-help";
 import {
   parseCsv,
   mapColumns,
@@ -301,6 +302,7 @@ export function BulkAdd() {
                   </Button>
                 </div>
               )}
+              <CsvHelp />
             </>
           ) : (
             // Column mapping — transparent, overridable before any row is touched.
@@ -389,6 +391,12 @@ export function BulkAdd() {
             hidden
             onChange={(e) => e.target.files && onBulkPhotos(e.target.files)}
           />
+          <p className="mt-1.5 px-1 text-xs leading-relaxed text-text-muted">
+            Here, photos attach to rows in order. To drop a whole folder and have
+            each photo match its item by filename, publish first, then use
+            <span className="font-medium text-text-secondary"> Bulk add photos</span>{" "}
+            on your manage page.
+          </p>
 
           <div className="mt-4 space-y-2">
             {drafts.map((d) => (
