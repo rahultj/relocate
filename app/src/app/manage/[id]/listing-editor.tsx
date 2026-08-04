@@ -558,10 +558,10 @@ export function ListingEditor({
         <SavePill status={save.status} />
       </div>
       <p className="mt-3 max-w-xl text-text-secondary">
-        Edits save as you go. Your link{" "}
-        <code className="font-mono text-sm">/r/{slug}</code> and existing
-        item links stay the same. Re-import your CSV anytime: matching rows
-        update in place.
+        Changes save automatically, and your links{" "}
+        (<code className="font-mono text-sm">/r/{slug}</code> and each item&apos;s)
+        stay the same. Re-import your CSV anytime — matching items update, new
+        ones are added.
       </p>
 
       {/* Claims overview — every item with a claim or waitlist, filterable +
@@ -602,11 +602,11 @@ export function ListingEditor({
                 }}
               />
             </Field>
-            <Field label="Intro · your move story" className="sm:col-span-2">
+            <Field label="Intro · a note for buyers" className="sm:col-span-2">
               <textarea
                 className={`${inputCls} min-h-[5rem] resize-y`}
                 value={intro}
-                placeholder="Why and when you're moving — shown under the title on your public page. A line or two."
+                placeholder="A short note shown under your title — why you're selling, pickup details, anything helpful."
                 onChange={(e) => {
                   setIntro(e.target.value);
                   pushDetails({ intro: e.target.value });
@@ -763,7 +763,7 @@ export function ListingEditor({
           <div className="rounded-xl border border-border-weave bg-bg-card p-5">
             <div className="flex items-center justify-between">
               <p className="font-medium text-text-primary">
-                {parsed.rows.length} rows · check the column mapping
+                {parsed.rows.length} rows · check the columns
               </p>
               <button
                 className="text-sm text-text-muted hover:text-brand"
@@ -773,8 +773,8 @@ export function ListingEditor({
               </button>
             </div>
             <p className="mt-1 text-sm text-text-muted">
-              Rows matching an existing item (by name) update it; the rest are
-              added. Blank cells won&apos;t overwrite, and photos are untouched.
+              Items with a matching name are updated; the rest are added. Blank
+              cells won&apos;t erase what&apos;s there, and photos stay as they are.
             </p>
             <div className="mt-4 space-y-2">
               {parsed.headers.map((h, i) => (
@@ -910,8 +910,8 @@ export function ListingEditor({
             </button>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Each photo is matched to an item by filename — fix any wrong ones and
-            set duplicates to Skip, then attach.
+            We matched each photo to an item by its filename. Fix any that are
+            wrong, set extras to Skip, then attach.
           </p>
           <div className="mt-3 space-y-2">
             {photoMatches.map((m) => (

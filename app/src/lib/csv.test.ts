@@ -198,6 +198,6 @@ describe("describeMapping", () => {
   it("summarizes mapped columns, skipping ignored ones", () => {
     expect(
       describeMapping(["Item", "junk", "Price"], ["name", "ignore", "price"]),
-    ).toBe("Item → Name · Price → Listing price");
+    ).toBe("Item → Name · Price → Price");
   });
 });

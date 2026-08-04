@@ -285,14 +285,14 @@ export function ClaimButton({
           <span aria-hidden>✓</span> You claimed this
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">
-          The seller will reach out
+          The seller will contact you
           {contactShown ? (
             <>
               {" "}
               at <span className="font-medium text-text-primary">{contactShown}</span>
             </>
           ) : null}{" "}
-          to set up pickup. Keep an eye out.
+          to set up pickup.
         </p>
         {error && (
           <p className="mt-2 text-xs text-crimson" role="alert">
@@ -358,14 +358,14 @@ export function ClaimButton({
           {position != null ? ` · #${position}` : ""}
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">
-          If this item frees up, the seller will reach out
+          If this item opens up, the seller will contact you
           {contactShown ? (
             <>
               {" "}
               at <span className="font-medium text-text-primary">{contactShown}</span>
             </>
           ) : null}
-          . No need to check back.
+          .
         </p>
         {error && (
           <p className="mt-2 text-xs text-crimson" role="alert">
@@ -375,7 +375,7 @@ export function ClaimButton({
         <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
           {confirmLeave ? (
             <span className="flex items-center gap-2 text-text-secondary">
-              Leave the line?
+              Leave the waitlist?
               <button
                 type="button"
                 onClick={leave}
@@ -425,7 +425,7 @@ export function ClaimButton({
           Join the waitlist
         </button>
         <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-          {error ?? "Be next in line if it frees up"}
+          {error ?? "Be next in line if it opens up"}
         </p>
       </div>
     );
@@ -518,8 +518,8 @@ export function ClaimButton({
       </label>
       <p className="mt-2 text-xs leading-relaxed text-text-muted">
         {waitlisting
-          ? "Shared only with the seller, who'll reach out if the item frees up. Nothing posted publicly."
-          : "Shared only with the seller, to arrange pickup. Nothing posted publicly."}
+          ? "Only the seller sees this. They'll contact you if the item opens up. Nothing is posted publicly."
+          : "Only the seller sees this, to set up pickup. Nothing is posted publicly."}
       </p>
       {error && (
         <p className="mt-1 text-xs text-crimson" role="alert">
