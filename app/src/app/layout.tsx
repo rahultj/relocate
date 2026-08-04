@@ -19,7 +19,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "mustgo — relocation marketplace",
-  description: "A marketplace for offloading household items before a move.",
+  description: "Sell your things before a move.",
 };
 
 export default function RootLayout({

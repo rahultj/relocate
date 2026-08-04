@@ -34,9 +34,9 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   name: "Name",
   description: "Description",
   condition: "Condition",
-  price: "Listing price",
-  boughtDate: "Bought (trust signal)",
-  originalPrice: "Originally (trust signal)",
+  price: "Price",
+  boughtDate: "Bought",
+  originalPrice: "Original price",
   originalBox: "Box included",
   availableFrom: "Available from",
   category: "Category",
@@ -231,6 +231,57 @@ export function rowsToDrafts(
       state: "draft",
     };
   });
+}
+
+// ---------- Seller onboarding help (template + column reference) ----------
+//
+// Single source of truth for the CSV help shown on /seller/add + /manage.
+// TEMPLATE_HEADERS are chosen so every one auto-maps via ALIASES above — the
+// csv.test.ts "template maps cleanly" test guards this against alias drift, so
+// keep the two in sync.
+
+export const TEMPLATE_HEADERS = [
+  "Item",
+  "Price",
+  "Condition",
+  "Bought",
+  "Original Price",
+  "Available from",
+  "Category",
+  "Venmo",
+  "Venmo Link",
+  "Description",
+];
+
+const TEMPLATE_EXAMPLE_ROWS: string[][] = [
+  ["Orange couch", "100", "Good", "Apr 2026", "260", "Aug 2 2026", "Furniture", "@you", "venmo.com/you", "Comfy 3-seater, light wear"],
+  ["Dining table", "50", "Fair", "Jan 2016", "", "Aug 22 2026", "Furniture", "@you", "", "Seats up to 10"],
+];
+
+// Seller-facing column reference for the "What columns can I use?" list.
+export const SELLER_COLUMNS: { header: string; note: string }[] = [
+  { header: "Item", note: "what you're selling — the only required column" },
+  { header: "Price", note: "a number like 100, or leave blank / “Free”" },
+  { header: "Condition", note: "New, Like new, Good, Fair, or Worn" },
+  { header: "Bought", note: "roughly when you got it (e.g. Apr 2026)" },
+  { header: "Original Price", note: "what it cost new — shown as a strike-through" },
+  { header: "Available from", note: "when it’s ready for pickup (e.g. Aug 2 2026)" },
+  { header: "Category", note: "Furniture, Kitchen, Electronics… (auto-guessed if blank)" },
+  { header: "Venmo", note: "@handle so buyers can pay the item’s owner" },
+  { header: "Venmo Link", note: "optional venmo.com/… link (derived from the handle if blank)" },
+  { header: "Description", note: "any extra details" },
+];
+
+// Quote a CSV cell only when it needs it (comma, quote, or newline).
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/** Build the downloadable starter CSV (headers + a couple example rows). */
+export function buildTemplateCsv(): string {
+  return [TEMPLATE_HEADERS, ...TEMPLATE_EXAMPLE_ROWS]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n");
 }
 
 /** Human-readable summary of the mapping for the "Mapped: …" line. */

@@ -16,8 +16,8 @@ export default function Home() {
           Moving on? <em className="italic text-brand">Pass it on.</em>
         </h1>
         <p className="mt-4 max-w-md leading-relaxed text-text-secondary">
-          A relocation sale, one scroll at a time. List the things you can&apos;t
-          take with you and let them find a new home.
+          A simple way to sell your things before you move. Post what you&apos;re
+          letting go, and buyers claim what they want.
         </p>
 
         {/* Seller entry */}

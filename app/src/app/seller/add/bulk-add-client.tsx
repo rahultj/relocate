@@ -3,6 +3,7 @@
 import { useRef, useState, useMemo, useCallback } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CsvHelp } from "@/components/csv-help";
 import {
   parseCsv,
   mapColumns,
@@ -188,15 +189,14 @@ export function BulkAdd() {
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
       <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">
-        Step 2 of 3 · Items
+        New listing
       </p>
       <h1 className="mt-2 font-serif text-4xl font-medium tracking-tight text-text-primary">
-        Bring your list. Add photos at your pace.
+        Add your items
       </h1>
       <p className="mt-3 max-w-xl text-text-secondary">
-        Drop a CSV or paste rows — every row becomes a draft. Decide the price,
-        attach a photo, publish. Photos are never the gate: drafts without them
-        still land, they just can&apos;t go live yet.
+        Upload your list as a CSV, or paste it in. Set prices, add photos, and
+        publish. Photos are optional — you can add them later.
       </p>
 
       {/* ---------- Listing header ---------- */}
@@ -260,7 +260,7 @@ export function BulkAdd() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-text-primary">Import your list</p>
                   <p className="text-sm text-text-muted">
-                    A move spreadsheet, a Notes export — CSV with a header row.
+                    A spreadsheet saved as CSV, with a header row on top.
                   </p>
                 </div>
                 <Button
@@ -281,7 +281,7 @@ export function BulkAdd() {
                 className="mt-3 text-sm text-brand underline-offset-4 hover:underline"
                 onClick={() => setPasteMode((v) => !v)}
               >
-                {pasteMode ? "Hide paste box" : "…or paste rows instead"}
+                {pasteMode ? "Hide paste box" : "…or paste your list instead"}
               </button>
               {pasteMode && (
                 <div className="mt-3">
@@ -301,21 +301,22 @@ export function BulkAdd() {
                   </Button>
                 </div>
               )}
+              <CsvHelp />
             </>
           ) : (
             // Column mapping — transparent, overridable before any row is touched.
             <div className="rounded-xl border border-border-weave bg-bg-card p-5">
               <div className="flex items-center justify-between">
                 <p className="font-medium text-text-primary">
-                  {parsed.rows.length} rows · check the column mapping
+                  {parsed.rows.length} rows · check the columns
                 </p>
                 <Button variant="ghost" size="sm" onClick={resetImport}>
                   Re-upload
                 </Button>
               </div>
               <p className="mt-1 text-sm text-text-muted">
-                We guessed how each column maps. Override any before importing —
-                nothing is created until you do.
+                We matched your columns to our fields. Change any that look wrong.
+                Nothing is saved until you import.
               </p>
               <div className="mt-4 space-y-2">
                 {parsed.headers.map((h, i) => (
@@ -389,6 +390,12 @@ export function BulkAdd() {
             hidden
             onChange={(e) => e.target.files && onBulkPhotos(e.target.files)}
           />
+          <p className="mt-1.5 px-1 text-xs leading-relaxed text-text-muted">
+            Here, photos attach to rows in order. To drop a whole folder and have
+            each photo match its item by filename, publish first, then use
+            <span className="font-medium text-text-secondary"> Bulk add photos</span>{" "}
+            on your manage page.
+          </p>
 
           <div className="mt-4 space-y-2">
             {drafts.map((d) => (

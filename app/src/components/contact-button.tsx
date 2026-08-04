@@ -57,8 +57,7 @@ export function ContactButton({ contacts }: { contacts: SellerContact[] }) {
                   Get in touch
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
-                  Text us with any questions — tap a number on your phone, or
-                  save it and text from anywhere.
+                  Have a question? Text us — tap a number to open your messages.
                 </p>
               </div>
               <button
