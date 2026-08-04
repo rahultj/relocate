@@ -95,9 +95,13 @@ export function ListingFeed({
         // the server's nulls-last sort would bury them otherwise). Grouping
         // preserves this order within each category.
         .sort((a, b) => {
-          const claimedA = a.status !== "listed" ? 1 : 0;
-          const claimedB = b.status !== "listed" ? 1 : 0;
-          if (claimedA !== claimedB) return claimedA - claimedB;
+          // available (0) < claimed (1) < sold/picked_up (2), so gone-for-good
+          // items sink below the claimed ones (which still offer a waitlist).
+          const rank = (s: string) =>
+            s === "listed" ? 0 : s === "picked_up" ? 2 : 1;
+          const ra = rank(a.status);
+          const rb = rank(b.status);
+          if (ra !== rb) return ra - rb;
           return readyBy(a).localeCompare(readyBy(b));
         }),
     [items, cat, avail, freeOnly],
@@ -221,7 +225,8 @@ function ItemRow({
   item: FeedItem;
   listingSlug: string;
 }) {
-  const claimed = it.status !== "listed";
+  const sold = it.status === "picked_up";
+  const claimed = it.status !== "listed"; // claimed OR sold → greyed treatment
   const future = it.availableFrom && it.availableFrom > TODAY_ISO;
 
   return (
@@ -261,7 +266,13 @@ function ItemRow({
             </p>
           )}
           <div className="mt-2 flex items-center gap-2 font-mono text-[11px] tracking-[0.02em] text-text-muted">
-            {claimed ? (
+            {sold ? (
+              // Sold = gone for good. Clear badge, no waitlist (nothing to wait
+              // for) — so browsers aren't left wondering.
+              <span className="inline-flex items-center rounded-full bg-bg-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-text-muted">
+                Sold
+              </span>
+            ) : claimed ? (
               // Claimed items aren't a dead end: surface the waitlist option
               // right here so buyers don't have to tap through to discover it.
               // The row already links to the detail page, where the join form

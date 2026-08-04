@@ -42,6 +42,8 @@ import {
   updateListing,
   setListingSlug,
   releaseClaim,
+  markSold,
+  undoSold,
   type UpdateResult,
   type ItemFields,
 } from "./actions";
@@ -80,6 +82,7 @@ export interface EditorItem {
   photoUrl: string | null; // already-uploaded URL
   photoDataUrl: string | null; // new/replacement preview
   listed: boolean;
+  sold: boolean; // item.status === "picked_up" — terminal, greyed "Sold" to buyers
   // Soft-claim info (read-only); present once a buyer has claimed this item.
   claim?: { name: string; contact: string; claimedAt: string } | null;
   // Waitlist (read-only), ordered; people to reach out to if the item frees up.
@@ -270,6 +273,39 @@ export function ListingEditor({
     return true;
   };
 
+  // Seller marks an item sold (picked up) — terminal, buyers see greyed "Sold".
+  // Optimistically flip sold + clear the claim badge; revert on failure.
+  const markRowSold = async (key: string) => {
+    const row = rowsRef.current.find((r) => r.rowKey === key);
+    if (!row?.itemId) return false;
+    const prev = { sold: row.sold, claim: row.claim };
+    setRows((rs) =>
+      rs.map((r) => (r.rowKey === key ? { ...r, sold: true, claim: null } : r)),
+    );
+    const res = await markSold(listing.id, row.itemId);
+    if (!res.ok) {
+      setRows((rs) => rs.map((r) => (r.rowKey === key ? { ...r, ...prev } : r)));
+      return false;
+    }
+    return true;
+  };
+
+  const undoRowSold = async (key: string) => {
+    const row = rowsRef.current.find((r) => r.rowKey === key);
+    if (!row?.itemId) return false;
+    setRows((rs) =>
+      rs.map((r) => (r.rowKey === key ? { ...r, sold: false } : r)),
+    );
+    const res = await undoSold(listing.id, row.itemId);
+    if (!res.ok) {
+      setRows((rs) =>
+        rs.map((r) => (r.rowKey === key ? { ...r, sold: true } : r)),
+      );
+      return false;
+    }
+    return true;
+  };
+
   const toggleListed = (key: string) => {
     const next = rowsRef.current.map((r) =>
       r.rowKey === key ? { ...r, listed: !r.listed } : r,
@@ -330,6 +366,7 @@ export function ListingEditor({
         photoUrl: null,
         photoDataUrl: null,
         listed: true,
+        sold: false,
       },
     ]);
 
@@ -1001,6 +1038,8 @@ export function ListingEditor({
             onRemove={removeRow}
             onAttachPhoto={attachPhoto}
             onReleaseClaim={releaseRowClaim}
+            onMarkSold={markRowSold}
+            onUndoSold={undoRowSold}
           />
         ))}
         {rows.length === 0 && (
@@ -1098,6 +1137,7 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     photoDataUrl: null,
     // Imported items stage as Unlisted — the seller lists them when ready.
     listed: false,
+    sold: false,
   };
 }
 
@@ -1168,6 +1208,8 @@ function EditRow({
   onRemove,
   onAttachPhoto,
   onReleaseClaim,
+  onMarkSold,
+  onUndoSold,
 }: {
   row: Row;
   listingSlug: string;
@@ -1178,10 +1220,14 @@ function EditRow({
   onRemove: (key: string) => void;
   onAttachPhoto: (key: string, itemId: string | null, file: File) => void;
   onReleaseClaim: (key: string) => Promise<boolean>;
+  onMarkSold: (key: string) => Promise<boolean>;
+  onUndoSold: (key: string) => Promise<boolean>;
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const [confirmRelease, setConfirmRelease] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [confirmSold, setConfirmSold] = useState(false);
+  const [soldBusy, setSoldBusy] = useState(false);
   const meta = trustMeta(r);
   const photoSrc = r.photoDataUrl ?? r.photoUrl;
   const priceTrimmed = r.priceText.trim();
@@ -1196,7 +1242,7 @@ function EditRow({
       id={r.itemId ? `item-${r.itemId}` : undefined}
       className={`relative flex flex-wrap items-start gap-3 scroll-mt-4 rounded-xl border bg-bg-card p-3 sm:grid sm:grid-cols-[4rem_minmax(0,1fr)_5rem_9rem_auto_auto] sm:items-center sm:gap-x-3 sm:gap-y-2 ${
         hasError ? "border-crimson/50" : "border-border-weave"
-      } ${r.listed ? "" : "opacity-60"}`}
+      } ${r.listed && !r.sold ? "" : "opacity-60"}`}
     >
       {/* Photo */}
       <button
@@ -1417,15 +1463,89 @@ function EditRow({
               </button>
             </span>
           ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmRelease(true)}
-              className="shrink-0 font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-crimson hover:underline"
-            >
-              Release claim
-            </button>
+            <span className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                disabled={soldBusy}
+                onClick={async () => {
+                  setSoldBusy(true);
+                  await onMarkSold(r.rowKey);
+                  setSoldBusy(false);
+                }}
+                className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-forest hover:underline disabled:opacity-60"
+              >
+                {soldBusy ? "Marking…" : "Mark sold"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmRelease(true)}
+                className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-crimson hover:underline"
+              >
+                Release claim
+              </button>
+            </span>
           )}
         </div>
+      )}
+
+      {/* Sold state / mark-sold — for sold items, or unclaimed saved rows (an
+          in-person sale with no claim). Claimed rows get "Mark sold" above. */}
+      {r.sold ? (
+        <div className="flex w-full basis-full items-center justify-between gap-3 rounded-lg border border-border-alt bg-bg-hover px-3 py-2 sm:col-start-2 sm:col-end-[-1]">
+          <p className="text-xs font-semibold text-text-secondary">✓ Sold</p>
+          <button
+            type="button"
+            disabled={soldBusy}
+            onClick={async () => {
+              setSoldBusy(true);
+              await onUndoSold(r.rowKey);
+              setSoldBusy(false);
+            }}
+            className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-brand hover:underline disabled:opacity-60"
+          >
+            {soldBusy ? "…" : "Undo"}
+          </button>
+        </div>
+      ) : (
+        r.itemId &&
+        !r.claim && (
+          <div className="flex w-full basis-full justify-end sm:col-start-2 sm:col-end-[-1]">
+            {confirmSold ? (
+              <span className="flex items-center gap-2 text-xs text-text-secondary">
+                Mark as sold?
+                <button
+                  type="button"
+                  disabled={soldBusy}
+                  onClick={async () => {
+                    setSoldBusy(true);
+                    await onMarkSold(r.rowKey);
+                    setSoldBusy(false);
+                    setConfirmSold(false);
+                  }}
+                  className="font-medium text-forest underline-offset-2 hover:underline disabled:opacity-60"
+                >
+                  {soldBusy ? "Marking…" : "Yes, sold"}
+                </button>
+                <button
+                  type="button"
+                  disabled={soldBusy}
+                  onClick={() => setConfirmSold(false)}
+                  className="text-text-muted underline-offset-2 hover:underline"
+                >
+                  cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmSold(true)}
+                className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-muted underline-offset-2 hover:text-forest hover:underline"
+              >
+                Mark sold
+              </button>
+            )}
+          </div>
+        )
       )}
 
       {/* Waitlist (read-only) — who to reach out to if this item frees up */}

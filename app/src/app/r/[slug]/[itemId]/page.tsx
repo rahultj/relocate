@@ -195,7 +195,16 @@ export default async function ItemDetailPage({
 
           {/* Unlisted items keep a live page (printed QR codes never 404) but
               read honestly as gone. Otherwise: claim visible-but-disabled (M2). */}
-          {item.unlisted ? (
+          {item.status === "picked_up" ? (
+            <div className="mt-6 rounded-lg border border-border-weave bg-bg-card py-3 text-center">
+              <p className="flex items-center justify-center gap-2 text-sm font-semibold text-text-secondary">
+                <span aria-hidden>✓</span> Sold
+              </p>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                This item has been picked up
+              </p>
+            </div>
+          ) : item.unlisted ? (
             <div className="mt-6 rounded-lg border border-border-weave bg-bg-card py-3 text-center">
               <p className="text-sm font-medium text-text-secondary">
                 No longer available
