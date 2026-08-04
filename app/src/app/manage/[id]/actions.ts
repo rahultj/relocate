@@ -295,6 +295,64 @@ export async function releaseClaim(
   });
 }
 
+// Seller marks an item picked up / sold — a terminal "gone for good" state
+// (distinct from claimed, which is reversible and offers a waitlist). Buyers see
+// a greyed "Sold" and no waitlist. Allowed from listed OR claimed (a seller may
+// sell in person without a claim). A confirmed claim becomes 'picked_up' so the
+// claimant record survives rather than reading as cancelled.
+export async function markSold(
+  listingId: string,
+  itemId: string,
+): Promise<ActionResult> {
+  return withListing(listingId, async (listing) => {
+    await db.transaction(async (tx) => {
+      const owned = await tx
+        .select({ id: items.id })
+        .from(items)
+        .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)))
+        .limit(1);
+      if (owned.length === 0) throw new Error("Item not found.");
+
+      await tx
+        .update(claims)
+        .set({ status: "picked_up" })
+        .where(and(eq(claims.itemId, itemId), eq(claims.status, "confirmed")));
+      await tx
+        .update(items)
+        .set({ status: "picked_up" })
+        .where(and(eq(items.id, itemId), eq(items.listingId, listing.id)));
+    });
+    return {};
+  });
+}
+
+// Undo a "Sold": item back to listed, and any picked_up claim → cancelled.
+// Deliberately does not try to restore a prior 'claimed' state.
+export async function undoSold(
+  listingId: string,
+  itemId: string,
+): Promise<ActionResult> {
+  return withListing(listingId, async (listing) => {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(claims)
+        .set({ status: "cancelled" })
+        .where(and(eq(claims.itemId, itemId), eq(claims.status, "picked_up")));
+      await tx
+        .update(items)
+        .set({ status: "listed" })
+        .where(
+          and(
+            eq(items.id, itemId),
+            eq(items.listingId, listing.id),
+            eq(items.status, "picked_up"),
+          ),
+        );
+    });
+    return {};
+  });
+}
+
 // ============================================================ bulk (import)
 
 export interface UpdateItemInput {

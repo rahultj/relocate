@@ -99,6 +99,7 @@ export default async function ManagePage({
     photoUrl: it.photoUrl,
     photoDataUrl: null,
     listed: !it.unlisted,
+    sold: it.status === "picked_up",
     claim: c
       ? {
           name: c.name ?? "",
