@@ -30,6 +30,28 @@ export default function Home() {
           </Link>
         </section>
 
+        {/* Preview — a real listing so sellers see the result (photos, price,
+            one-tap claim). Static screenshot of an actual mustgo item page. */}
+        <section className="mt-14">
+          <div className="mx-auto max-w-[300px]">
+            <div className="overflow-hidden rounded-2xl border border-border-weave bg-bg-card shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/preview-listing.jpg"
+                alt="A mustgo item page — a sofa with its photo, price, and a Claim button"
+                width={390}
+                height={740}
+                className="block h-auto w-full"
+                loading="eager"
+              />
+            </div>
+            <p className="mt-3 text-center text-sm leading-relaxed text-text-secondary">
+              Every item gets a photo, a price, and one-tap claim — no account
+              needed.
+            </p>
+          </div>
+        </section>
+
         {/* How it works — for prospective sellers (the only visitors here). */}
         <section className="mt-14 border-t border-border-weave pt-10">
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">
