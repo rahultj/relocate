@@ -15,6 +15,7 @@ import { mintSlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
 import type { ItemCondition } from "@/lib/format";
 import { normalizeVenmo } from "@/lib/venmo";
+import { photoColumns } from "@/lib/photos";
 
 export interface PublishListingInput {
   title: string;
@@ -38,7 +39,7 @@ export interface PublishItemInput {
   category: string | null;
   venmoHandle: string | null;
   venmoLink: string | null;
-  photoDataUrl: string | null; // base64 preview; uploaded to Storage at publish
+  photoDataUrls: string[]; // base64 previews (cover first); uploaded at publish
 }
 
 export interface PublishResult {
@@ -79,12 +80,13 @@ export async function publishListing(
 
   try {
     // Upload photos before the DB transaction — keep the transaction short and
-    // avoid orphaned rows if an upload fails. Index-aligned with input.items.
-    let photoUrls: (string | null)[];
+    // avoid orphaned rows if an upload fails. Index-aligned with input.items;
+    // each item may carry several photos (cover first).
+    let itemPhotoUrls: string[][];
     try {
-      photoUrls = await Promise.all(
+      itemPhotoUrls = await Promise.all(
         input.items.map((it) =>
-          it.photoDataUrl ? uploadItemPhoto(it.photoDataUrl) : Promise.resolve(null),
+          Promise.all(it.photoDataUrls.map((d) => uploadItemPhoto(d))),
         ),
       );
     } catch (err) {
@@ -136,7 +138,7 @@ export async function publishListing(
           category: it.category,
           venmoHandle: venmo.handle,
           venmoLink: venmo.link,
-          photoUrl: photoUrls[i],
+          ...photoColumns(itemPhotoUrls[i]),
           status: "listed" as const,
           };
         }),

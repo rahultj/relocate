@@ -36,8 +36,9 @@ import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
 import { toVanitySlug } from "@/lib/slug";
 import type { SellerContact } from "@/lib/seller-contact";
-import { uploadPhoto } from "@/lib/photo-upload";
-import { setItemPhoto } from "@/app/seller/photo-actions";
+import { uploadPhotos } from "@/lib/photo-upload";
+import { setItemPhotos } from "@/app/seller/photo-actions";
+import { MAX_PHOTOS } from "@/lib/photos";
 import {
   updateListing,
   setListingSlug,
@@ -79,8 +80,7 @@ export interface EditorItem {
   category: string | null;
   venmoHandle: string; // raw seller text; normalized at persist
   venmoLink: string;
-  photoUrl: string | null; // already-uploaded URL
-  photoDataUrl: string | null; // new/replacement preview
+  photoUrls: string[]; // ordered, cover first; all already uploaded to Storage
   listed: boolean;
   sold: boolean; // item.status === "picked_up" — terminal, greyed "Sold" to buyers
   // Soft-claim info (read-only); present once a buyer has claimed this item.
@@ -134,7 +134,7 @@ function rowToFields(r: Row): ItemFields {
     category: r.category,
     venmoHandle: r.venmoHandle.trim() || null,
     venmoLink: r.venmoLink.trim() || null,
-    photoUrl: r.photoUrl,
+    photoUrls: r.photoUrls,
   };
 }
 
@@ -363,32 +363,64 @@ export function ListingEditor({
         category: null,
         venmoHandle: "",
         venmoLink: "",
-        photoUrl: null,
-        photoDataUrl: null,
+        photoUrls: [],
         listed: true,
         sold: false,
       },
     ]);
 
-  // Upload one photo straight to Storage and attach it. Existing items
-  // auto-save immediately; new rows keep the URL until they're created on blur.
-  const uploadAndSet = async (
+  // Persist a row's full photo set. Existing items save immediately; new rows
+  // hold the URLs until they're created on blur (createItem writes photoUrls).
+  const persistPhotos = async (
     rowKey: string,
     itemId: string | null,
-    file: File,
+    urls: string[],
   ) => {
+    patch(rowKey, { photoUrls: urls });
+    if (itemId) await setItemPhotos(listing.id, itemId, urls);
+  };
+
+  // Upload one or more photos and append them to a row (cover = first). Both
+  // new-row and existing-item photos upload eagerly to Storage.
+  const addRowPhotos = async (
+    rowKey: string,
+    itemId: string | null,
+    files: File[],
+  ) => {
+    const row = rowsRef.current.find((r) => r.rowKey === rowKey);
+    if (!row) return;
+    const room = MAX_PHOTOS - row.photoUrls.length;
+    const take = files.filter((f) => f.type.startsWith("image/")).slice(0, room);
+    if (take.length === 0) return;
     patch(rowKey, { uploading: "up" });
     try {
-      const url = await uploadPhoto(file);
-      patch(rowKey, { photoUrl: url, photoDataUrl: null, uploading: "done" });
-      if (itemId) await setItemPhoto(listing.id, itemId, url);
+      const urls = await uploadPhotos(take);
+      const next = [...row.photoUrls, ...urls].slice(0, MAX_PHOTOS);
+      patch(rowKey, { uploading: "done" });
+      await persistPhotos(rowKey, itemId, next);
     } catch {
       patch(rowKey, { uploading: "err" });
     }
   };
 
-  const attachPhoto = (key: string, itemId: string | null, file: File) =>
-    void uploadAndSet(key, itemId, file);
+  const attachPhotos = (key: string, itemId: string | null, files: File[]) =>
+    void addRowPhotos(key, itemId, files);
+
+  const removeRowPhoto = (key: string, itemId: string | null, url: string) => {
+    const row = rowsRef.current.find((r) => r.rowKey === key);
+    if (!row) return;
+    void persistPhotos(key, itemId, row.photoUrls.filter((u) => u !== url));
+  };
+
+  // Make a photo the cover (move to front) — first entry is what the feed shows.
+  const setRowCover = (key: string, itemId: string | null, url: string) => {
+    const row = rowsRef.current.find((r) => r.rowKey === key);
+    if (!row) return;
+    void persistPhotos(key, itemId, [
+      url,
+      ...row.photoUrls.filter((u) => u !== url),
+    ]);
+  };
 
   // ---------- Listing details (debounced auto-save) ----------
 
@@ -450,16 +482,25 @@ export function ListingEditor({
   const applyPhotoMatches = async () => {
     const assigned = photoMatches.filter((m) => m.rowKey);
     const itemIdByKey = new Map(rows.map((r) => [r.rowKey, r.itemId] as const));
+    // Group by target row so several files matched to one item attach together
+    // (multiple photos per item), avoiding races on the row's photo array.
+    const byRow = new Map<string, File[]>();
+    for (const m of assigned) {
+      const arr = byRow.get(m.rowKey) ?? [];
+      arr.push(m.file);
+      byRow.set(m.rowKey, arr);
+    }
     photoMatches.forEach((m) => URL.revokeObjectURL(m.previewUrl));
     setPhotoMatches([]);
+    const jobs = Array.from(byRow.entries());
     let i = 0;
     const worker = async () => {
-      while (i < assigned.length) {
-        const m = assigned[i++];
-        await uploadAndSet(m.rowKey, itemIdByKey.get(m.rowKey) ?? null, m.file);
+      while (i < jobs.length) {
+        const [rowKey, files] = jobs[i++];
+        await addRowPhotos(rowKey, itemIdByKey.get(rowKey) ?? null, files);
       }
     };
-    await Promise.all(Array.from({ length: 4 }, worker));
+    await Promise.all(Array.from({ length: 3 }, worker));
   };
 
   const cancelPhotoMatches = () => {
@@ -553,8 +594,7 @@ export function ListingEditor({
           venmoHandle: f.venmoHandle,
           venmoLink: f.venmoLink,
           listed: r.listed,
-          photoDataUrl: r.photoDataUrl,
-          photoUrl: r.photoUrl,
+          photoDataUrl: null,
         };
       }),
     });
@@ -1036,7 +1076,9 @@ export function ListingEditor({
             onBlurRow={handleRowBlur}
             onToggleListed={toggleListed}
             onRemove={removeRow}
-            onAttachPhoto={attachPhoto}
+            onAddPhotos={attachPhotos}
+            onRemovePhoto={removeRowPhoto}
+            onSetCover={setRowCover}
             onReleaseClaim={releaseRowClaim}
             onMarkSold={markRowSold}
             onUndoSold={undoRowSold}
@@ -1113,7 +1155,7 @@ function mergeDraft(row: Row, d: ItemDraft): Row {
     category: d.category ?? row.category,
     venmoHandle: d.venmoHandle || row.venmoHandle,
     venmoLink: d.venmoLink || row.venmoLink,
-    // itemId, slug, photoUrl, photoDataUrl, listed, rowKey preserved.
+    // itemId, slug, photoUrls, listed, rowKey preserved.
   };
 }
 
@@ -1133,8 +1175,7 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     category: d.category,
     venmoHandle: d.venmoHandle,
     venmoLink: d.venmoLink,
-    photoUrl: null,
-    photoDataUrl: null,
+    photoUrls: [],
     // Imported items stage as Unlisted — the seller lists them when ready.
     listed: false,
     sold: false,
@@ -1206,7 +1247,9 @@ function EditRow({
   onBlurRow,
   onToggleListed,
   onRemove,
-  onAttachPhoto,
+  onAddPhotos,
+  onRemovePhoto,
+  onSetCover,
   onReleaseClaim,
   onMarkSold,
   onUndoSold,
@@ -1218,7 +1261,9 @@ function EditRow({
   onBlurRow: (key: string) => void;
   onToggleListed: (key: string) => void;
   onRemove: (key: string) => void;
-  onAttachPhoto: (key: string, itemId: string | null, file: File) => void;
+  onAddPhotos: (key: string, itemId: string | null, files: File[]) => void;
+  onRemovePhoto: (key: string, itemId: string | null, url: string) => void;
+  onSetCover: (key: string, itemId: string | null, url: string) => void;
   onReleaseClaim: (key: string) => Promise<boolean>;
   onMarkSold: (key: string) => Promise<boolean>;
   onUndoSold: (key: string) => Promise<boolean>;
@@ -1229,7 +1274,8 @@ function EditRow({
   const [confirmSold, setConfirmSold] = useState(false);
   const [soldBusy, setSoldBusy] = useState(false);
   const meta = trustMeta(r);
-  const photoSrc = r.photoDataUrl ?? r.photoUrl;
+  const cover = r.photoUrls[0] ?? null;
+  const photoCount = r.photoUrls.length;
   const priceTrimmed = r.priceText.trim();
   const showDollar =
     priceTrimmed !== "" &&
@@ -1244,10 +1290,11 @@ function EditRow({
         hasError ? "border-crimson/50" : "border-border-weave"
       } ${r.listed && !r.sold ? "" : "opacity-60"}`}
     >
-      {/* Photo */}
+      {/* Photo (cover) — tap to add more; manage the set in the strip below */}
       <button
         onClick={() => photoRef.current?.click()}
-        className={`grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-bg-main text-center text-[9px] leading-tight sm:row-span-2 sm:self-start ${
+        title={photoCount > 1 ? `${photoCount} photos` : "Add photos"}
+        className={`relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border bg-bg-main text-center text-[9px] leading-tight sm:row-span-2 sm:self-start ${
           r.uploading === "err"
             ? "border-crimson/50 text-crimson"
             : "border-border-weave text-text-muted"
@@ -1257,21 +1304,31 @@ function EditRow({
           "Uploading…"
         ) : r.uploading === "err" ? (
           "Failed · retry"
-        ) : photoSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoSrc} alt={r.name} className="size-full object-cover" />
+        ) : cover ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={cover} alt={r.name} className="size-full object-cover" />
+            {photoCount > 1 && (
+              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[9px] font-medium text-white">
+                {photoCount}
+              </span>
+            )}
+          </>
         ) : (
-          "+ Photo"
+          "+ Photos"
         )}
       </button>
       <input
         ref={photoRef}
         type="file"
         accept="image/*"
+        multiple
         hidden
-        onChange={(e) =>
-          e.target.files?.[0] && onAttachPhoto(r.rowKey, r.itemId, e.target.files[0])
-        }
+        onChange={(e) => {
+          if (e.target.files?.length)
+            onAddPhotos(r.rowKey, r.itemId, Array.from(e.target.files));
+          e.target.value = "";
+        }}
       />
 
       {/* Name + condition + category */}
@@ -1421,6 +1478,57 @@ function EditRow({
           onBlur={blur}
         />
       </div>
+
+      {/* Photo strip — all photos for this item; first is the cover. Add more,
+          remove, or tap a photo to make it the cover. */}
+      {photoCount > 0 && (
+        <div className="flex w-full basis-full flex-wrap items-center gap-2 sm:col-start-2 sm:col-end-[-1]">
+          {r.photoUrls.map((url, i) => (
+            <div key={url} className="group relative size-12 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt=""
+                className={`size-full rounded-md border object-cover ${
+                  i === 0 ? "border-brand" : "border-border-weave"
+                }`}
+              />
+              {i === 0 ? (
+                <span className="absolute inset-x-0 bottom-0 rounded-b-md bg-brand/85 text-center text-[8px] font-medium uppercase tracking-wide text-white">
+                  Cover
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSetCover(r.rowKey, r.itemId, url)}
+                  className="absolute inset-x-0 bottom-0 rounded-b-md bg-black/55 text-center text-[8px] font-medium uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  title="Make cover"
+                >
+                  Cover
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onRemovePhoto(r.rowKey, r.itemId, url)}
+                aria-label="Remove photo"
+                className="absolute -right-1.5 -top-1.5 grid size-4 place-items-center rounded-full bg-text-primary text-[10px] leading-none text-white shadow"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {photoCount < MAX_PHOTOS && (
+            <button
+              type="button"
+              onClick={() => photoRef.current?.click()}
+              className="grid size-12 shrink-0 place-items-center rounded-md border border-dashed border-border-alt text-lg text-text-muted hover:bg-bg-hover"
+              title="Add photos"
+            >
+              +
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Claim info (read-only) — shown once a buyer has claimed this item */}
       {r.claim && (

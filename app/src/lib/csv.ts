@@ -180,7 +180,7 @@ export interface ItemDraft {
   // Per-item Venmo (raw seller text; normalized at persist via lib/venmo).
   venmoHandle: string;
   venmoLink: string;
-  photoDataUrl: string | null; // local preview; uploaded on publish
+  photoDataUrls: string[]; // local previews (cover first); uploaded on publish
   state: "ready" | "draft" | "skip";
 }
 
@@ -227,7 +227,7 @@ export function rowsToDrafts(
       category: resolveCategory(col(row, "category"), name),
       venmoHandle: col(row, "venmoHandle").trim(),
       venmoLink: col(row, "venmoLink").trim(),
-      photoDataUrl: null,
+      photoDataUrls: [],
       state: "draft",
     };
   });

@@ -18,7 +18,9 @@ import {
   CONDITION_LABELS,
 } from "@/lib/format";
 import { canonicalSlugFor } from "@/lib/listing-slug";
+import { photoList } from "@/lib/photos";
 import { ContactButton } from "@/components/contact-button";
+import { PhotoCarousel } from "@/components/photo-carousel";
 import { ClaimButton } from "./claim-button";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +69,7 @@ export default async function ItemDetailPage({
   }
 
   const { listing, item } = data;
+  const photos = photoList(item);
 
   const priceLabel =
     item.isFree || item.priceCents == null
@@ -130,24 +133,18 @@ export default async function ItemDetailPage({
           <span aria-hidden>←</span> {listing.title}
         </Link>
 
-        {/* Hero — show the real photo whole (object-contain), never cropped:
-            a round table or a portrait shot keeps its shape, with a little
-            cream letterbox rather than a center-crop. Capped height so a tall
-            photo doesn't push the title and claim button off the fold.
-            Photoless items get a compact letter band instead of a big empty
-            square. */}
-        <div className="mt-4 flex w-full justify-center overflow-hidden border-y border-border-weave bg-bg-card">
-          {item.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={item.photoUrl}
-              alt={item.name}
-              className="max-h-[28rem] w-auto max-w-full object-contain"
-            />
+        {/* Hero — a swipe carousel when there are multiple photos, a single
+            whole photo (object-contain, never cropped) for one, or a compact
+            letter band when there are none. */}
+        <div className="mt-4">
+          {photos.length > 0 ? (
+            <PhotoCarousel photos={photos} alt={item.name} />
           ) : (
-            <span className="grid h-40 w-full place-items-center font-serif text-7xl text-text-muted">
-              {item.name.charAt(0).toUpperCase()}
-            </span>
+            <div className="flex w-full justify-center overflow-hidden border-y border-border-weave bg-bg-card">
+              <span className="grid h-40 w-full place-items-center font-serif text-7xl text-text-muted">
+                {item.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
           )}
         </div>
 
