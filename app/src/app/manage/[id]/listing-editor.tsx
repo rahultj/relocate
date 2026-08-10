@@ -20,10 +20,12 @@ import {
   mapColumns,
   rowsToDrafts,
   describeMapping,
+  buildItemsCsv,
   FIELD_LABELS,
   type FieldKey,
   type ParsedCsv,
   type ItemDraft,
+  type CsvExportItem,
 } from "@/lib/csv";
 import {
   parsePriceToCents,
@@ -368,6 +370,38 @@ export function ListingEditor({
         sold: false,
       },
     ]);
+
+  // Download the current items as a CSV the importer reads back cleanly, so the
+  // seller can bulk-edit on a computer and re-upload. Exports all rows (listed
+  // + unlisted); photos and listed-status have no CSV column and are preserved
+  // on re-import (matches by name, never deletes).
+  const downloadCsv = () => {
+    const csv = buildItemsCsv(
+      rows.map(
+        (r): CsvExportItem => ({
+          name: r.name,
+          priceText: r.priceText,
+          condition: r.condition,
+          boughtDate: r.boughtDate,
+          originalPriceText: r.originalPriceText,
+          availableFrom: r.availableFrom,
+          category: r.category as CsvExportItem["category"],
+          venmoHandle: r.venmoHandle,
+          venmoLink: r.venmoLink,
+          description: r.description,
+        }),
+      ),
+    );
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mustgo-${slug || "listing"}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   // Persist a row's full photo set. Existing items save immediately; new rows
   // hold the URLs until they're created on blur (createItem writes photoUrls).
@@ -907,6 +941,13 @@ export function ListingEditor({
               className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
             >
               Import / re-import CSV
+            </button>
+            <button
+              onClick={downloadCsv}
+              disabled={rows.length === 0}
+              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Download CSV
             </button>
             <button
               onClick={() => bulkPhotoRef.current?.click()}
