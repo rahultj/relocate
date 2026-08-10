@@ -11,26 +11,38 @@ export interface VenmoInput {
 export interface Venmo {
   /** Handle without a leading "@" (e.g. "theMayowa"). Null when unset. */
   handle: string | null;
-  /** Absolute profile link (https://venmo.com/<handle>). Null when unset. */
+  /** Absolute profile link (https://venmo.com/u/<handle>). Null when unset. */
   link: string | null;
 }
 
 /**
  * Normalize a seller-entered handle/link pair for storage.
  *  - handle: trimmed, leading "@" stripped; null if empty.
- *  - link: trimmed; a scheme is prepended if missing; derived from the handle
- *    when no explicit link is given; null when neither is present.
+ *  - link: canonicalized to https://venmo.com/u/<username> — the profile URL
+ *    that deep-links into the Venmo app on mobile. The username comes from the
+ *    handle, or is extracted from an explicit venmo.com link (tolerating a
+ *    missing /u/ or a leading @). A non-venmo URL is kept as-is (scheme
+ *    prepended). Null when neither handle nor link is present.
  */
 export function normalizeVenmo({ handle, link }: VenmoInput): Venmo {
   const h = (handle ?? "").trim().replace(/^@+/, "").trim();
   const rawLink = (link ?? "").trim();
 
   const cleanHandle = h || null;
+
+  // Prefer the handle; otherwise pull the username out of a venmo.com link
+  // (with or without the /u/ segment, tolerating a leading @).
+  let username = cleanHandle;
+  if (!username && rawLink) {
+    const m = rawLink.match(/venmo\.com\/(?:u\/)?@?([A-Za-z0-9_.-]+)/i);
+    if (m) username = m[1];
+  }
+
   let cleanLink: string | null = null;
-  if (rawLink) {
+  if (username) {
+    cleanLink = `https://venmo.com/u/${username}`;
+  } else if (rawLink) {
     cleanLink = /^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`;
-  } else if (cleanHandle) {
-    cleanLink = `https://venmo.com/${cleanHandle}`;
   }
 
   return { handle: cleanHandle, link: cleanLink };
