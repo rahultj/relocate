@@ -2,26 +2,49 @@ import { describe, it, expect } from "vitest";
 import { normalizeVenmo, venmoPayHref, venmoDisplayHandle } from "./venmo";
 
 describe("normalizeVenmo", () => {
-  it("strips a leading @ and derives the link from the handle", () => {
+  it("strips a leading @ and derives a /u/ deep-link from the handle", () => {
     expect(normalizeVenmo({ handle: "@theMayowa" })).toEqual({
       handle: "theMayowa",
-      link: "https://venmo.com/theMayowa",
+      link: "https://venmo.com/u/theMayowa",
     });
   });
 
-  it("prepends a scheme to a bare link", () => {
-    expect(normalizeVenmo({ handle: "@x", link: "venmo.com/theMayowa" })).toEqual({
-      handle: "x",
-      link: "https://venmo.com/theMayowa",
+  it("rewrites an old-format link (no /u/) into the /u/ deep-link", () => {
+    expect(normalizeVenmo({ link: "venmo.com/theMayowa" })).toEqual({
+      handle: null,
+      link: "https://venmo.com/u/theMayowa",
     });
   });
 
-  it("keeps an explicit https link as-is", () => {
+  it("leaves an already-correct /u/ link unchanged", () => {
+    expect(normalizeVenmo({ link: "https://venmo.com/u/theMayowa" })).toEqual({
+      handle: null,
+      link: "https://venmo.com/u/theMayowa",
+    });
+  });
+
+  it("prefers the handle when both a handle and a link are given", () => {
+    // Mayowa's CSV carries Venmo (@handle) + Venmo Link; the handle is the
+    // source of truth, so the link is rebuilt as /u/<handle>.
     expect(
-      normalizeVenmo({ handle: "scoobydoomansion", link: "https://account.venmo.com/u/scooby" }),
+      normalizeVenmo({ handle: "@x", link: "venmo.com/somethingelse" }),
     ).toEqual({
-      handle: "scoobydoomansion",
-      link: "https://account.venmo.com/u/scooby",
+      handle: "x",
+      link: "https://venmo.com/u/x",
+    });
+  });
+
+  it("extracts the username from an account.venmo.com/u/ link when there's no handle", () => {
+    expect(normalizeVenmo({ link: "https://account.venmo.com/u/scooby" })).toEqual({
+      handle: null,
+      link: "https://venmo.com/u/scooby",
+    });
+  });
+
+  it("keeps a non-venmo URL as-is (prepending a scheme)", () => {
+    expect(normalizeVenmo({ link: "paypal.me/pool" })).toEqual({
+      handle: null,
+      link: "https://paypal.me/pool",
     });
   });
 
@@ -32,18 +55,11 @@ describe("normalizeVenmo", () => {
     });
     expect(normalizeVenmo({})).toEqual({ handle: null, link: null });
   });
-
-  it("supports a link with no handle", () => {
-    expect(normalizeVenmo({ link: "venmo.com/pool" })).toEqual({
-      handle: null,
-      link: "https://venmo.com/pool",
-    });
-  });
 });
 
 describe("venmoPayHref / venmoDisplayHandle", () => {
-  it("returns the pay href and display handle", () => {
-    expect(venmoPayHref({ handle: "@theMayowa" })).toBe("https://venmo.com/theMayowa");
+  it("returns the /u/ pay href and display handle", () => {
+    expect(venmoPayHref({ handle: "@theMayowa" })).toBe("https://venmo.com/u/theMayowa");
     expect(venmoDisplayHandle({ handle: "@theMayowa" })).toBe("@theMayowa");
   });
   it("returns null when unset", () => {

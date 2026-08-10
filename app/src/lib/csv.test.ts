@@ -5,8 +5,10 @@ import {
   rowsToDrafts,
   describeMapping,
   buildTemplateCsv,
+  buildItemsCsv,
   TEMPLATE_HEADERS,
   type FieldKey,
+  type CsvExportItem,
 } from "./csv";
 
 describe("parseCsv", () => {
@@ -191,6 +193,71 @@ describe("rowsToDrafts", () => {
     const parsed = { headers: ["Item", "Box"], rows: [["Lamp", ""]] };
     const [d] = rowsToDrafts(parsed, ["name", "originalBox"], "2026-06-01");
     expect(d.originalBoxIncluded).toBeNull();
+  });
+});
+
+describe("buildItemsCsv", () => {
+  it("emits the template headers so a downloaded file re-imports cleanly", () => {
+    const csv = buildItemsCsv([]);
+    const parsed = parseCsv(csv);
+    expect(parsed.headers).toEqual(TEMPLATE_HEADERS);
+    expect(parsed.rows).toEqual([]);
+  });
+
+  it("round-trips items back through the importer (values recovered)", () => {
+    const items: CsvExportItem[] = [
+      {
+        name: "Orange couch",
+        priceText: "100",
+        condition: "good",
+        boughtDate: "2026-04-01",
+        originalPriceText: "260",
+        availableFrom: "2026-08-02",
+        category: "Furniture",
+        venmoHandle: "theMayowa", // stored without the @
+        venmoLink: "https://venmo.com/u/theMayowa",
+        description: "Comfy 3-seater, light wear", // has a comma -> exercises quoting
+      },
+      {
+        name: "Dining table",
+        priceText: "Free",
+        condition: null,
+        boughtDate: null,
+        originalPriceText: "",
+        availableFrom: "2026-08-22",
+        category: null,
+        venmoHandle: "",
+        venmoLink: "",
+        description: "",
+      },
+    ];
+
+    const parsed = parseCsv(buildItemsCsv(items));
+    const mapping = mapColumns(parsed.headers);
+    expect(mapping).not.toContain("ignore");
+    const drafts = rowsToDrafts(parsed, mapping, "2026-01-01");
+
+    expect(drafts[0]).toMatchObject({
+      name: "Orange couch",
+      priceText: "100",
+      condition: "good",
+      boughtDate: "2026-04-01",
+      originalPriceText: "260",
+      availableFrom: "2026-08-02",
+      category: "Furniture",
+      venmoHandle: "@theMayowa", // importer keeps the @ (normalized at persist)
+      venmoLink: "https://venmo.com/u/theMayowa",
+      description: "Comfy 3-seater, light wear",
+    });
+
+    // Free / empty item: "Free" price survives, blanks stay blank.
+    expect(drafts[1]).toMatchObject({
+      name: "Dining table",
+      priceText: "Free",
+      condition: null,
+      venmoHandle: "",
+      venmoLink: "",
+    });
   });
 });
 

@@ -11,6 +11,7 @@ import {
   parseLooseDate,
   parseCondition,
   parseBool,
+  CONDITION_LABELS,
   type ItemCondition,
 } from "./format";
 import { resolveCategory, type Category } from "./category";
@@ -280,6 +281,50 @@ function csvCell(v: string): string {
 /** Build the downloadable starter CSV (headers + a couple example rows). */
 export function buildTemplateCsv(): string {
   return [TEMPLATE_HEADERS, ...TEMPLATE_EXAMPLE_ROWS]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n");
+}
+
+// One item as the seller sees it in the /manage editor — the fields that can
+// round-trip back through the importer. priceText / originalPriceText are the
+// editor's raw text (bare dollars or "Free"); dates are ISO. photoUrl,
+// listed/unlisted, status and slug are intentionally omitted — they have no CSV
+// column, and re-import matches by name without deleting or overwriting them.
+export interface CsvExportItem {
+  name: string;
+  priceText: string;
+  condition: ItemCondition | null;
+  boughtDate: string | null;
+  originalPriceText: string;
+  availableFrom: string | null;
+  category: Category | null;
+  venmoHandle: string;
+  venmoLink: string;
+  description: string | null;
+}
+
+/**
+ * Serialize the current listing items to a CSV the importer reads back cleanly.
+ * Columns match TEMPLATE_HEADERS exactly, so a downloaded file re-imports with
+ * the correct auto-mapping and no manual fixups. Every cell is emitted in a
+ * form the parsers accept: bare dollars / "Free" (parsePriceToCents), ISO dates
+ * (parseLooseDate), the condition label (parseCondition), the canonical
+ * category (resolveCategory), and "@handle" for Venmo.
+ */
+export function buildItemsCsv(items: CsvExportItem[]): string {
+  const rows = items.map((it) => [
+    it.name,
+    it.priceText,
+    it.condition ? CONDITION_LABELS[it.condition] : "",
+    it.boughtDate ?? "",
+    it.originalPriceText,
+    it.availableFrom ?? "",
+    it.category ?? "",
+    it.venmoHandle ? `@${it.venmoHandle}` : "",
+    it.venmoLink,
+    it.description ?? "",
+  ]);
+  return [TEMPLATE_HEADERS, ...rows]
     .map((row) => row.map(csvCell).join(","))
     .join("\r\n");
 }
