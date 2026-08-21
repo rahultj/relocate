@@ -114,10 +114,17 @@ export default async function ManagePage({
     };
   });
 
-  // Top-of-page overview of every item with claim activity (claimed or
-  // waitlisted), so the seller doesn't have to scroll the whole list to find
-  // who claimed what. Jump-links target the per-row anchors below.
+  // Top-of-page overview of every item with *open* claim activity, so the seller
+  // doesn't have to scroll the whole list to find who claimed what. Jump-links
+  // target the per-row anchors below.
+  //
+  // Unlisted and sold items are excluded: both mean the thing is gone. Sellers
+  // unlist once an item is handed over or sold elsewhere (FB Marketplace), and
+  // "Mark sold" is the same signal made explicit. Leaving them in put finished
+  // transactions at the top of the table and buried the open ones. Staged
+  // imports (also unlisted) never reach this table anyway — they have no claims.
   const claimSummary = rows
+    .filter((it) => !it.unlisted && it.status !== "picked_up")
     .filter((it) => claimByItem.has(it.id) || (waitByItem.get(it.id)?.length ?? 0) > 0)
     .map((it) => {
       const c = claimByItem.get(it.id);
