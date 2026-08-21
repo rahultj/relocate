@@ -12,13 +12,13 @@
 // Canonical categories, in the order they render in the buyer feed.
 // "Other" always sorts last (handled in the feed, not here).
 export const CATEGORIES = [
+  "Plants",
   "Furniture",
   "Kitchen",
   "Electronics",
   "Lighting",
   "Bedding",
   "Decor",
-  "Plants",
   "Other",
 ] as const;
 
