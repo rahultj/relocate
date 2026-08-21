@@ -13,8 +13,11 @@ export function parsePriceField(priceText: string): {
   priceCents: number | null;
 } {
   const t = priceText.trim().toLowerCase();
-  const isFree = t === "" || t === "free";
-  return { isFree, priceCents: isFree ? null : parsePriceToCents(priceText) };
+  const cents = parsePriceToCents(priceText);
+  // A zero price ("0", "$0", "0.00") means the item is a giveaway — fold it into
+  // Free so it reads "Free", not "$0", on every surface.
+  const isFree = t === "" || t === "free" || cents === 0;
+  return { isFree, priceCents: isFree ? null : cents };
 }
 
 export interface ListedRef {

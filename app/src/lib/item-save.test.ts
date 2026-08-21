@@ -23,6 +23,12 @@ describe("parsePriceField", () => {
     // "abc" isn't the free sentinel, so isFree stays false; the amount is null.
     expect(parsePriceField("abc")).toEqual({ isFree: false, priceCents: null });
   });
+
+  it("treats a zero price as Free (giveaway), not $0", () => {
+    expect(parsePriceField("0")).toEqual({ isFree: true, priceCents: null });
+    expect(parsePriceField("$0")).toEqual({ isFree: true, priceCents: null });
+    expect(parsePriceField("0.00")).toEqual({ isFree: true, priceCents: null });
+  });
 });
 
 describe("groupByListed", () => {

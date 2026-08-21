@@ -18,6 +18,7 @@ export const CATEGORIES = [
   "Lighting",
   "Bedding",
   "Decor",
+  "Plants",
   "Other",
 ] as const;
 
@@ -50,6 +51,11 @@ const SYNONYMS: Record<string, Category> = {
   decorations: "Decor",
   misc: "Decor",
   miscellaneous: "Decor",
+  plants: "Plants",
+  plant: "Plants",
+  "indoor gardening": "Plants",
+  gardening: "Plants",
+  garden: "Plants",
   other: "Other",
 };
 
@@ -72,6 +78,17 @@ export function normalizeCategory(raw: string | null | undefined): Category | nu
 // furniture words ("table", "shelf", "rack") that would otherwise swallow
 // "table fan" or "table lamp".
 const KEYWORDS: { category: Category; words: string[] }[] = [
+  // Plants first: specific botanical words should win over the broad furniture
+  // words ("shelf", "rack") and the general "plant" that would otherwise land in
+  // Decor — e.g. "plant shelf" or "spider plant" is a plant, not furniture/decor.
+  {
+    category: "Plants",
+    words: [
+      "plant", "succulent", "philodendron", "pothos", "sansevieria", "cactus",
+      "cacti", "fern", "ivy", "orchid", "lily", "lilly", "violet", "jade",
+      "croton", "monstera", "aloe", "zebra plant",
+    ],
+  },
   {
     category: "Lighting",
     words: ["lamp", "lantern", "sconce", "bulb", "light"],
@@ -101,7 +118,7 @@ const KEYWORDS: { category: Category; words: string[] }[] = [
   {
     category: "Decor",
     words: [
-      "frame", "picture", "bookend", "vase", "mirror", "plant", "ukulele",
+      "frame", "picture", "bookend", "vase", "mirror", "ukulele",
       "boardgame", "board game", "curtain", "basket", "laptop stand", "art",
     ],
   },

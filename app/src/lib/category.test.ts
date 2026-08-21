@@ -3,6 +3,7 @@ import {
   normalizeCategory,
   suggestCategory,
   resolveCategory,
+  CATEGORIES,
 } from "./category";
 
 describe("normalizeCategory", () => {
@@ -17,6 +18,8 @@ describe("normalizeCategory", () => {
     expect(normalizeCategory("kitchenware")).toBe("Kitchen");
     expect(normalizeCategory("linens")).toBe("Bedding");
     expect(normalizeCategory("misc")).toBe("Decor");
+    expect(normalizeCategory("Indoor gardening")).toBe("Plants");
+    expect(normalizeCategory("plants")).toBe("Plants");
   });
 
   it("returns null for blank or unknown input", () => {
@@ -44,6 +47,13 @@ describe("suggestCategory", () => {
     expect(suggestCategory("Coffee Table")).toBe("Furniture");
   });
 
+  it("classifies plants, winning over furniture/decor words", () => {
+    expect(suggestCategory("Pothos")).toBe("Plants");
+    expect(suggestCategory("Jade")).toBe("Plants");
+    expect(suggestCategory("Snake plant shelf")).toBe("Plants"); // beats "shelf"→Furniture
+    expect(suggestCategory("Spider plant")).toBe("Plants"); // was Decor via "plant"
+  });
+
   it("returns null when nothing matches", () => {
     expect(suggestCategory("Mystery box")).toBeNull();
     expect(suggestCategory("")).toBeNull();
@@ -64,5 +74,15 @@ describe("resolveCategory", () => {
 
   it("is null when neither the cell nor the name resolves", () => {
     expect(resolveCategory("", "Mystery box")).toBeNull();
+  });
+});
+
+describe("CATEGORIES ordering", () => {
+  it("includes Plants, sorted before the trailing Other", () => {
+    expect(CATEGORIES).toContain("Plants");
+    expect(CATEGORIES.indexOf("Plants")).toBeLessThan(
+      CATEGORIES.indexOf("Other"),
+    );
+    expect(CATEGORIES[CATEGORIES.length - 1]).toBe("Other");
   });
 });
