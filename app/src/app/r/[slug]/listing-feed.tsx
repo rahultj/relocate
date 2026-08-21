@@ -1,9 +1,9 @@
 "use client";
 
 // Buyer-facing item feed for /r/[slug]. Filters run client-side over the
-// already-fetched items: two native <select> dropdowns (Category + Availability)
-// plus a "Free only" toggle. Native selects are the minimal, on-brand way to do
-// this — they render as the OS picker on mobile. Rows link to the detail page.
+// already-fetched items: two native <select> dropdowns (Category + Status) plus
+// a "Free only" toggle. Native selects are the minimal, on-brand way to do this
+// — they render as the OS picker on mobile. Rows link to the detail page.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -44,24 +44,27 @@ function groupByCategory(
 
 const OTHER = "Other";
 
-// ---- availability: the listing's actual "available from" dates ----
-// Rather than synthetic relative windows, the dropdown lists the real dates
-// items free up on (the seller stages the move date by date). Each date is a
-// distinct cohort, so the options partition the set. `avail` holds "any",
-// "now" (ready today/past or undated), or an exact ISO date.
-type Avail = "any" | "now" | (string & {});
+// ---- status: what a buyer can still take ----
+// This replaced an "availability" dropdown of real `available_from` date
+// cohorts. That filter stopped earning its slot once nearly everything read
+// "Available now" (and each row prints its own date badge anyway), while the
+// question buyers actually ask — "what's still up for grabs?" — had no answer
+// on a long listing. Keys ARE the FeedItem statuses, so matching is equality.
+type Status = "all" | FeedItem["status"];
+
+// Canonical order for the dropdown; labels match the badges ItemRow renders.
+const STATUS_OPTIONS: { key: Status; label: string }[] = [
+  { key: "all", label: "All items" },
+  { key: "listed", label: "Available" },
+  { key: "claimed", label: "Claimed" },
+  { key: "picked_up", label: "Sold" },
+];
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
-// Effective "ready" date: no date means it's ready today.
+// Effective "ready" date: no date means it's ready today. Still used by the
+// sort's secondary key and ItemRow's per-row date badge.
 const readyBy = (it: FeedItem) => it.availableFrom ?? TODAY_ISO;
-const isReadyNow = (it: FeedItem) => readyBy(it) <= TODAY_ISO;
-
-function matchesAvail(it: FeedItem, a: Avail): boolean {
-  if (a === "any") return true;
-  if (a === "now") return isReadyNow(it);
-  return it.availableFrom === a; // exact future date cohort
-}
 
 const catKey = (it: FeedItem) =>
   it.category && (CATEGORIES as readonly string[]).includes(it.category)
@@ -76,7 +79,7 @@ export function ListingFeed({
   items: FeedItem[];
 }) {
   const [cat, setCat] = useState<string>("all");
-  const [avail, setAvail] = useState<Avail>("any");
+  const [status, setStatus] = useState<Status>("all");
   const [freeOnly, setFreeOnly] = useState(false);
 
   const shown = useMemo(
@@ -85,7 +88,7 @@ export function ListingFeed({
         .filter(
           (it) =>
             (cat === "all" || catKey(it) === cat) &&
-            matchesAvail(it, avail) &&
+            (status === "all" || it.status === status) &&
             (!freeOnly || it.isFree || it.priceCents == null),
         )
         // Unclaimed first, then soonest-available. Claimed items sink to the
@@ -104,7 +107,7 @@ export function ListingFeed({
           if (ra !== rb) return ra - rb;
           return readyBy(a).localeCompare(readyBy(b));
         }),
-    [items, cat, avail, freeOnly],
+    [items, cat, status, freeOnly],
   );
 
   // Category dropdown lists only the categories actually present (canonical
@@ -116,22 +119,12 @@ export function ListingFeed({
     return CATEGORIES.filter((c) => present.has(c));
   }, [items]);
 
-  // Availability options built from the listing's real dates: "Available now"
-  // (ready today/past or undated) + one option per distinct future date,
-  // ascending.
-  const availOptions = useMemo(() => {
-    const hasNow = items.some(isReadyNow);
-    const futureDates = new Set<string>();
-    for (const it of items)
-      if (it.availableFrom && it.availableFrom > TODAY_ISO)
-        futureDates.add(it.availableFrom);
-    const opts: { key: Avail; label: string }[] = [
-      { key: "any", label: "Availability" },
-    ];
-    if (hasNow) opts.push({ key: "now", label: "Available now" });
-    for (const date of [...futureDates].sort())
-      opts.push({ key: date, label: `From ${formatMonthDay(date)}` });
-    return opts;
+  // Only offer statuses this listing actually has (same rule as catOptions) —
+  // a listing with nothing sold shouldn't show a "Sold" option that can only
+  // ever return "Nothing matches this filter."
+  const statusOptions = useMemo(() => {
+    const present = new Set<string>(items.map((it) => it.status));
+    return STATUS_OPTIONS.filter((o) => o.key === "all" || present.has(o.key));
   }, [items]);
 
   const groups = useMemo(() => groupByCategory(shown), [shown]);
@@ -159,12 +152,12 @@ export function ListingFeed({
         </select>
 
         <select
-          aria-label="Filter by availability"
-          value={avail}
-          onChange={(e) => setAvail(e.target.value as Avail)}
+          aria-label="Filter by status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as Status)}
           className={selectCls}
         >
-          {availOptions.map((o) => (
+          {statusOptions.map((o) => (
             <option key={o.key} value={o.key}>
               {o.label}
             </option>
