@@ -13,7 +13,7 @@
 // only save signal. See use-listing-save.ts for the engine.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Mail, Phone, Trash2 } from "lucide-react";
 import { CsvHelp } from "@/components/csv-help";
 import {
   parseCsv,
@@ -1736,28 +1736,133 @@ function formatClaimDate(iso: string): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// Filterable / sortable overview of every item with claim activity. Keeps the
-// seller from scrolling a long undifferentiated list — search, narrow by
-// claimant / category / status, and sort by most recent.
+// Filterable / sortable overview of every item with claim activity. The seller's
+// unit of work is a handoff to a person, not a row per object — so by default the
+// list groups every item under the person who claimed it, with a fixed right-edge
+// lane for waitlist counts so demand reads as a shape down the page.
 type ClaimSortKey = "recent" | "name" | "waiting";
 type ClaimStatusFilter = "all" | "claimed" | "waitlist";
+type ClaimGrouping = "person" | "item";
+
+interface ClaimGroup {
+  key: string;
+  name: string;
+  contact: string | null;
+  items: ClaimSummaryEntry[];
+  waiting: number;
+  newest: number;
+}
+
+const NO_CLAIMANT = "__unclaimed__";
+
+// Contact is identity everywhere else in this app, so group on it — the display
+// name varies ("Krit" vs "Claimed on behalf of Laura") for the same person.
+function groupByClaimant(entries: ClaimSummaryEntry[]): ClaimGroup[] {
+  const groups = new Map<string, ClaimGroup>();
+  for (const e of entries) {
+    const contact = e.claimant?.contact?.trim() ?? "";
+    const key = e.claimant && contact ? contact.toLowerCase() : NO_CLAIMANT;
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        key,
+        name: e.claimant?.name?.trim() || (e.claimant ? "Claimed" : "Nobody claimed"),
+        contact: key === NO_CLAIMANT ? null : contact,
+        items: [],
+        waiting: 0,
+        newest: -Infinity,
+      };
+      groups.set(key, g);
+    }
+    g.items.push(e);
+    g.waiting += e.waiting;
+    if (e.claimedAt) g.newest = Math.max(g.newest, Date.parse(e.claimedAt));
+  }
+  for (const g of groups.values()) {
+    g.items.sort((a, b) => {
+      const ta = a.claimedAt ? Date.parse(a.claimedAt) : -Infinity;
+      const tb = b.claimedAt ? Date.parse(b.claimedAt) : -Infinity;
+      return tb - ta;
+    });
+  }
+  return Array.from(groups.values());
+}
+
+const CLAIM_ROW_GRID =
+  "grid grid-cols-[minmax(0,1fr)_3.5rem] gap-x-3 sm:grid-cols-[minmax(0,1fr)_6.5rem_4rem_3.5rem]";
+
+// One item line. Shared by both groupings; the person view already names the
+// claimant in its header, so the claimant column only renders in the item view.
+function ClaimRow({
+  entry,
+  showClaimant,
+}: {
+  entry: ClaimSummaryEntry;
+  showClaimant: boolean;
+}) {
+  return (
+    <li
+      className={`${CLAIM_ROW_GRID} items-baseline px-2 py-1.5 text-sm hover:bg-forest/[0.04]`}
+    >
+      <span className="min-w-0">
+        <a
+          href={`#item-${entry.itemId}`}
+          className="block truncate font-medium text-text-primary underline-offset-2 hover:text-brand hover:underline"
+        >
+          {entry.name}
+        </a>
+        {showClaimant && (
+          <span className="mt-0.5 block truncate text-xs text-text-secondary">
+            {entry.claimant ? (
+              <>
+                {entry.claimant.name || "Claimed"}{" "}
+                <a
+                  href={contactHref(entry.claimant.contact)}
+                  title={entry.claimant.contact}
+                  className="text-text-muted underline-offset-2 hover:underline"
+                >
+                  {entry.claimant.contact}
+                </a>
+              </>
+            ) : (
+              <span className="text-text-muted">Nobody claimed</span>
+            )}
+          </span>
+        )}
+        {/* Below sm the category and date columns collapse onto one meta line. */}
+        <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.04em] text-text-muted sm:hidden">
+          {[entry.category, entry.claimedAt ? formatClaimDate(entry.claimedAt) : null]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+      <span className="hidden truncate font-mono text-[10px] uppercase tracking-[0.04em] text-text-muted sm:block">
+        {entry.category ?? ""}
+      </span>
+      <span className="hidden text-right font-mono text-[11px] tabular-nums text-text-muted sm:block">
+        {entry.claimedAt ? formatClaimDate(entry.claimedAt) : ""}
+      </span>
+      <span className="text-right">
+        {entry.waiting > 0 && (
+          <span
+            title={`${entry.waiting} waiting`}
+            className="inline-block rounded-full bg-ochre/15 px-2 py-0.5 font-mono text-[10px] tabular-nums text-ochre-dark"
+          >
+            {entry.waiting}
+            <span className="sr-only"> waiting</span>
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
 
 function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ClaimStatusFilter>("all");
-  const [claimant, setClaimant] = useState("all");
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState<ClaimSortKey>("recent");
-
-  // Distinct claimant names + categories present, for the dropdowns.
-  const claimants = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of entries) {
-      const n = e.claimant?.name?.trim();
-      if (n) set.add(n);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
+  const [grouping, setGrouping] = useState<ClaimGrouping>("person");
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -1767,11 +1872,9 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const rows = entries.filter((e) => {
+    return entries.filter((e) => {
       if (status === "claimed" && !e.claimant) return false;
       if (status === "waitlist" && e.waiting === 0) return false;
-      if (claimant !== "all" && e.claimant?.name?.trim() !== claimant)
-        return false;
       if (category !== "all" && e.category !== category) return false;
       if (q) {
         const hay = `${e.name} ${e.claimant?.name ?? ""} ${
@@ -1781,13 +1884,15 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
       }
       return true;
     });
-    const sorted = [...rows];
+  }, [entries, query, status, category]);
+
+  const flat = useMemo(() => {
+    const sorted = [...filtered];
     if (sort === "name") {
       sorted.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sort === "waiting") {
       sorted.sort((a, b) => b.waiting - a.waiting);
     } else {
-      // recent: newest claim first, unclaimed (waitlist-only) rows last
       sorted.sort((a, b) => {
         const ta = a.claimedAt ? Date.parse(a.claimedAt) : -Infinity;
         const tb = b.claimedAt ? Date.parse(b.claimedAt) : -Infinity;
@@ -1795,18 +1900,59 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
       });
     }
     return sorted;
-  }, [entries, query, status, claimant, category, sort]);
+  }, [filtered, sort]);
+
+  const groups = useMemo(() => {
+    const gs = groupByClaimant(filtered);
+    gs.sort((a, b) => {
+      // Items nobody claimed always sink to the bottom.
+      if (a.key === NO_CLAIMANT) return 1;
+      if (b.key === NO_CLAIMANT) return -1;
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "waiting") return b.waiting - a.waiting;
+      return b.newest - a.newest;
+    });
+    return gs;
+  }, [filtered, sort]);
 
   const claimedTotal = entries.filter((e) => e.claimant).length;
   const waitingTotal = entries.reduce((n, e) => n + e.waiting, 0);
   const selectClass =
     "rounded-lg border border-forest/25 bg-bg-main px-2.5 py-1.5 text-sm text-text-primary focus:border-forest focus:outline-none";
+  const toggleClass = (on: boolean) =>
+    `rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors ${
+      on
+        ? "bg-forest/12 text-forest"
+        : "text-text-muted hover:text-text-secondary"
+    }`;
 
   return (
     <section className="mt-6 rounded-xl border border-forest/25 bg-forest/[0.05] px-4 py-3">
-      <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-forest">
-        {claimedTotal} claimed · {waitingTotal} waiting
-      </p>
+      {/* Two stats, weighted like prices elsewhere in the app. Waiting is a
+          one-tap shortcut into the demand view. */}
+      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
+        <p className="flex items-baseline gap-2">
+          <span className="font-serif text-2xl leading-none text-forest">
+            {claimedTotal}
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-forest">
+            claimed
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={() => setStatus(status === "waitlist" ? "all" : "waitlist")}
+          className="flex items-baseline gap-2 rounded-md underline-offset-4 hover:underline"
+          aria-pressed={status === "waitlist"}
+        >
+          <span className="font-serif text-2xl leading-none text-ochre-dark">
+            {waitingTotal}
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-ochre-dark">
+            waiting
+          </span>
+        </button>
+      </div>
 
       {/* Filter / sort controls */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1827,21 +1973,6 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
           <option value="claimed">Claimed</option>
           <option value="waitlist">Has waitlist</option>
         </select>
-        {claimants.length > 0 && (
-          <select
-            value={claimant}
-            onChange={(e) => setClaimant(e.target.value)}
-            className={selectClass}
-            aria-label="Filter by claimant"
-          >
-            <option value="all">All claimants</option>
-            {claimants.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        )}
         {categories.length > 0 && (
           <select
             value={category}
@@ -1867,55 +1998,83 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
           <option value="name">Name A–Z</option>
           <option value="waiting">Most waiting</option>
         </select>
+        <div className="ml-auto flex items-center gap-0.5 rounded-lg border border-forest/25 p-0.5">
+          <button
+            type="button"
+            onClick={() => setGrouping("person")}
+            className={toggleClass(grouping === "person")}
+            aria-pressed={grouping === "person"}
+          >
+            By person
+          </button>
+          <button
+            type="button"
+            onClick={() => setGrouping("item")}
+            className={toggleClass(grouping === "item")}
+            aria-pressed={grouping === "item"}
+          >
+            By item
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <p className="mt-3 text-sm text-text-muted">No matching claims.</p>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-1.5">
-          {filtered.map((e) => (
-            <li
-              key={e.itemId}
-              className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
-            >
-              <a
-                href={`#item-${e.itemId}`}
-                className="font-medium text-text-primary underline-offset-2 hover:text-brand hover:underline"
-              >
-                {e.name}
-              </a>
-              {e.category && (
-                <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-text-muted">
-                  {e.category}
-                </span>
-              )}
-              {e.claimant ? (
-                <span className="text-text-secondary">
-                  — {e.claimant.name || "claimed"}{" "}
-                  <a
-                    href={contactHref(e.claimant.contact)}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {e.claimant.contact}
-                  </a>
-                  {e.claimedAt && (
-                    <span className="text-text-muted">
-                      {" "}
-                      · {formatClaimDate(e.claimedAt)}
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-text-muted">— available</span>
-              )}
-              {e.waiting > 0 && (
-                <span className="rounded-full bg-ochre/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-ochre-dark">
-                  {e.waiting} waiting
-                </span>
-              )}
-            </li>
+      ) : grouping === "item" ? (
+        <ul className="mt-3 divide-y divide-forest/10">
+          {flat.map((e) => (
+            <ClaimRow key={e.itemId} entry={e} showClaimant />
           ))}
         </ul>
+      ) : (
+        <div className="mt-4 flex flex-col gap-5">
+          {groups.map((g) => {
+            const unclaimed = g.key === NO_CLAIMANT;
+            const isEmail = g.contact?.includes("@");
+            return (
+              <div key={g.key}>
+                <div
+                  className={`flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b px-2 pb-1.5 ${
+                    unclaimed ? "border-ochre/30" : "border-forest/25"
+                  }`}
+                >
+                  <span
+                    className={`font-mono text-[11px] uppercase tracking-[0.1em] ${
+                      unclaimed ? "text-ochre-dark" : "text-forest"
+                    }`}
+                  >
+                    {g.name}
+                  </span>
+                  <span className="font-mono text-[11px] tracking-[0.04em] text-text-muted">
+                    {unclaimed
+                      ? "someone waiting"
+                      : `· ${g.items.length} item${g.items.length === 1 ? "" : "s"}`}
+                  </span>
+                  {g.contact && (
+                    <a
+                      href={contactHref(g.contact)}
+                      title={g.contact}
+                      aria-label={`${isEmail ? "Email" : "Call"} ${g.name} at ${g.contact}`}
+                      className="ml-auto flex min-w-0 items-center gap-1.5 text-xs text-text-secondary underline-offset-2 hover:text-brand hover:underline"
+                    >
+                      <span className="max-w-[13rem] truncate">{g.contact}</span>
+                      {isEmail ? (
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                    </a>
+                  )}
+                </div>
+                <ul className="divide-y divide-forest/10">
+                  {g.items.map((e) => (
+                    <ClaimRow key={e.itemId} entry={e} showClaimant={false} />
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
