@@ -10,15 +10,18 @@
 // get a best-effort guess the seller can override on /manage.
 
 // Canonical categories, in the order they render in the buyer feed.
-// "Other" always sorts last (handled in the feed, not here).
+// "Other" always sorts last (handled in the feed, not here). Plants sits
+// second-to-last: on listings with a lot of plants, that section can be huge,
+// and putting it first buried the (usually smaller) other categories below
+// the fold — moving it last lets buyers see everything else first.
 export const CATEGORIES = [
-  "Plants",
   "Furniture",
   "Kitchen",
   "Electronics",
   "Lighting",
   "Bedding",
   "Decor",
+  "Plants",
   "Other",
 ] as const;
 
