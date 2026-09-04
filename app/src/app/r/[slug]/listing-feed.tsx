@@ -134,6 +134,30 @@ export function ListingFeed({
     cat !== "all" ||
     (groups.length <= 1 && (groups[0]?.category ?? OTHER) === OTHER);
 
+  // Split into an "Available" band and a "Claimed & Sold" band below it, so a
+  // category with a lot of claimed/sold items doesn't push other categories'
+  // available items further down the page. Only when the buyer hasn't already
+  // filtered to one status (that's already a single list) and there's
+  // actually something claimed/sold to separate out (otherwise this is a
+  // no-op and the page looks exactly like it did before bands existed).
+  const available = useMemo(
+    () => shown.filter((it) => it.status === "listed"),
+    [shown],
+  );
+  const unavailable = useMemo(
+    () => shown.filter((it) => it.status !== "listed"),
+    [shown],
+  );
+  const splitBands = status === "all" && unavailable.length > 0;
+  const availableGroups = useMemo(
+    () => groupByCategory(available),
+    [available],
+  );
+  const unavailableGroups = useMemo(
+    () => groupByCategory(unavailable),
+    [unavailable],
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 border-b border-border-weave px-6 py-3">
@@ -185,29 +209,84 @@ export function ListingFeed({
             : "Nothing matches this filter."}
         </p>
       ) : flat ? (
-        <ul className="flex-1">
-          {shown.map((it) => (
-            <ItemRow key={it.slug} item={it} listingSlug={slug} />
-          ))}
-        </ul>
+        splitBands ? (
+          <div className="flex-1">
+            <BandHeader label="Available" count={available.length} />
+            <ul>
+              {available.map((it) => (
+                <ItemRow key={it.slug} item={it} listingSlug={slug} />
+              ))}
+            </ul>
+            <BandHeader label="Claimed & Sold" count={unavailable.length} />
+            <ul>
+              {unavailable.map((it) => (
+                <ItemRow key={it.slug} item={it} listingSlug={slug} />
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <ul className="flex-1">
+            {shown.map((it) => (
+              <ItemRow key={it.slug} item={it} listingSlug={slug} />
+            ))}
+          </ul>
+        )
       ) : (
         <div className="flex-1">
-          {groups.map((g) => (
-            <section key={g.category}>
-              <h2 className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-border-weave bg-bg-main/95 px-6 pb-2 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted backdrop-blur">
-                {g.category}
-                <span className="text-text-muted">· {g.items.length}</span>
-              </h2>
-              <ul>
-                {g.items.map((it) => (
-                  <ItemRow key={it.slug} item={it} listingSlug={slug} />
-                ))}
-              </ul>
-            </section>
-          ))}
+          {splitBands ? (
+            <>
+              <BandHeader label="Available" count={available.length} />
+              <CategoryGroups groups={availableGroups} slug={slug} />
+              <BandHeader label="Claimed & Sold" count={unavailable.length} />
+              <CategoryGroups groups={unavailableGroups} slug={slug} />
+            </>
+          ) : (
+            <CategoryGroups groups={groups} slug={slug} />
+          )}
         </div>
       )}
     </>
+  );
+}
+
+// A category's items, sticky category header + row list. Shared between the
+// single-list case and each availability band.
+function CategoryGroups({
+  groups,
+  slug,
+}: {
+  groups: { category: string; items: FeedItem[] }[];
+  slug: string;
+}) {
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.category}>
+          <h2 className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-border-weave bg-bg-main/95 px-6 pb-2 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted backdrop-blur">
+            {g.category}
+            <span className="text-text-muted">· {g.items.length}</span>
+          </h2>
+          <ul>
+            {g.items.map((it) => (
+              <ItemRow key={it.slug} item={it} listingSlug={slug} />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  );
+}
+
+// Top-level availability divider, sitting above a band of category groups (or
+// a plain list). Deliberately not sticky — it would stack awkwardly with the
+// sticky category headers inside its own band — and visually heavier than a
+// category header so it reads as a bigger-picture split, not another category.
+function BandHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <h2 className="flex items-baseline gap-2 border-b border-t-2 border-t-border-alt border-b-border-weave bg-bg-card px-6 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
+      {label}
+      <span className="font-normal text-text-muted">· {count}</span>
+    </h2>
   );
 }
 
