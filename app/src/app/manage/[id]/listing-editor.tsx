@@ -31,6 +31,7 @@ import {
   parsePriceToCents,
   parseLooseDate,
   formatMonthYear,
+  formatPrice,
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
@@ -652,6 +653,22 @@ export function ListingEditor({
     return c;
   }, [rows]);
 
+  // Money earned so far: priced items a buyer has claimed (soft-claim, may
+  // still fall through) or that are marked Sold (terminal, paid). Free items
+  // never contribute even if claimed.
+  const earnings = useMemo(() => {
+    let cents = 0;
+    let count = 0;
+    for (const r of rows) {
+      if (!r.sold && !r.claim) continue;
+      const { isFree, priceCents } = parsePriceField(r.priceText);
+      if (isFree || priceCents == null) continue;
+      cents += priceCents;
+      count++;
+    }
+    return { cents, count };
+  }, [rows]);
+
   // ============================================================ render
 
   return (
@@ -674,6 +691,19 @@ export function ListingEditor({
         stay the same. Re-import your CSV anytime — matching items update, new
         ones are added.
       </p>
+
+      {/* Earned so far — priced items claimed or sold. Free items don't count. */}
+      {earnings.count > 0 && (
+        <p className="mt-4 flex items-baseline gap-2">
+          <span className="font-serif text-2xl leading-none text-brand">
+            {formatPrice(earnings.cents)}
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-text-muted">
+            earned · {earnings.count} item{earnings.count === 1 ? "" : "s"} sold
+            or claimed
+          </span>
+        </p>
+      )}
 
       {/* Claims overview — every item with a claim or waitlist, filterable +
           sortable, with a jump link to each row. */}
