@@ -1,235 +1,110 @@
-# mustgo — Relocation Marketplace
+# mustgo
 
-A single-seller relocation marketplace for offloading household items before a move. Seller is in Washington, D.C. moving to India. Named **mustgo** (chosen 2026-06-04, replacing the "Saudade" working placeholder).
+I'm moving from Washington, D.C. back to India, and I built mustgo to sell my household things before I go. It's a simple marketplace: I list my items, share a link or QR code, and people browse and claim what they want. Friends use it for their own move-out sales too (Mayowa runs one), so every listing stands on its own.
 
-**Three principles, in order:**
-1. **Buyer-first, always.** Any feature that adds friction for the buyer to make the seller's life easier needs explicit justification.
-2. **SMS is the medium.** Receipts, reminders, chat, cancellations all happen over SMS via a proxy number. No app, no email, no login.
-3. **OTP is the identity.** One verification at claim time. Verified phone is the buyer's identity for the lifetime of the listing.
+## Principles, in order
 
-(M1 doesn't enact #2 or #3 yet — they shape later milestones. They still inform M1 decisions like "claim button is visible but disabled, not hidden.")
+1. **Buyer-first, always.** If a feature adds friction for buyers to make my life easier, it needs a real reason.
+2. **SMS is the medium.** Receipts, reminders, chat and cancellations happen over SMS through a proxy number. No app, no email, no login.
+3. **OTP is the identity.** One verification at claim time. That verified phone is the buyer's identity for the life of the listing.
+
+#2 and #3 aren't built yet. Claims today are a "soft claim": buyers give a name plus an email or phone, I trust it, and nothing gets sent. I chose that on purpose to launch faster. The data model is still OTP-ready, so real verification can slot in later without a rewrite.
 
 ## Spec
 
-- **`index.html`** — the implementation plan. Read it for milestone definitions, mockups, data model, and rationale. **Treat it as read-only during build.** If a spec change is needed, flag it and ask before editing.
-- **`design_system.html`** — the Weave visual system. Colors, type scale, components. Source of truth for visual language.
-- **Live spec preview:** https://rahultj.github.io/relocate/
+- **`index.html`** is the original plan: mockups, data model, milestones and rationale. Treat it as read-only. If it needs to change, ask me first.
+- **`design_system.html`** is the Weave visual system and the source of truth for colors, type and components.
+- Preview: https://rahultj.github.io/relocate/
 
-## Currently building
+## How the app works
 
-**M1: Display + bulk-add** (section 12 in `index.html`, milestone 1).
+**Buyers**
+- **Feed `/r/[slug]`:** the listing title and my intro on top, then an "Available" band followed by a "Claimed & Sold" band. Each band is grouped into category sections. Filters: category, status (All / Available / Claimed / Sold, showing only statuses that exist) and "Free only". Files: `r/[slug]/{page,listing-feed}.tsx`.
+- **Item `/r/[slug]/[itemId]`:** photo carousel, price and details, and the claim button. Buyers can claim, release their claim, or join and leave the waitlist on a claimed item. After claiming they see a "Pay @handle on Venmo" link if the item has one. Sold items show a final "Sold" panel. Unlisted items say "No longer available" instead of a 404, so printed QR codes never break. Files: `r/[slug]/[itemId]/{page,claim-button,actions}.tsx`, `components/photo-carousel.tsx`.
+- Buyers are identified by their contact, remembered in localStorage. There are no accounts.
 
-**The question M1 answers:** Does the brand and the visual hold up when a friend sees it?
+**Sellers**
+- **`/seller/add`:** first publish. Drop in a CSV, check the column mapping, fix rows, publish.
+- **`/manage/[id]`:** everything after that. The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
+  - Listed/Unlisted per item, plus bulk toggles. Imported items start out Unlisted.
+  - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
+  - Release a claim, mark sold or undo, and see the waitlist with contacts.
+  - Multiple photos per item (cover first), plus a bulk matcher that pairs photos to items by filename.
+  - CSV import and re-import, a CSV template, and a CSV export of the current items.
+  - Seller contacts (shown to buyers), per-item Venmo, category, and a renamable public link (old slugs 308-redirect).
+- **`/r/[slug]/share`:** printable sheet with QR codes for the listing and each item.
+- **`/`:** landing page for people thinking about listing their own stuff.
 
-### Progress
+**Key libs (`app/src/lib/`)**
+- `csv.ts`: import mapping, template, export.
+- `category.ts`: the canonical `CATEGORIES` list (Plants sits just before Other), synonyms, and `suggestCategory` from the item name.
+- `item-save.ts`: field parsing. A $0 price becomes Free.
+- `venmo.ts`: always builds `https://venmo.com/u/<user>` links.
+- `photos.ts`: `photo_urls` is the source of truth; `photo_url` mirrors the cover.
+- `storage.ts`: server-only, signed uploads.
+- `with-listing.ts`: capability check for `/manage` actions.
 
-Subgoals (one at a time, stop after each — see Working agreements):
-- [x] **Scaffold** — Next 16 + Tailwind v4 + Drizzle + Supabase client + shadcn/ui under `app/`. Weave palette wired in `globals.css`; fonts via `next/font`. Dev server boots clean (`curl /` returns 200, title + fonts + classes correct).
-- [x] **Schema** — all 6 tables (section 11 contract) in `src/db/schema.ts`; M1 writes `listings`/`items`, M2 tables land ready+empty. Migration `0000` generated, `tsc` clean. Lazy `db` client in `src/db/index.ts`. **Pushed to Supabase 2026-06-02** — all 6 tables + 5 enums + indexes/FKs live in the free project (ref `asqfjnwchqfimcythbla`).
-- [x] **CSV-first bulk-add** at `/seller/add` (section 07). Drop/paste CSV → transparent overridable column mapping → editable Ready/Draft/Skip rows → publish (transactional, slug collision-retry). Pure logic in `lib/csv.ts`+`lib/format.ts`+`lib/slug.ts`, unit-sanity-tested. Added a "Listing details" mini-form (title/city/pickup) since M1 has no separate listing-creation step.
-- [x] **Photo upload** (wired 2026-06-03). Attach per-row / bulk-drop → downscaled in-browser (`createImageBitmap`→canvas, max 1280px JPEG q0.82) → sent as base64 in the publish action → uploaded to Supabase Storage bucket `item-photos` (public) via the **secret key** (new-style `sb_secret_...`, env `SUPABASE_SECRET_KEY`; server-only `lib/storage.ts`) → public URL stored as `photoUrl`. `serverActions.bodySizeLimit` bumped to 10mb. Verified end-to-end locally. **Vercel still needs `SUPABASE_SECRET_KEY` added** for prod uploads to work.
-- [x] **Public listing page** at `/r/[slug]` (section 03). Server page fetches listing + items (sorted by `available_from`, nulls last) → `<ListingFeed>` client component with All/Available/Free-now filter pills. Item rows link to `/r/[slug]/[itemId]` (detail page next). Photo or letter-initial thumb, forest "Available" chip, Cormorant price with `$` adornment / "Free". Unknown slug → 404. Built + verified via a live publish (`/r/dxb2`), pending Rahul review (2026-06-03).
-- [x] **Item detail page** at `/r/[slug]/[itemId]` (section 04). Server page loads listing+item by slug pair (404 if either missing). Square hero (photo or letter-initial), Cormorant title, insight-tinted trust-meta block (Price/Bought/Originally/Available/Condition/Pickup — rows dropped when no data), Cormorant description. Claim button **visible but disabled** with quiet "Claims open soon" note (buyer-first: disabled, not hidden). Verified at `/r/dxb2/aybz`. Pending Rahul review (2026-06-03).
-- [x] **QR + printable letter sheet** at `/r/[slug]/share` (section 09). Listing QR (→ feed) + per-item QR (→ detail) on one print-clean letter sheet; `window.print()` toolbar (screen-only, `print:hidden`), copy-link. QR via `qrcode` lib → crisp SVG server-side (`lib/qr.ts`). Absolute URLs derived from request `headers()`. Post-publish success state links to it ("Get QR & print sheet"). Verified at `/r/dxb2/share`. Pending Rahul review (2026-06-03).
+## What's next
 
-**All five M1 subgoals built**, plus post-M1 enhancements (live on Vercel). See "Post-M1" + "Resume here" below.
-
-### Post-M1 (shipped + deployed, 2026-06-03/04)
-
-- **Deployed to Vercel** — live at `https://mustgo.vercel.app` (stable prod alias; per-deploy hash URLs change each push). NOT `relocate.vercel.app` (unrelated project). Auto-deploys on push to `main`. Env vars (Production): `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` — all four required; `NEXT_PUBLIC_*` bake in at build time (push to apply). Deployment Protection is OFF (public).
-- **Minimal home index** (`src/app/page.tsx`) — lists every published listing + link to `/seller/add`.
-- **`/manage/[id]`** — append/edit a listing without changing its `/r/[slug]` URL. Access = the listing's UUID as a secret capability (shown on publish as a bookmark link). CSV re-import **matches existing items by normalized name and updates in place** (blank cells don't overwrite; new rows append). Add items by hand. Edit listing details. Files: `manage/[id]/page.tsx`, `listing-editor.tsx`, `actions.ts` (`updateListing`).
-- **Soft unlist** — `items.unlisted` column (added via direct `ALTER TABLE`; `db:push` is broken by a drizzle-kit introspection bug, apply migrations as raw SQL). Unlisted = hidden from feed/QR/home count, but detail page resolves "No longer available" (printed QR never 404s). Listed/Unlisted toggle + List all/Unlist all bulk buttons. **Imported items default to Unlisted** (stage, then list when ready).
-- **CSV dates** — `parseLooseDate` (`lib/format.ts`) now handles `now`/`today`, month+day with year inference (`July 30`), and US M/D/Y, on top of the original month+year/ISO.
-- **Bulk photo matcher** — on `/manage`, "Bulk add photos" drops a whole folder; matches each file to an item by filename (normalized, tolerant of `-1`/`_console` suffixes), review/fix in a dropdown list, then attach.
-- **Photos upload browser→Storage on attach** (not through Save). `lib/storage.ts` `signUploads()` → signed URLs; `app/seller/photo-actions.ts` (`signPhotoUploads`, `setItemPhoto`); `lib/photo-upload.ts` `uploadPhoto()` + `lib/supabase-browser.ts`. Existing items **auto-save** on upload; new rows carry the URL until Save. This fixed bulk-photo Saves hanging on Vercel's ~4.5MB function-body limit. (NOTE: `/seller/add` first-publish still sends photos as base64 through the publish action — same latent limit if many photos are attached before first publish; not yet migrated to the signed-upload path.)
-
-**Rahul's real listing:** "Rahul and Swati's Ghar Waapsi", id `262da553-11ec-4414-986a-01c9f86dcdc6`, ~73 items, all listed/public, mostly priced, few photos (he's adding them via the bulk matcher).
-
-### Resume here (last worked 2026-09-04; notes refreshed 2026-10-22) — all shipped + live; pick next goal
-
-Everything below is **merged to `main`, deployed to `https://mustgo.vercel.app`, and prod-verified.** Nothing is mid-flight. Four things shipped on 2026-06-04 (each: planned → eng+design review → built → tested → merged → deployed → smoke-checked):
-
-1. **`/manage` auto-save** (PR #1) — single save model, no Save button. Real Listed/Unlisted switch that actually persists (was the headline bug: it dimmed the row but never saved). Per-item actions (`patchItem`/`createItem`/`patchListingDetails`/`setItemsListed`) via a `withListing()` helper; `useListingSave` debounce+optimistic-retry; new rows create on first blur; top-right save-status pill; bulk undo toast; collapsed listing-details. Plan: `MANAGE_UI_PLAN.md`.
-2. **Rebrand → "mustgo"** (PR #2) — replaced the "Saudade" placeholder everywhere. URL is now `https://mustgo.vercel.app` (added that as a Vercel production domain; the project also has `relocate-blond.vercel.app`).
-3. **Soft claim** (PR #3) — M2-lite, **no OTP/SMS** (deliberate spec deviation, OTP-ready). Buyer claims with name + email-or-phone (contact = identity, browser-remembered, deduped); item flips `status=claimed`; seller sees claimant on `/manage` (mailto/tel). Plan: `SOFT_CLAIM_PLAN.md`. Real OTP/SMS M2 deferred.
-4. **Readable listing URLs** (PR #4) — sellers rename `/r/<slug>` on `/manage` ("Public link" editor); old slugs 308-redirect via `listings.previous_slugs`. Item slugs stay opaque.
-
-**Shipped 2026-06-05** (direct to `main`, commits `2325a55`→`813e601`; planned with the user → built → tested → deployed → live design-review):
-
-- **Buyer-feed design polish** (`2325a55`) — (a) photoless item-detail hero was a full `aspect-square` (~576px of empty cream) burying the title/price/Claim below the fold; now a compact `h-40` band, full square only when a real photo exists. (b) Normalized the "Free" price treatment to serif (forest, muted when claimed) across feed + detail so the price column reads as one system. Dropped the redundant "Free now" filter pill.
-- **Category browsing** (`fe8fa0c`/`4ca3f4b`/`dda651f`/`813e601`) — items now have a **category** (`items.category` text col, applied via raw SQL `scripts/add-category-column.mjs`). Fixed canonical set in `lib/category.ts` (Furniture/Kitchen/Electronics/Lighting/Bedding/Decor/Plants/Other — Plants added 2026-08-21, see below) with synonym normalization + **keyword auto-suggest from the item name** (`suggestCategory`). CSV import maps a `category` column (alias `category|type|group|room`) and auto-suggests blanks. Buyer feed `/r/[slug]` now **groups items into sticky category sections** (canonical order, Other last, empty sections hide, filters re-group live); falls back to a flat list when nothing is categorized. `/manage` has a **per-item category dropdown** (auto-saves) and re-import threads category through (blank doesn't overwrite). Rahul's 73 live items were backfilled via `scripts/backfill-categories.ts` (dry-run by default; `--apply` to write) — all 73 auto-categorized, zero unguessed. A few guesses are debatable (Steel dustbin→Kitchen, Laundry basket→Decor, Shoe rack→Furniture) — fix on `/manage` if desired.
-
-**Shipped 2026-06-06** (direct to `main`, commits `1bca0b7`→`7dae6de`; each: planned/clarified with the user → built → in-browser verified (gstack `browse`) → committed → pushed → prod-smoke-checked → throwaway data cleaned):
-
-- **Unclaim** (`1bca0b7`) — both sides. Buyer: the claim success box gains "Release this claim" (confirm step) → `unclaimItem`, authorized by the localStorage contact (a confirmed claim must exist for it) → item back to `listed`, drops the local claimed mark. Seller: `/manage` claim badge gains "Release claim" (confirm) → `releaseClaim` (capability-checked via `withListing`). Both: confirmed claim → `cancelled`, item `status` → `listed`, one txn; buyer row + `unlisted` flag untouched. Also fixed `claimItem` to **revive a cancelled row on re-claim** (`onConflictDoUpdate`) so re-claimers show on `/manage`. Files: `r/[slug]/[itemId]/actions.ts`, `claim-button.tsx`, `manage/[id]/actions.ts`, `listing-editor.tsx`.
-- **Photo crop fix** (`9f9170b`) — item-detail hero forced every photo into `aspect-square object-cover`, center-cropping round/portrait items. Now `object-contain` at natural aspect, capped `max-h-[28rem]`, small cream letterbox instead of a crop. Photoless items keep the `h-40` letter band. Feed thumbs stay square (list preview). File: `r/[slug]/[itemId]/page.tsx`.
-- **Dropdown filters** (`9be88d1`, refined `ebb90e7`, `2d9d939`) — buyer feed `/r/[slug]` replaced the All/Available/Free **pills** with two native `<select>` dropdowns (open as the OS picker on mobile) + a "Free only" toggle. **Category** dropdown lists present categories; "All" keeps the sticky category-section grouping, picking one collapses to a flat list. **Availability** dropdown lists the listing's **real `available_from` dates** ("Available now" + "From Jul 30", exact-date cohorts) — not synthetic relative buckets. Per-option `· N` counts were tried then **removed** (noise). File: `listing-feed.tsx`.
-- **Move story in header + editable intro** (`67d67a5`) — added nullable `listings.intro` (raw-SQL `ALTER`, `db:push` still broken). Buyer header now leads with the **listing title as the big serif headline** (was a small mono eyebrow), drops the auto "N things, going home", shows `intro` as a paragraph (a "mustgo" kicker sits on top). `/manage` Listing-details gains an "Intro · your move story" textarea (autosaves via `patchListingDetails`). Seeded a draft intro on the real listing — Rahul to reword on `/manage`. Files: `r/[slug]/page.tsx`, `manage/[id]/{actions,page}.tsx`, `listing-editor.tsx`, `schema.ts`.
-- **CSV re-import timeout fix** (`77ea4c9`) — re-import rewrote **all** items as sequential UPDATE/INSERT in one txn (~13.6s on 73 items → overran Vercel's function timeout → whole import rolled back, so "add a few" silently no-op'd). Now the client sends **only new/changed rows** (unchanged left untouched; `updateListing` never deletes); new rows insert in **one batched statement**. Single-add dropped 13.6s → ~0.85s. Added `maxDuration = 60` on `/manage`. Files: `listing-editor.tsx` (`applyImport`), `manage/[id]/{actions,page}.tsx`.
-- **CSV description separator** (`64f0957`) — two columns mapped to Description (Company/model + Remarks) joined with `"\n"`, which HTML collapses to a space → run-on line. Now join with `" | "` (`lib/csv.ts` `MERGE_SEP`). **Migrated the 11 existing affected rows** (`\n` → ` | `) via authorized one-off SQL. +2 tests.
-- **Waitlist** (`7dae6de`) — buyers who miss out can **Join the waitlist** on a claimed item (the old "Claimed" dead-end). No schema change (claims already have `waitlist` status + `position`). Buyer: same one-tap/form flow → "You're #N on the waitlist" (localStorage `mustgo_waitlist` remembers position; "Leave the waitlist" mirrors unclaim; freed-up mid-flow → `reason:"available"` nudges to claim). Server: `joinWaitlist` (position = max+1 in-txn, revives a left row, guards against waitlisting an item you hold) + `leaveWaitlist` (contact-authorized → `cancelled`); `WaitlistResult` type. Seller: `/manage` shows "Waiting (N): name · contact" (mailto/tel) under the claim badge, ordered by position. **Manual outreach — no auto-promotion/notify** (deferred to real M2/SMS, decided with the user). `releaseClaim`/`unclaim` unchanged; waitlist rows persist. Plan: `~/.claude/plans/now-i-m-considering-adding-mighty-moth.md`. Files: `r/[slug]/[itemId]/{actions,claim-button}.tsx`, `manage/[id]/{page,listing-editor}.tsx`.
-
-**Shipped 2026-08-03** (PR #6, merged to `main` + deployed to prod, commit `8649b67`; planned → built → browser-verified → shipped → prod-smoke-checked):
-
-- **Multi-seller Phase 1** — make the app usable by a second person (a friend running her own listing). The data layer was already multi-seller (everything scoped by `listingId`); the blockers were in the identity/presentation layer. (a) **Per-listing seller contact**: new `listings.seller_contacts` jsonb col (array of `{name?, value, primary?}`, applied via raw SQL `scripts/add-seller-contacts-column.mjs`, `db:push` still broken). Sellers edit their own phone/email on `/manage` (autosaves via `patchListingDetails`; add/remove rows + mark primary). `ContactButton` now takes a `contacts` prop, reads `listing.sellerContacts`, and **hides entirely when empty** — the hardcoded global `SELLER_CONTACTS` (Swati/Rahul) constant is **gone**. `contactHref()` (`lib/contact.ts`) derives `sms:` for phones, `mailto:` for emails. This closed the gap that caused the earlier revert (`8b73726`): the field is now shown to buyers, not write-only. Backfilled `/r/swahul` with the old Swati(primary)+Rahul numbers so his buyer pages are unchanged. (b) **Home `/` → plain landing** (no more public directory of every listing; `loadListings()` dropped). (c) Softened "single-seller" root metadata. **Ownership stays the secret-link model** (no accounts — hand the friend her `/manage/[uuid]` link). Plan: `~/.claude/plans/i-have-a-friend-playful-noodle.md`. Files: `db/schema.ts`, `lib/{seller-contact,contact}.ts`, `components/contact-button.tsx`, `r/[slug]/{page,[itemId]/page}.tsx`, `manage/[id]/{actions,listing-editor,page}.tsx`, `app/page.tsx`, `layout.tsx`. Phase 2 requests from Mayowa followed (per-item Venmo, Sold, multi-photo, `/u/` deep-links — below).
-
-**Shipped 2026-08-03** (PR #7, merged to `main` + deployed, commit `b830141`; planned → built → browser-verified with her real CSV → shipped → prod-smoke-checked; throwaway test listing cleaned):
-
-- **Per-item Venmo** (Phase 2, request #1 from Mayowa) — her moveout sale is shared across roommates, each item owned by a different person with their own Venmo (couch → `@theMayowa`, table → `@scoobydoomansion`). Her CSV's `Venmo`/`Venmo Link` columns were being silently dropped (unknown headers → `ignore`). Now Venmo is a real, optional, **per-item** field. New cols `items.venmo_handle` + `venmo_link` (raw SQL `scripts/add-venmo-columns.mjs`). `lib/venmo.ts` (`normalizeVenmo` strips `@`, prepends scheme, derives `https://venmo.com/<handle>`; `venmoPayHref`/`venmoDisplayHandle`). CSV import (`lib/csv.ts`): new `venmoHandle`/`venmoLink` field keys + aliases (**link alias before handle**), threaded through `ItemDraft`/`rowsToDrafts`; `Listing NO.` still correctly ignored (targeted fix, NOT "keep every unknown column"). Persisted through `publishListing`, `patchItem`/`createItem` (`toItemColumns`), and re-import merge (`venmoColumns`, blank-doesn't-overwrite). Mapping dropdowns gained `venmoHandle`/`venmoLink` on both surfaces + the long-missing `category` on `/seller/add`. `/manage` has a compact `@venmo` per-row input (autosaves; editing handle clears link so it re-derives). Buyer: **"Pay @handle on Venmo" shows only in the claim-confirmation box after claiming** (Rahul's call), opens `https://venmo.com/<handle>` in a new tab; nothing pre-claim, nothing in feed. Files: `db/schema.ts`, `lib/venmo.ts`, `lib/csv.ts`, `manage/[id]/{actions,listing-editor,page}.tsx`, `seller/add/{actions,bulk-add-client}.tsx`, `r/[slug]/[itemId]/{page,claim-button}.tsx`. Plan: `~/.claude/plans/i-have-a-friend-playful-noodle.md`. **More Phase 2 requests expected from Mayowa (one at a time).**
-
-- **Seller CSV help + plain-copy pass** (PR #8, merged + deployed, commit `f108f2b`) — two seller-experience improvements bundled. (1) **CSV onboarding help**: `components/csv-help.tsx` (shared by `/seller/add` + `/manage`) — a "Download CSV template" button (client-side Blob from `buildTemplateCsv()`, no static asset) + a "What columns can I use?" collapsible. Single source of truth in `lib/csv.ts` (`TEMPLATE_HEADERS`, `SELLER_COLUMNS`), guarded by a test that every template header auto-maps (no Ignore). Photo tips: `/manage` "name files like the item to auto-match"; `/seller/add` note that photos attach in order there. (2) **Plain-English copy pass** site-wide (plain but warm, no behavior change): field labels dropped the "(trust signal)" jargon ("Bought", "Original price", "Price"); `/seller/add` headline → "Add your items" + simpler intro; claim copy "reach out … Keep an eye out" → "contact you …" (also accurate for email contacts); "frees up"→"opens up"; home sub-hero reworked (kept "Moving on? Pass it on."); `/manage` + contact-popover + layout meta simplified. Files: `lib/csv.ts`, `components/csv-help.tsx`, `seller/add/bulk-add-client.tsx`, `manage/[id]/listing-editor.tsx`, `r/[slug]/[itemId]/claim-button.tsx`, `page.tsx`, `layout.tsx`, `components/contact-button.tsx`. Also added `scripts/seed-mayowa-demo.mjs` (demo-listing seeder, `--delete` to remove).
-
-- **Mark item "Sold"** (Phase 2 request #3, PR #9 `4d2d587`, merged + deployed) — a terminal "gone for good" state so buyers aren't left wondering (distinct from claimed, which offers a waitlist). **No schema change** — activates the dormant `picked_up` value in `itemStatusEnum`/`claimStatusEnum`. `manage/[id]/actions.ts`: `markSold` (item→`picked_up`; confirmed claim→`picked_up` so claimant survives; allowed from listed OR claimed) + `undoSold` (→listed, claim→cancelled), both `withListing`-gated. Buyer feed (`listing-feed.tsx`): sold items greyed with "Sold" pill, NO waitlist, sunk below claimed (sort rank listed<claimed<sold). Buyer detail: terminal "✓ Sold — picked up" panel. `/manage`: "Mark sold" in the claim block + confirm link on unclaimed rows; sold rows show "✓ Sold · Undo" and grey. Optimistic, reverts on failure.
-- **Multiple photos per item** (Phase 2 request #4, PR #10 `03d879e`, merged + deployed) — photos are now an ordered set (cover first) with a buyer swipe carousel. `items.photo_urls text[]` (raw SQL `scripts/add-photo-urls-column.mjs`, backfilled from `photo_url` on 82 rows). **`photo_urls` is source of truth; `photo_url` kept as a synced cover mirror = `photo_urls[0]`** so feed/manage thumbs are unchanged — only the detail hero became a gallery. `lib/photos.ts` (`photoColumns` syncs both + caps `MAX_PHOTOS`=8; `photoList` reconciles legacy). `uploadPhotos()` batches N; `setItemPhotos()` writes array+cover. Threaded through `ItemFields`/`toItemColumns`, `publishListing`, and re-import (existing items' photos left untouched on CSV re-import). Seller UI (manage + `/seller/add`): single thumb → **photo strip** (cover thumb w/ count badge; strip w/ remove × + tap-to-make-cover + "+ add" tile); bulk matcher attaches multiple files per item. Buyer: `components/photo-carousel.tsx` — CSS scroll-snap swipe + dots + "N of M" (no lib); 1 photo = plain, 0 = letter band. **Gotcha:** headless `browse upload` times out on a `hidden` file input — un-hide it via JS (`removeAttribute('hidden')` + tiny opacity style) with a real JPEG to test uploads; verified real upload works on prod.
-- **Home page for prospective sellers** (PR #11 `7a3465f` + PR #12 `5aab8a7`, merged + deployed) — the plain landing (`app/page.tsx`) gained a **3-step "How it works"** aimed at people considering listing their own things, plus a **framed preview of the real listing** so a visitor can see what a finished mustgo page looks like. Onboarding/marketing surface only; no data-model change.
-
-**Shipped 2026-08-10** (PR #13, merged to `main` + deployed, squash commit `d3f0924`; planned → built → unit-tested + `pnpm build`-verified → shipped. Note: built in a Claude Code web session whose branch was cut from an old `main` and had to be reset onto latest `origin/main` first — the Venmo feature "looked missing" until the reset):
-
-- **Venmo `/u/` deep-links** (Phase 2, from Mayowa) — the "Pay @handle on Venmo" button linked to `https://venmo.com/<handle>`, which opens the web profile instead of deep-linking into the Venmo **app** on mobile. `normalizeVenmo` (`lib/venmo.ts`) now canonicalizes to **`https://venmo.com/u/<username>`** — username from the handle, or extracted from an old-format `venmo.com/...` link when no handle is set; a non-venmo URL is kept as-is (scheme prepended). Because the pay href is computed at **render time** (`venmoPayHref → normalizeVenmo` on the stored values), every existing item picked up `/u/` on deploy — **no data migration**. **Supersedes** the `https://venmo.com/<handle>` form described in the PR #7 entry above. Files: `lib/venmo.ts` (+ tests).
-- **Download CSV on `/manage`** — sellers who add/edit items directly on `/manage` can now **export the whole listing as a CSV** (button beside "Import / re-import CSV"), bulk-edit on a computer, and re-upload. Distinct from PR #8's "Download CSV **template**" (a blank starter): this exports the **real current items**. `buildItemsCsv` (`lib/csv.ts`) reuses `TEMPLATE_HEADERS` + `csvCell`, emitting importer-clean values (bare dollars / "Free", ISO dates, condition label, canonical category, `@handle`). Exports **all** rows (listed + unlisted); `photoUrl`/listed-status/`status`/`slug` are omitted (no CSV column) and preserved on re-import (matches by name, never deletes). **Round-trip gotcha:** renaming an item in the CSV makes re-import treat it as a *new* row (match is by normalized name) — unchanged merge design. Files: `lib/csv.ts` (+ round-trip test), `manage/[id]/listing-editor.tsx`.
-
-**Shipped 2026-08-21 → 2026-09-04** (commits `e6e498a`→`4598640` direct to `main`, then PR #15 `440d47d` + PR #16 `c42e387`, all deployed):
-
-- **Plants category + $0 → Free** (`e6e498a`) — `"Plants"` joins the canonical set in `lib/category.ts` (synonyms `indoor gardening`/`plants`/`garden`; a plant keyword group runs **first** in `suggestCategory` so botanical words beat `shelf`/`rack`→Furniture; the old `plant`→Decor mapping is gone). `parsePriceField` (`lib/item-save.ts`) now folds a zero price (`0`/`$0`/`0.00`) into **Free** on every surface. Swati's 45-plant spreadsheet tab was imported into `/r/swahul` via one-off `scripts/import-plants.mjs` (dry-run by default, `--apply` to write, `--list` to insert Listed; resolves listing by slug, never creates one; inserts staged/Unlisted by default).
-- **Category order** — Plants briefly led the feed (`73afbc8`), then moved back to **just before Other** (PR #16) because a big Plants section buried the smaller categories. Order flows from the single `CATEGORIES` array (feed sections, buyer dropdown, `/manage` picker).
-- **Status filter replaces availability filter** (`4598640`) — the buyer feed's availability dropdown (real `available_from` cohorts) became an **All items / Available / Claimed / Sold** dropdown, since nearly everything now reads "Available now". Options are filtered to statuses actually present; default `all`. Category dropdown + "Free only" unchanged. **Supersedes** the 2026-06-06 "Dropdown filters" availability description above. File: `r/[slug]/listing-feed.tsx`.
-- **Available / Claimed & Sold bands** (PR #16) — the feed now renders an **"Available"** band followed by a **"Claimed & Sold"** band, each still grouped by category, so gone items in one category no longer push other categories' available items down the page.
-- **Seller claims overview redesign** (PR #15) — the `/manage` claims panel groups items **by person** (keyed on normalized contact, since display names vary), as an aligned grid (name | category | date | waiting) with ochre waitlist counts in one lane, contact as an icon mail/tel link, and a waiting stat that filters to waitlisted items in one tap. A **By person / By item** toggle keeps the flat list. Dropped the "All claimants" dropdown. **Unlisted and sold items are excluded** from `claimSummary` (both mean "gone") so the table opens on open handoffs. Files: `manage/[id]/{listing-editor,page}.tsx`.
-
-**Unmerged branch (not on `main`, no PR):** `origin/claude/earnings-sold-claimed-items-649hts` — one commit `1dba35a` (2026-09-19) "Show total earned from sold/claimed items on /manage". Review + merge or discard.
-
-**Repo now has Vitest** (`pnpm test`, 83 tests): pure helpers in `lib/` (item-save, contact + **contactHref**, slug, category, **csv description join + export round-trip**, **venmo `/u/` + csv Venmo mapping**, **CSV template**, **photos cover-sync**) + backfilled csv/format.
-
-**Open threads / possible next goals (Rahul to pick):**
-- Rahul's real listing is **`/r/swahul`** (renamed from `bt8x`, which 308-redirects). id `262da553-11ec-4414-986a-01c9f86dcdc6`. **~86 items** now (re-imported 2026-06-06, up from 73).
-- **Intro copy:** a placeholder move-story `intro` is live on the real listing — Rahul to reword on `/manage` (autosaves, no redeploy).
-- **Waitlist is manual** (`7dae6de`): seller sees waiters + contacts on `/manage` and reaches out by hand. **→ Next planned goal: waitlist auto-promotion.** Releasing a claim should promote the #1 waiter (item stays claimed, never re-opens to the feed); seller still notifies manually; plus a small `myItemStatus` lookup so the promoted buyer sees it on return. Full executable plan: **`WAITLIST_PROMOTION_PLAN.md`** (drafted 2026-06-06, not started). No schema change for the core.
-- ~~`/seller/add` doesn't expose category in its column-mapping UI~~ — **done** (PR #7 added `category` to the `/seller/add` mapping dropdowns alongside the Venmo fields).
-- A **real custom domain** is still optional/deferred (mustgo.vercel.app is fine for now).
-- **Buyer how-to / claim affordance (future, low priority):** buyers may not realize each feed item is tappable + claimable (the claim button only appears after tapping in). Rahul currently put the how-to inline in the listing `intro` (reads as dull grey flavor text). Future polish: trim the how-to out of `intro`, give it a dedicated styled element — e.g. a tinted "Tap to claim · free · no account" strip and/or a per-row "Claim ›" cue (affordance beats instructions). Mocked 2026-06-06, **deliberately deferred** (don't over-engineer).
-- Natural follow-ons to soft claim: **seller email-notify on claim/waitlist** (small), or **real OTP/SMS M2** (big).
-- **Leftover test listing in prod:** `/r/3dtn` "Live manage test" (pre-existing, not mine) — Rahul to confirm before deleting.
-
-**Gotcha learned:** one-off DB scripts must run from `app/` (not `/tmp`) or `postgres` won't resolve and they fail silently — always confirm a delete's row count. See memory `throwaway-cleanup-gotcha`.
-
-To resume: `cd app && pnpm dev`. **Always wipe throwaway test listings when done** (scoped `delete from listings where title='…'`; run the script from `app/`). A dev server may already be running on :3000 from a prior session.
-
-**Known transient:** Supabase free-tier pooler occasionally throws `read ETIMEDOUT` (one-off 500, succeeds on retry) — not a code bug.
-
-**Env is set up** (`app/.env.local` filled, gitignored). Just `cd app && pnpm dev` to resume.
-- `DATABASE_URL` password contained an `@` → URL-encoded as `%40`. Runtime uses transaction pooler **6543**; `db:push` needs session pooler **5432** (the `db:push` invocation auto-swaps the port, and `drizzle.config.ts` now loads `.env.local`).
-- **`pnpm db:push` is currently broken** — drizzle-kit 0.31.10 throws on introspection (`Cannot read properties of undefined (reading 'replace')` on a CHECK constraint). Apply schema changes as **raw SQL** instead (generate with `db:generate` for the SQL, then run the `ALTER`/`CREATE` directly via a `postgres` script with `--env-file=.env.local`). Dev and prod share the one Supabase project, so a schema change hits both.
-
-**`/seller/add` bulk-add visual — resolved (`4a4c8e3`):** `DraftRow` rebuilt on the spec's CSS grid (`index.html:853`) — thumb | name+condition | price | date | state | trash, first line vertically centered, meta+description on a second line; mobile keeps a flex stack. Thumbs 64px. Delete is a `Trash2` icon (crimson hover via `--crimson`/`--destructive`), top-right on mobile / inline grid column on desktop. `$` adornment on numeric prices (hidden for Free/empty).
-
-Earlier open decision still standing: (a) collapsed "Listing details" form on `/seller/add` vs. separate step. (Photo upload — formerly deferred — is now wired; see subgoal above.)
-
-**Ships in M1:**
-- Postgres schema — `listings` and `items` (claim/buyer tables stub empty, ready for M2)
-- Public listing page at `/r/[slug]` sorted by `available_from`
-- Item detail page at `/r/[slug]/[itemId]` with full meta block (price, Bought, Originally, condition, pickup); claim button visible but disabled with "Claims open soon" label
-- Seller bulk-add at `/seller/add` — **CSV-first import** (see section 07). Photo upload per row. State pills (Ready / Draft / Skip)
-- QR + printable letter sheet for listing and per-item
-
-**NOT in M1:**
-- Claim flow, OTP, SMS, proxy chat — M2
-- Seller dashboard, waitlist promotion, cancel — M3
-- AI-suggested pricing, multi-claim UI — v2
+- **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
+- **Unmerged branch** `claude/earnings-sold-claimed-items-649hts` shows total earned on `/manage`. Review it, then merge or drop it.
+- **Delete the test listing `/r/3dtn`** ("Live manage test"). Scoped delete, run from `app/`, confirm the row count is 1.
+- Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
 ## Stack
 
-- **Next.js 16** (App Router, TypeScript, React Server Components, Turbopack)
-- **Supabase** — Postgres + Storage for photo uploads. Free tier.
-- **Drizzle ORM** — migrations + type-safe queries
-- **Tailwind CSS** — theme tokens ported from `design_system.html`
-- **shadcn/ui** — base components, themed with Weave palette
-- **Vercel** — hosting; deploys on push to `main`
+Next.js 16 (App Router, TypeScript, Turbopack) · Supabase (Postgres + Storage, free tier) · Drizzle ORM · Tailwind v4 · shadcn/ui · Vitest · Vercel.
 
-## File structure
+Everything runs from `app/`:
 
 ```
-.
-├── index.html               # spec (do not edit during M1 build)
-├── design_system.html       # visual spec
-├── CLAUDE.md                # this file
-└── app/                     # Next.js app
-    ├── src/
-    │   ├── app/             # routes (App Router)
-    │   ├── components/      # UI components
-    │   ├── lib/             # db client, utils
-    │   └── db/              # drizzle schema + migrations
-    ├── public/
-    └── package.json
+pnpm dev            — dev server, http://localhost:3000
+pnpm build          — production build
+pnpm test           — Vitest (pure helpers in lib/)
+pnpm lint           — eslint
+pnpm db:generate    — generate migration SQL from schema changes
+pnpm db:studio      — Drizzle Studio
 ```
 
-## Design conventions (port from design_system.html)
+Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials. The `DATABASE_URL` password contains an `@`, so it's encoded as `%40`. The runtime uses the transaction pooler (port 6543).
 
-**Palette** — CSS variables in `globals.css`, mirrored as Tailwind theme tokens:
-- `--brand-primary: #C85A5A` (crimson)
-- `--bg-main: #FAF8F5` (cream)
-- `--bg-card: #F7F5F1`
-- `--text-primary: #2A2A2A`
-- `--forest: #2D6A4F` (available state)
-- `--ochre: #C9A227` (insight / waitlist)
-- `--indigo: #1E3A5F`
+## Gotchas
 
-Full palette in `design_system.html`. Don't introduce new colors without proposing them as deliberate extensions.
+- **`pnpm db:push` is broken** (a drizzle-kit introspection bug). Generate the SQL with `db:generate`, then apply the `ALTER` as a raw `postgres` script (see `app/scripts/add-*.mjs`).
+- **Dev and prod share one Supabase project.** A schema change or a data script hits the live site.
+- **Run one-off scripts from `app/`** with `--env-file=.env.local`. Anywhere else, `postgres` won't resolve and the script fails silently. Always check a delete's row count.
+- **Clean up test data.** Delete any throwaway listing when you're done.
+- **Supabase `read ETIMEDOUT`** is a free-tier blip. A one-off 500 that works on retry isn't a bug.
+- **Vercel env vars:** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SECRET_KEY` are all required. `NEXT_PUBLIC_*` values bake in at build time, so redeploy after changing them. A misnamed `NEXT_PUBLIC_SUPABASE_URL` once silently broke photo uploads.
+- **Vercel's ~4.5MB request limit.** `/manage` uploads photos browser → Storage directly. `/seller/add` still sends photos as base64 through the publish action, so attaching lots of photos before the first publish can hit the limit.
+- **CSV re-import matches by name.** Rename an item in the CSV and it comes in as a new row. Blank cells never overwrite, and re-import never deletes.
+- **Testing uploads headless:** the file input is `hidden`. Un-hide it with JS before uploading a real JPEG.
 
-**Type:**
-- Cormorant Garamond — editorial moments (headlines, pull quotes, prices)
-- DM Sans — UI chrome (buttons, labels, metadata)
-- Loaded from Google Fonts (preconnect both stylesheet hosts)
+## Design conventions
 
-**Match the mockups in `index.html`.** They are the design contract — don't redesign without flagging it.
+- **Palette** lives in `globals.css` as CSS variables, mirrored as Tailwind tokens: crimson `--brand-primary #C85A5A`, cream `--bg-main #FAF8F5`, `--bg-card #F7F5F1`, `--text-primary #2A2A2A`, forest `--forest #2D6A4F` (available), ochre `--ochre #C9A227` (insight / waitlist), indigo `--indigo #1E3A5F`. The full palette is in `design_system.html`. Don't add colors without proposing them first.
+- **Type:** Cormorant Garamond for editorial moments (headlines, prices); DM Sans for UI. Both load via `next/font/google` in `layout.tsx`.
+- **Theming:** `globals.css` has the Weave palette plus shadcn semantic tokens (`--background`, `--primary`, …) mapped onto it. Keep that mapping and don't reset it to shadcn defaults.
+- **The mockups in `index.html` are the design contract.** Flag it before redesigning anything.
 
 ## Data conventions
 
-- **Currency: USD.** All prices stored as `price_cents` (int). Display as `$X` with no decimals for whole dollars.
-- **Dates: US format in UI** ("Jun 14, 2026"). ISO 8601 in DB.
-- **DB columns: snake_case.** TS: camelCase. Drizzle bridges.
-- **Slugs:** 4-character base32 for listings (collision-retry on insert); 4-character within-listing for items.
-- **Phone numbers:** stored as both salted hash (lookup) and encrypted E.164. M1 doesn't write to these tables — schema lands ready for M2.
+- Prices are stored as `price_cents` (int, USD) and shown as `$X`. Zero shows as "Free".
+- Dates use US format in the UI ("Jun 14, 2026") and ISO 8601 in the DB.
+- DB columns are snake_case and TS is camelCase. Drizzle bridges the two.
+- Slugs are 4-character base32 (listing slugs retry on collision). Sellers can rename the listing slug; item slugs stay opaque.
+- Phone hash and encrypted E.164 columns exist for the future OTP flow. Soft claim doesn't use them.
 
-## Working agreements
+## How I want to work
 
-- **One subgoal at a time.** Schema → CSV import → listing page → detail page → QR. Stop after each so I can review before you move on.
-- **Commit atomically.** One commit per subgoal with a descriptive message in the style of the existing repo log.
-- **Don't add features not in M1.** If something tempts you, leave a `// TODO(M2):` or `// TODO(M3):` comment instead.
-- **Test responsive on real mobile breakpoints** (375px+). The mockup phone frame in `index.html` is 340px wide intentionally; real devices are wider so spacing that's tight in the doc has more room in the real app.
-- **Ask before guessing.** If the spec doesn't cover something, surface it — don't invent.
-
-## Subagents
-
-Don't spawn subagents for M1. The work is small and sequential — a single focused session is more token-efficient than orchestrating subagents. Save them for adversarial code review at the end of a milestone if needed.
+- **Plan first, one feature at a time.** Check the approach with me, build it, verify it in the browser, then commit.
+- **Ask before guessing.** If the spec doesn't cover something, raise it instead of inventing an answer.
+- **Test at real mobile widths** (375px+).
+- **Commit atomically**, with messages in the style of the existing log.
+- **No subagents** unless I ask. A single focused session is cheaper, so save them for adversarial review.
 
 ## Repo + deploy
 
-- **Live app (Vercel):** https://mustgo.vercel.app (stable production alias; per-deploy hash URLs change every push). NOT `relocate.vercel.app` — that's an unrelated project in the global namespace.
-- **Vercel env vars (Production):** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` must all be set. `NEXT_PUBLIC_*` bake in at **build time** — after changing them, push/redeploy. Gotcha that cost a long debug (2026-06-03): photo upload silently no-op'd because `NEXT_PUBLIC_SUPABASE_URL` was misnamed `EXT_PUBLIC_...` in Vercel; `lib/storage.ts` is the only server code that reads it, so nothing else broke. Photo upload verified working in prod once fixed.
-- **Repo:** https://github.com/rahultj/relocate
-- **Plan preview (Pages):** https://rahultj.github.io/relocate/
-- **App deploy:** Vercel — set up when the Next.js scaffold lands
-
-## Common commands
-
-All commands run from inside `app/` (e.g. `cd app && pnpm dev`).
-
-```
-pnpm dev            — local dev server (Turbopack, http://localhost:3000)
-pnpm build          — production build
-pnpm lint           — eslint
-pnpm db:generate    — generate a new Drizzle migration from schema changes
-pnpm db:push        — push schema directly to Supabase (dev convenience)
-pnpm db:studio      — open Drizzle Studio against DATABASE_URL
-```
-
-Copy `app/.env.example` to `app/.env.local` and fill in Supabase credentials before running `db:*` commands.
-
-## Theming notes
-
-`src/app/globals.css` carries two layered token sets:
-- **Weave palette** (`--brand-primary`, `--bg-main`, `--forest`, `--ochre`, `--text-primary`, etc.) — the brand source of truth, used by hand-built UI.
-- **shadcn semantic tokens** (`--background`, `--primary`, `--border`, `--ring`, etc.) — mapped onto Weave so shadcn primitives render on-brand. Don't override these with the shadcn defaults; the mapping is intentional.
-
-Tailwind v4's `@theme inline` block exposes both layers as utility classes (`bg-bg-main`, `text-brand`, `border-border-weave`, plus standard `bg-primary`, `text-foreground`, etc.).
+- Live: https://mustgo.vercel.app (the stable prod alias). Not `relocate.vercel.app`, which is an unrelated project.
+- Repo: https://github.com/rahultj/relocate. Pushing to `main` auto-deploys to Vercel.
+- My listing: `/r/swahul` (id `262da553-11ec-4414-986a-01c9f86dcdc6`).
