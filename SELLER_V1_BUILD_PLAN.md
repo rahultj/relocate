@@ -97,4 +97,5 @@ Rerun the 40-photo test (in the scratchpad `ai-test/` folder) through the API on
 - **AI cost and latency per item** on the cheaper model. Slice 0 measures it.
 - **iPhone camera input and `upi://` behaviour** need real-device checks.
 - **The price steps are guesses,** especially in ₹. Watch what sellers actually pick.
+- **The manage link is the listing's own ID,** and mine has been in this public repo's history. Add a separate, rotatable `manage_token` per sale (and rotate mine), alongside the "getting back to a sale" job.
 - **Docs to update when this ships:** CLAUDE.md's currency rule, and principle #2 ("SMS is the medium"), since India would be WhatsApp when messaging comes.

@@ -107,4 +107,4 @@ Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials
 
 - Live: https://mustgo.vercel.app (the stable prod alias). Not `relocate.vercel.app`, which is an unrelated project.
 - Repo: https://github.com/rahultj/relocate. Pushing to `main` auto-deploys to Vercel.
-- My listing: `/r/swahul` (id `262da553-11ec-4414-986a-01c9f86dcdc6`).
+- My listing: `/r/swahul`. Its `/manage` link is the secret for editing it, so never put the listing ID in this repo (it's public).
