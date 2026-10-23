@@ -1,3 +1,6 @@
 
 # gstack browse session logs
 .gstack/
+
+# Local test photos (contain GPS EXIF)
+Trial Pictures/
