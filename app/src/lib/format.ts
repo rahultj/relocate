@@ -1,37 +1,39 @@
-// Display + parse helpers. Storage is integer cents + ISO 8601 dates;
-// the UI speaks US dollars and US date format (CLAUDE.md data conventions).
+// Display + parse helpers. Storage is integer minor units + ISO 8601 dates.
+// Money display lives in money.ts; dates follow the sale's currency (US format
+// for USD sales, day-first for INR sales).
+
+import type { Currency } from "./money";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-/** 4000 -> "$40", 4050 -> "$40.50". Whole dollars drop the decimals. */
-export function formatPrice(cents: number): string {
-  if (cents % 100 === 0) return `$${cents / 100}`;
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-/** Parse a price cell. "$40", "40", " 40 " -> 4000. "Free"/""/"-" -> null. */
+/**
+ * Parse a price cell into minor units. "$40", "40", "₹500", "Rs 1,50,000" all
+ * work; the currency symbol is ignored. "Free"/""/"-" -> null.
+ */
 export function parsePriceToCents(raw: string): number | null {
   const s = raw.trim().toLowerCase();
   if (s === "" || s === "free" || s === "-" || s === "—") return null;
-  const n = Number(s.replace(/[$,\s]/g, ""));
+  const n = Number(s.replace(/^(rs\.?|inr|usd)/, "").replace(/[$₹,\s]/g, ""));
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
 }
 
-/** ISO date string -> "Jun 14, 2026". */
-export function formatDate(iso: string): string {
+/** ISO date string -> "Jun 14, 2026" (USD) or "14 Jun 2026" (INR). */
+export function formatDate(iso: string, currency: Currency = "USD"): string {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return iso;
+  if (currency === "INR") return `${d} ${MONTHS[m - 1]} ${y}`;
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
-/** ISO date string -> "Jun 12" (status chips, no year). */
-export function formatMonthDay(iso: string): string {
+/** ISO date string -> "Jun 12" (USD) or "12 Jun" (INR). Status chips, no year. */
+export function formatMonthDay(iso: string, currency: Currency = "USD"): string {
   const [, m, d] = iso.split("-").map(Number);
   if (!m || !d) return iso;
+  if (currency === "INR") return `${d} ${MONTHS[m - 1]}`;
   return `${MONTHS[m - 1]} ${d}`;
 }
 

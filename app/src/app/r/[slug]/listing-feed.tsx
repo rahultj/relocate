@@ -8,6 +8,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMonthDay } from "@/lib/format";
+import { formatMoney, moneyParts, type Currency } from "@/lib/money";
 import { CATEGORIES } from "@/lib/category";
 
 export interface FeedItem {
@@ -74,9 +75,11 @@ const catKey = (it: FeedItem) =>
 export function ListingFeed({
   slug,
   items,
+  currency,
 }: {
   slug: string;
   items: FeedItem[];
+  currency: Currency;
 }) {
   const [cat, setCat] = useState<string>("all");
   const [status, setStatus] = useState<Status>("all");
@@ -214,20 +217,20 @@ export function ListingFeed({
             <BandHeader label="Available" count={available.length} />
             <ul>
               {available.map((it) => (
-                <ItemRow key={it.slug} item={it} listingSlug={slug} />
+                <ItemRow key={it.slug} item={it} listingSlug={slug} currency={currency} />
               ))}
             </ul>
             <BandHeader label="Claimed & Sold" count={unavailable.length} />
             <ul>
               {unavailable.map((it) => (
-                <ItemRow key={it.slug} item={it} listingSlug={slug} />
+                <ItemRow key={it.slug} item={it} listingSlug={slug} currency={currency} />
               ))}
             </ul>
           </div>
         ) : (
           <ul className="flex-1">
             {shown.map((it) => (
-              <ItemRow key={it.slug} item={it} listingSlug={slug} />
+              <ItemRow key={it.slug} item={it} listingSlug={slug} currency={currency} />
             ))}
           </ul>
         )
@@ -236,12 +239,12 @@ export function ListingFeed({
           {splitBands ? (
             <>
               <BandHeader label="Available" count={available.length} />
-              <CategoryGroups groups={availableGroups} slug={slug} />
+              <CategoryGroups groups={availableGroups} slug={slug} currency={currency} />
               <BandHeader label="Claimed & Sold" count={unavailable.length} />
-              <CategoryGroups groups={unavailableGroups} slug={slug} />
+              <CategoryGroups groups={unavailableGroups} slug={slug} currency={currency} />
             </>
           ) : (
-            <CategoryGroups groups={groups} slug={slug} />
+            <CategoryGroups groups={groups} slug={slug} currency={currency} />
           )}
         </div>
       )}
@@ -254,9 +257,11 @@ export function ListingFeed({
 function CategoryGroups({
   groups,
   slug,
+  currency,
 }: {
   groups: { category: string; items: FeedItem[] }[];
   slug: string;
+  currency: Currency;
 }) {
   return (
     <>
@@ -268,7 +273,7 @@ function CategoryGroups({
           </h2>
           <ul>
             {g.items.map((it) => (
-              <ItemRow key={it.slug} item={it} listingSlug={slug} />
+              <ItemRow key={it.slug} item={it} listingSlug={slug} currency={currency} />
             ))}
           </ul>
         </section>
@@ -293,9 +298,11 @@ function BandHeader({ label, count }: { label: string; count: number }) {
 function ItemRow({
   item: it,
   listingSlug,
+  currency,
 }: {
   item: FeedItem;
   listingSlug: string;
+  currency: Currency;
 }) {
   const sold = it.status === "picked_up";
   const claimed = it.status !== "listed"; // claimed OR sold → greyed treatment
@@ -358,7 +365,7 @@ function ItemRow({
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em] text-forest">
                 <span className="size-1.5 rounded-full bg-current" />
-                {future ? `Available ${formatMonthDay(it.availableFrom!)}` : "Available now"}
+                {future ? `Available ${formatMonthDay(it.availableFrom!, currency)}` : "Available now"}
               </span>
             )}
           </div>
@@ -383,12 +390,14 @@ function ItemRow({
                   <div className="font-mono text-[11px] font-normal text-text-muted">
                     Orig.{" "}
                     <span className="line-through">
-                      ${Math.round(it.originalPriceCents / 100)}
+                      {formatMoney(it.originalPriceCents, currency, { whole: true })}
                     </span>
                   </div>
                 )}
-              <span className="text-[13px] text-text-muted">$</span>
-              {Math.round(it.priceCents / 100)}
+              <span className="text-[13px] text-text-muted">
+                {moneyParts(it.priceCents, currency).symbol}
+              </span>
+              {moneyParts(it.priceCents, currency).amount}
             </>
           )}
         </div>

@@ -34,6 +34,7 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
+import { formatMoney, currencySymbol, listingCurrency, type Currency } from "@/lib/money";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
 import { toVanitySlug } from "@/lib/slug";
@@ -159,6 +160,7 @@ export function ListingEditor({
   claimSummary?: ClaimSummaryEntry[];
 }) {
   const save = useListingSave(listing.id);
+  const currency = listingCurrency();
 
   const [title, setTitle] = useState(listing.title);
   const [intro, setIntro] = useState(listing.intro);
@@ -677,7 +679,7 @@ export function ListingEditor({
 
       {/* Claims overview — every item with a claim or waitlist, filterable +
           sortable, with a jump link to each row. */}
-      {claimSummary.length > 0 && <ClaimsOverview entries={claimSummary} />}
+      {claimSummary.length > 0 && <ClaimsOverview entries={claimSummary} currency={currency} />}
 
       {/* Listing details — collapsed by default */}
       <section className="mt-8 rounded-xl border border-border-weave bg-bg-card">
@@ -1112,6 +1114,7 @@ export function ListingEditor({
             key={r.rowKey}
             row={r}
             listingSlug={slug}
+            currency={currency}
             hasError={save.errorKeys.has(r.rowKey)}
             onPatch={patch}
             onBlurRow={handleRowBlur}
@@ -1271,11 +1274,11 @@ function Field({
   );
 }
 
-function trustMeta(r: Row): string {
+function trustMeta(r: Row, currency: Currency): string {
   const parts: string[] = [];
   if (r.boughtDate) parts.push(`Bought ${formatMonthYear(r.boughtDate)}`);
   const orig = parsePriceToCents(r.originalPriceText);
-  if (orig != null) parts.push(`Originally $${orig / 100}`);
+  if (orig != null) parts.push(`Originally ${formatMoney(orig, currency)}`);
   if (r.originalBoxIncluded) parts.push("Box ✓");
   return parts.join(" · ");
 }
@@ -1283,6 +1286,7 @@ function trustMeta(r: Row): string {
 function EditRow({
   row: r,
   listingSlug,
+  currency,
   hasError,
   onPatch,
   onBlurRow,
@@ -1297,6 +1301,7 @@ function EditRow({
 }: {
   row: Row;
   listingSlug: string;
+  currency: Currency;
   hasError: boolean;
   onPatch: (key: string, p: Partial<Row>) => void;
   onBlurRow: (key: string) => void;
@@ -1314,14 +1319,15 @@ function EditRow({
   const [releasing, setReleasing] = useState(false);
   const [confirmSold, setConfirmSold] = useState(false);
   const [soldBusy, setSoldBusy] = useState(false);
-  const meta = trustMeta(r);
+  const meta = trustMeta(r, currency);
   const cover = r.photoUrls[0] ?? null;
   const photoCount = r.photoUrls.length;
+  const symbol = currencySymbol(currency);
   const priceTrimmed = r.priceText.trim();
-  const showDollar =
+  const showSymbol =
     priceTrimmed !== "" &&
     priceTrimmed.toLowerCase() !== "free" &&
-    !priceTrimmed.startsWith("$");
+    !priceTrimmed.startsWith(symbol);
   const blur = () => onBlurRow(r.rowKey);
 
   return (
@@ -1429,17 +1435,17 @@ function EditRow({
 
       {/* Price */}
       <div className="relative w-20 sm:w-full sm:col-start-3 sm:row-start-1">
-        {showDollar && (
+        {showSymbol && (
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-text-muted">
-            $
+            {symbol}
           </span>
         )}
         <input
           className={`w-full rounded-md border border-border-weave bg-bg-main py-1 text-sm text-text-primary outline-none ${
-            showDollar ? "pl-5 pr-2" : "px-2"
+            showSymbol ? "pl-5 pr-2" : "px-2"
           }`}
           value={r.priceText}
-          placeholder="$ or Free"
+          placeholder={`${symbol} or Free`}
           onChange={(e) => onPatch(r.rowKey, { priceText: e.target.value })}
           onBlur={blur}
         />
@@ -1583,7 +1589,7 @@ function EditRow({
             >
               {r.claim.contact}
             </a>
-            {r.claim.claimedAt ? ` · ${formatClaimDate(r.claim.claimedAt)}` : ""}
+            {r.claim.claimedAt ? ` · ${formatClaimDate(r.claim.claimedAt, currency)}` : ""}
           </p>
           {confirmRelease ? (
             <span className="flex items-center gap-2 text-xs text-text-secondary">
@@ -1729,11 +1735,15 @@ function contactHref(contact: string): string {
   return contact.includes("@") ? `mailto:${contact}` : `tel:${contact}`;
 }
 
-function formatClaimDate(iso: string): string {
+// "Jun 7" for USD sales, "7 Jun" for INR sales.
+function formatClaimDate(iso: string, currency: Currency): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? ""
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    : d.toLocaleDateString(currency === "INR" ? "en-IN" : "en-US", {
+        month: "short",
+        day: "numeric",
+      });
 }
 
 // Filterable / sortable overview of every item with claim activity. The seller's
@@ -1796,9 +1806,11 @@ const CLAIM_ROW_GRID =
 function ClaimRow({
   entry,
   showClaimant,
+  currency,
 }: {
   entry: ClaimSummaryEntry;
   showClaimant: boolean;
+  currency: Currency;
 }) {
   return (
     <li
@@ -1831,7 +1843,7 @@ function ClaimRow({
         )}
         {/* Below sm the category and date columns collapse onto one meta line. */}
         <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.04em] text-text-muted sm:hidden">
-          {[entry.category, entry.claimedAt ? formatClaimDate(entry.claimedAt) : null]
+          {[entry.category, entry.claimedAt ? formatClaimDate(entry.claimedAt, currency) : null]
             .filter(Boolean)
             .join(" · ")}
         </span>
@@ -1840,7 +1852,7 @@ function ClaimRow({
         {entry.category ?? ""}
       </span>
       <span className="hidden text-right font-mono text-[11px] tabular-nums text-text-muted sm:block">
-        {entry.claimedAt ? formatClaimDate(entry.claimedAt) : ""}
+        {entry.claimedAt ? formatClaimDate(entry.claimedAt, currency) : ""}
       </span>
       <span className="text-right">
         {entry.waiting > 0 && (
@@ -1857,7 +1869,13 @@ function ClaimRow({
   );
 }
 
-function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
+function ClaimsOverview({
+  entries,
+  currency,
+}: {
+  entries: ClaimSummaryEntry[];
+  currency: Currency;
+}) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ClaimStatusFilter>("all");
   const [category, setCategory] = useState("all");
@@ -2023,7 +2041,7 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
       ) : grouping === "item" ? (
         <ul className="mt-3 divide-y divide-forest/10">
           {flat.map((e) => (
-            <ClaimRow key={e.itemId} entry={e} showClaimant />
+            <ClaimRow key={e.itemId} entry={e} showClaimant currency={currency} />
           ))}
         </ul>
       ) : (
@@ -2068,7 +2086,7 @@ function ClaimsOverview({ entries }: { entries: ClaimSummaryEntry[] }) {
                 </div>
                 <ul className="divide-y divide-forest/10">
                   {g.items.map((e) => (
-                    <ClaimRow key={e.itemId} entry={e} showClaimant={false} />
+                    <ClaimRow key={e.itemId} entry={e} showClaimant={false} currency={currency} />
                   ))}
                 </ul>
               </div>

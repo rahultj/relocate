@@ -11,12 +11,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
-import {
-  formatPrice,
-  formatDate,
-  formatMonthYear,
-  CONDITION_LABELS,
-} from "@/lib/format";
+import { formatDate, formatMonthYear, CONDITION_LABELS } from "@/lib/format";
+import { formatMoney, listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { photoList } from "@/lib/photos";
 import { ContactButton } from "@/components/contact-button";
@@ -70,11 +66,12 @@ export default async function ItemDetailPage({
 
   const { listing, item } = data;
   const photos = photoList(item);
+  const currency = listingCurrency();
 
   const priceLabel =
     item.isFree || item.priceCents == null
       ? "Free"
-      : formatPrice(item.priceCents);
+      : formatMoney(item.priceCents, currency);
 
   const pickupPlace = [listing.neighborhood, listing.city]
     .filter(Boolean)
@@ -98,7 +95,7 @@ export default async function ItemDetailPage({
     {
       label: "Price",
       value: priceLabel,
-      struck: showDiscount ? formatPrice(item.originalPriceCents!) : undefined,
+      struck: showDiscount ? formatMoney(item.originalPriceCents!, currency) : undefined,
       serif: true,
       accent: isFreeItem,
     },
@@ -111,13 +108,13 @@ export default async function ItemDetailPage({
     rows.push({
       label: "Originally",
       value:
-        formatPrice(item.originalPriceCents) +
+        formatMoney(item.originalPriceCents, currency) +
         (item.originalBoxIncluded ? " · Box included" : ""),
     });
   else if (showDiscount && item.originalBoxIncluded)
     rows.push({ label: "Box", value: "Included" });
   if (item.availableFrom)
-    rows.push({ label: "Available from", value: formatDate(item.availableFrom) });
+    rows.push({ label: "Available from", value: formatDate(item.availableFrom, currency) });
   if (item.condition)
     rows.push({ label: "Condition", value: CONDITION_LABELS[item.condition] });
   if (pickupPlace) rows.push({ label: "Pickup", value: pickupPlace });

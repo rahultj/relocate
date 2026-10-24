@@ -21,6 +21,7 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
+import { formatMoney, currencySymbol, DEFAULT_CURRENCY } from "@/lib/money";
 import { fileToUploadDataUrl } from "@/lib/image";
 import { MAX_PHOTOS } from "@/lib/photos";
 import { publishListing, type PublishResult } from "./actions";
@@ -552,7 +553,7 @@ function trustMeta(d: ItemDraft): string {
   const parts: string[] = [];
   if (d.boughtDate) parts.push(`Bought ${formatMonthYear(d.boughtDate)}`);
   const orig = parsePriceToCents(d.originalPriceText);
-  if (orig != null) parts.push(`Originally $${orig / 100}`);
+  if (orig != null) parts.push(`Originally ${formatMoney(orig, DEFAULT_CURRENCY)}`);
   if (d.originalBoxIncluded) parts.push("Box ✓");
   return parts.join(" · ");
 }
@@ -574,13 +575,15 @@ function DraftRow({
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const meta = trustMeta(d);
-  // Show a "$" adornment only for numeric prices — not for "Free", empty, or
-  // a value the seller already prefixed with "$".
+  // Show a currency adornment only for numeric prices — not for "Free", empty,
+  // or a value the seller already prefixed with the symbol. First publish is
+  // always the default currency until sales choose one.
+  const symbol = currencySymbol(DEFAULT_CURRENCY);
   const priceTrimmed = d.priceText.trim();
-  const showDollar =
+  const showSymbol =
     priceTrimmed !== "" &&
     priceTrimmed.toLowerCase() !== "free" &&
-    !priceTrimmed.startsWith("$");
+    !priceTrimmed.startsWith(symbol);
 
   return (
     <div
@@ -653,17 +656,17 @@ function DraftRow({
 
       {/* Price */}
       <div className="relative w-20 sm:w-full sm:col-start-3 sm:row-start-1">
-        {showDollar && (
+        {showSymbol && (
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sm text-text-muted">
-            $
+            {symbol}
           </span>
         )}
         <input
           className={`w-full rounded-md border border-border-weave bg-bg-main py-1 text-sm text-text-primary outline-none ${
-            showDollar ? "pl-5 pr-2" : "px-2"
+            showSymbol ? "pl-5 pr-2" : "px-2"
           }`}
           value={d.priceText}
-          placeholder="$ or Free"
+          placeholder={`${symbol} or Free`}
           onChange={(e) => onPatch(d.id, { priceText: e.target.value })}
         />
       </div>
