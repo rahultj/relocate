@@ -77,7 +77,7 @@ export function ClaimButton({
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
   payment: Payment | null; // Venmo (USD sale) or UPI (INR sale); null => none
-  priceLabel: string | null; // "₹1,500"; null when free
+  priceLabel: string; // "₹1,500"; payment is null for free items
 }) {
   // Seed from server truth so first paint (pre-hydration) is correct. The effect
   // below upgrades to the buyer-specific state (success / waitlisted).
@@ -554,7 +554,7 @@ function UpiPay({
   priceLabel,
 }: {
   payment: Extract<Payment, { kind: "upi" }>;
-  priceLabel: string | null;
+  priceLabel: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [noApp, setNoApp] = useState(false);
@@ -603,7 +603,7 @@ function UpiPay({
         onClick={watchForApp}
         className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-weave px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
       >
-        Pay {priceLabel ? `${priceLabel} ` : ""}with UPI <span aria-hidden>→</span>
+        Pay {priceLabel} with UPI <span aria-hidden>→</span>
       </a>
       <button
         type="button"

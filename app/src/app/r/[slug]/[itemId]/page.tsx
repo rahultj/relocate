@@ -214,7 +214,7 @@ export default async function ItemDetailPage({
               itemId={item.id}
               alreadyClaimed={item.status !== "listed"}
               payment={itemPayment({ ...listing, currency }, item)}
-              priceLabel={item.isFree || item.priceCents == null ? null : priceLabel}
+              priceLabel={priceLabel}
             />
           )}
         </div>

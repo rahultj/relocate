@@ -1,6 +1,7 @@
 // How a buyer pays for a claimed item. Pure + tested. The sale's currency
 // picks the method — Venmo for USD sales, UPI for INR — and the item's own
-// handle / ID wins over the sale-wide default set on the listing.
+// handle / ID wins over the sale-wide default set on the listing. Free items
+// have nothing to pay, so they get no payment option.
 
 import type { Currency } from "./money";
 import type { SellerContact } from "./seller-contact";
@@ -36,14 +37,16 @@ export function payeeName(listing: Pick<PaymentListing, "title" | "sellerContact
   return named?.name?.trim() || listing.title;
 }
 
-/** The payment option to show after claiming, or null when none is set up. */
+/** The payment option to show after claiming, or null when free or none is set up. */
 export function itemPayment(listing: PaymentListing, item: PaymentItem): Payment | null {
+  if (item.isFree || !item.priceCents) return null;
+
   if (listing.currency === "INR") {
     const id = normalizeUpi(item.upiId) ?? normalizeUpi(listing.defaultUpiId);
     if (!id) return null;
     const href = upiPayHref({
       id,
-      amountMinor: item.isFree ? null : item.priceCents,
+      amountMinor: item.priceCents,
       payeeName: payeeName(listing),
       note: item.name,
     });

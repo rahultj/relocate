@@ -47,9 +47,11 @@ describe("itemPayment", () => {
     expect(p?.href).toBe("upi://pay?pa=sale@ybl&pn=Rahul's%20move&am=1500.00&cu=INR&tn=Desk");
   });
 
-  it("INR: free items carry no amount", () => {
-    const p = itemPayment({ ...inr, defaultUpiId: "sale@ybl" }, { ...item, isFree: true, priceCents: 0 });
-    expect(p?.href).not.toContain("am=");
+  it("free items get no payment option, Venmo or UPI", () => {
+    const free = { ...item, isFree: true, priceCents: null, venmoHandle: "x", upiId: "a@ybl" };
+    expect(itemPayment(usd, free)).toBeNull();
+    expect(itemPayment(inr, free)).toBeNull();
+    expect(itemPayment(inr, { ...item, priceCents: 0, upiId: "a@ybl" })).toBeNull();
   });
 
   it("INR: ignores Venmo, and an invalid UPI ID shows nothing", () => {
