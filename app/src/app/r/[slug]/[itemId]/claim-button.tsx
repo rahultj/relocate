@@ -8,7 +8,7 @@
 // (mustgo_claims), and the waitlist positions it holds (mustgo_waitlist) — so a
 // revisit shows the right state without ever leaking other buyers' contacts.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   claimItem,
   unclaimItem,
@@ -547,6 +547,8 @@ const inputCls =
 
 // UPI pay link plus a copy-the-ID fallback: upi:// links don't reliably open
 // an app on iPhone, so the buyer can always paste the ID into their UPI app.
+// With no UPI app installed the tap silently does nothing, so if the page is
+// still in front shortly after, point the buyer at the copy button.
 function UpiPay({
   payment,
   priceLabel,
@@ -555,6 +557,34 @@ function UpiPay({
   priceLabel: string | null;
 }) {
   const [copied, setCopied] = useState(false);
+  const [noApp, setNoApp] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Leaving the page (app opened, Android chooser shown) cancels the check.
+  useEffect(() => {
+    const cancel = () => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+    };
+    const onVisibility = () => document.visibilityState === "hidden" && cancel();
+    window.addEventListener("blur", cancel);
+    window.addEventListener("pagehide", cancel);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancel();
+      window.removeEventListener("blur", cancel);
+      window.removeEventListener("pagehide", cancel);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  function watchForApp() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (document.visibilityState === "visible" && document.hasFocus()) setNoApp(true);
+    }, 1500);
+  }
 
   async function copy() {
     try {
@@ -570,6 +600,7 @@ function UpiPay({
     <div className="mt-3 space-y-2">
       <a
         href={payment.href}
+        onClick={watchForApp}
         className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-weave px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
       >
         Pay {priceLabel ? `${priceLabel} ` : ""}with UPI <span aria-hidden>→</span>
@@ -587,6 +618,11 @@ function UpiPay({
           </>
         )}
       </button>
+      {noApp && (
+        <p className="text-center text-xs leading-relaxed text-text-muted" role="status">
+          Nothing opened? Copy the UPI ID and pay from your UPI app.
+        </p>
+      )}
     </div>
   );
 }
