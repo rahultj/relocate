@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  formatPrice,
   parsePriceToCents,
   formatDate,
   formatMonthDay,
@@ -10,19 +9,17 @@ import {
   parseBool,
 } from "./format";
 
-describe("formatPrice", () => {
-  it("drops decimals for whole dollars, keeps them otherwise", () => {
-    expect(formatPrice(4000)).toBe("$40");
-    expect(formatPrice(4050)).toBe("$40.50");
-    expect(formatPrice(0)).toBe("$0");
-  });
-});
-
 describe("parsePriceToCents", () => {
   it("parses plain and $-prefixed amounts", () => {
     expect(parsePriceToCents("40")).toBe(4000);
     expect(parsePriceToCents("$40")).toBe(4000);
     expect(parsePriceToCents(" 1,234.5 ")).toBe(123450);
+  });
+  it("parses rupee amounts with Indian grouping", () => {
+    expect(parsePriceToCents("₹500")).toBe(50000);
+    expect(parsePriceToCents("1,50,000")).toBe(15000000);
+    expect(parsePriceToCents("Rs. 1,500")).toBe(150000);
+    expect(parsePriceToCents("INR 200")).toBe(20000);
   });
   it("returns null for free/blank/dash sentinels", () => {
     expect(parsePriceToCents("")).toBeNull();
@@ -41,6 +38,11 @@ describe("date formatters", () => {
     expect(formatDate("2026-06-14")).toBe("Jun 14, 2026");
     expect(formatMonthDay("2026-06-14")).toBe("Jun 14");
     expect(formatMonthYear("2020-05-01")).toBe("May 2020");
+  });
+  it("formats day-first for INR sales", () => {
+    expect(formatDate("2026-06-14", "INR")).toBe("14 Jun 2026");
+    expect(formatMonthDay("2026-06-14", "INR")).toBe("14 Jun");
+    expect(formatDate("2026-06-14", "USD")).toBe("Jun 14, 2026");
   });
   it("returns input unchanged when unparseable", () => {
     expect(formatDate("not-a-date")).toBe("not-a-date");

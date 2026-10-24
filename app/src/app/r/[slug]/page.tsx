@@ -9,6 +9,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { formatMonthDay } from "@/lib/format";
+import { listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ContactButton } from "@/components/contact-button";
 import { ListingFeed, type FeedItem } from "./listing-feed";
@@ -75,12 +76,13 @@ export default async function ListingPage({
   }));
 
   // Byline: "Washington, D.C. · Logan Circle · Pickup Jun 12 → Jun 24"
+  const currency = listingCurrency();
   const place = [listing.city, listing.neighborhood].filter(Boolean).join(", ");
   const pickup =
     listing.pickupFrom && listing.pickupTo
-      ? `Pickup ${formatMonthDay(listing.pickupFrom)} → ${formatMonthDay(listing.pickupTo)}`
+      ? `Pickup ${formatMonthDay(listing.pickupFrom, currency)} → ${formatMonthDay(listing.pickupTo, currency)}`
       : listing.pickupFrom
-        ? `Pickup from ${formatMonthDay(listing.pickupFrom)}`
+        ? `Pickup from ${formatMonthDay(listing.pickupFrom, currency)}`
         : null;
   const bylineParts = [place, pickup].filter(Boolean);
 
@@ -113,7 +115,7 @@ export default async function ListingPage({
           )}
         </header>
 
-        <ListingFeed slug={slug} items={feedItems} />
+        <ListingFeed slug={slug} items={feedItems} currency={currency} />
       </div>
       <ContactButton contacts={listing.sellerContacts} />
     </main>

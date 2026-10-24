@@ -12,6 +12,7 @@ import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { qrSvg } from "@/lib/qr";
 import { formatMonthDay } from "@/lib/format";
+import { formatMoney, listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ShareToolbar } from "./share-toolbar";
 
@@ -58,6 +59,7 @@ export default async function SharePage({
     if (canonical) permanentRedirect(`/r/${canonical}/share`);
     notFound();
   }
+  const currency = listingCurrency();
 
   const rows = await db
     .select()
@@ -145,12 +147,12 @@ export default async function SharePage({
                             Free
                           </span>
                         ) : (
-                          `$${Math.round(it.priceCents! / 100)}`
+                          formatMoney(it.priceCents!, currency, { whole: true })
                         )}
                       </p>
                       {it.availableFrom && (
                         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-text-muted">
-                          {formatMonthDay(it.availableFrom)}
+                          {formatMonthDay(it.availableFrom, currency)}
                         </p>
                       )}
                       <p className="mt-1.5 font-mono text-[10px] text-text-muted">
