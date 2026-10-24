@@ -114,6 +114,7 @@ describe("CSV template", () => {
       "category",
       "venmoHandle",
       "venmoLink",
+      "upiId",
       "description",
     ]);
   });
@@ -139,6 +140,19 @@ describe("rowsToDrafts — Venmo", () => {
     const [d] = rowsToDrafts(parsed, mapping, "");
     expect(d.venmoHandle).toBe("@theMayowa");
     expect(d.venmoLink).toBe("venmo.com/theMayowa");
+  });
+});
+
+describe("rowsToDrafts — UPI", () => {
+  it("maps a UPI / VPA column and carries the ID onto the draft", () => {
+    expect(mapColumns(["Item", "UPI ID"])).toEqual(["name", "upiId"]);
+    expect(mapColumns(["Item", "VPA"])).toEqual(["name", "upiId"]);
+    const [d] = rowsToDrafts(
+      { headers: ["Item", "UPI"], rows: [["Desk", " rahul@okhdfcbank "]] },
+      ["name", "upiId"],
+      "",
+    );
+    expect(d.upiId).toBe("rahul@okhdfcbank");
   });
 });
 
@@ -216,6 +230,7 @@ describe("buildItemsCsv", () => {
         category: "Furniture",
         venmoHandle: "theMayowa", // stored without the @
         venmoLink: "https://venmo.com/u/theMayowa",
+        upiId: "rahul@okhdfcbank",
         description: "Comfy 3-seater, light wear", // has a comma -> exercises quoting
       },
       {
@@ -228,6 +243,7 @@ describe("buildItemsCsv", () => {
         category: null,
         venmoHandle: "",
         venmoLink: "",
+        upiId: "",
         description: "",
       },
     ];
@@ -247,6 +263,7 @@ describe("buildItemsCsv", () => {
       category: "Furniture",
       venmoHandle: "@theMayowa", // importer keeps the @ (normalized at persist)
       venmoLink: "https://venmo.com/u/theMayowa",
+      upiId: "rahul@okhdfcbank",
       description: "Comfy 3-seater, light wear",
     });
 

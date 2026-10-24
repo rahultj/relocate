@@ -21,6 +21,7 @@ import {
 import type { ItemCondition } from "@/lib/format";
 import type { SellerContact } from "@/lib/seller-contact";
 import { normalizeVenmo } from "@/lib/venmo";
+import { normalizeUpi } from "@/lib/upi";
 import { photoColumns } from "@/lib/photos";
 
 // Venmo columns for the re-import merge, honoring "blank cells don't overwrite":
@@ -30,6 +31,12 @@ function venmoColumns(handle: string | null, link: string | null) {
   if (!(handle ?? "").trim() && !(link ?? "").trim()) return {};
   const v = normalizeVenmo({ handle, link });
   return { venmoHandle: v.handle, venmoLink: v.link };
+}
+
+// Same "blank doesn't overwrite" guard for UPI on re-import.
+function upiColumns(upiId: string | null) {
+  const id = normalizeUpi(upiId);
+  return id ? { upiId: id } : {};
 }
 
 // Drop blank contacts and trim fields before persisting — keeps the jsonb clean
@@ -140,6 +147,7 @@ export interface ItemFields {
   category: string | null;
   venmoHandle: string | null;
   venmoLink: string | null;
+  upiId: string | null;
   photoUrls: string[]; // ordered; [0] = cover (photoUrl mirror synced here)
 }
 
@@ -159,6 +167,7 @@ function toItemColumns(it: ItemFields) {
     category: it.category,
     venmoHandle: venmo.handle,
     venmoLink: venmo.link,
+    upiId: normalizeUpi(it.upiId),
     ...photoColumns(it.photoUrls),
   };
 }
@@ -370,6 +379,7 @@ export interface UpdateItemInput {
   category: string | null;
   venmoHandle: string | null;
   venmoLink: string | null;
+  upiId: string | null;
   listed: boolean; // false => unlisted (hidden from feed)
   // CSV re-import never carries photos (managed via the photo strip). Kept as a
   // legacy base64 hook; always null in practice now.
@@ -475,6 +485,7 @@ export async function updateListing(
           ...(it.category ? { category: it.category } : {}),
           // Same guard for Venmo: only write when the seller provided a value.
           ...venmoColumns(it.venmoHandle, it.venmoLink),
+          ...upiColumns(it.upiId),
         };
 
         if (it.itemId) {

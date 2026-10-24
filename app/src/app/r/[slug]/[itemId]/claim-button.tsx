@@ -8,7 +8,7 @@
 // (mustgo_claims), and the waitlist positions it holds (mustgo_waitlist) — so a
 // revisit shows the right state without ever leaking other buyers' contacts.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   claimItem,
   unclaimItem,
@@ -17,7 +17,7 @@ import {
   type ClaimResult,
   type WaitlistResult,
 } from "./actions";
-import { venmoPayHref, venmoDisplayHandle } from "@/lib/venmo";
+import type { Payment } from "@/lib/payment";
 
 const BUYER_KEY = "mustgo_buyer";
 const CLAIMS_KEY = "mustgo_claims";
@@ -70,14 +70,14 @@ export function ClaimButton({
   listingId,
   itemId,
   alreadyClaimed,
-  venmoHandle,
-  venmoLink,
+  payment,
+  priceLabel,
 }: {
   listingId: string;
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
-  venmoHandle: string | null;
-  venmoLink: string | null;
+  payment: Payment | null; // Venmo (USD sale) or UPI (INR sale); null => none
+  priceLabel: string; // "₹1,500"; payment is null for free items
 }) {
   // Seed from server truth so first paint (pre-hydration) is correct. The effect
   // below upgrades to the buyer-specific state (success / waitlisted).
@@ -299,18 +299,17 @@ export function ClaimButton({
             {error}
           </p>
         )}
-        {venmoPayHref({ handle: venmoHandle, link: venmoLink }) && (
+        {payment?.kind === "venmo" && (
           <a
-            href={venmoPayHref({ handle: venmoHandle, link: venmoLink })!}
+            href={payment.href}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#008CFF] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Pay{" "}
-            {venmoDisplayHandle({ handle: venmoHandle, link: venmoLink }) ?? "the owner"}{" "}
-            on Venmo <span aria-hidden>→</span>
+            Pay {payment.handle ?? "the owner"} on Venmo <span aria-hidden>→</span>
           </a>
         )}
+        {payment?.kind === "upi" && <UpiPay payment={payment} priceLabel={priceLabel} />}
         <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
           {confirmUnclaim ? (
             <span className="flex items-center gap-2 text-text-secondary">
@@ -545,3 +544,85 @@ export function ClaimButton({
 
 const inputCls =
   "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2.5 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
+
+// UPI pay link plus a copy-the-ID fallback: upi:// links don't reliably open
+// an app on iPhone, so the buyer can always paste the ID into their UPI app.
+// With no UPI app installed the tap silently does nothing, so if the page is
+// still in front shortly after, point the buyer at the copy button.
+function UpiPay({
+  payment,
+  priceLabel,
+}: {
+  payment: Extract<Payment, { kind: "upi" }>;
+  priceLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [noApp, setNoApp] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Leaving the page (app opened, Android chooser shown) cancels the check.
+  useEffect(() => {
+    const cancel = () => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+    };
+    const onVisibility = () => document.visibilityState === "hidden" && cancel();
+    window.addEventListener("blur", cancel);
+    window.addEventListener("pagehide", cancel);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancel();
+      window.removeEventListener("blur", cancel);
+      window.removeEventListener("pagehide", cancel);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  function watchForApp() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (document.visibilityState === "visible" && document.hasFocus()) setNoApp(true);
+    }, 1500);
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(payment.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the ID is shown on the button, so it can be read off.
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <a
+        href={payment.href}
+        onClick={watchForApp}
+        className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-weave px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+      >
+        Pay {priceLabel} with UPI <span aria-hidden>→</span>
+      </a>
+      <button
+        type="button"
+        onClick={copy}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-weave/30 bg-bg-card px-4 py-2 text-xs text-text-secondary transition-colors hover:border-indigo-weave/60"
+      >
+        {copied ? (
+          <span className="font-medium text-forest">Copied ✓</span>
+        ) : (
+          <>
+            Copy UPI ID <span className="font-mono text-text-primary">{payment.id}</span>
+          </>
+        )}
+      </button>
+      {noApp && (
+        <p className="text-center text-xs leading-relaxed text-text-muted" role="status">
+          Nothing opened? Copy the UPI ID and pay from your UPI app.
+        </p>
+      )}
+    </div>
+  );
+}

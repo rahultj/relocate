@@ -34,7 +34,8 @@ import {
   CONDITION_LABELS,
   type ItemCondition,
 } from "@/lib/format";
-import { formatMoney, currencySymbol, listingCurrency, type Currency } from "@/lib/money";
+import { formatMoney, currencySymbol, type Currency } from "@/lib/money";
+import { isValidUpi } from "@/lib/upi";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
 import { toVanitySlug } from "@/lib/slug";
@@ -66,6 +67,7 @@ const FIELD_ORDER: FieldKey[] = [
   "category",
   "venmoHandle",
   "venmoLink",
+  "upiId",
   "ignore",
 ];
 
@@ -83,6 +85,7 @@ export interface EditorItem {
   category: string | null;
   venmoHandle: string; // raw seller text; normalized at persist
   venmoLink: string;
+  upiId: string; // raw seller text; normalized at persist
   photoUrls: string[]; // ordered, cover first; all already uploaded to Storage
   listed: boolean;
   sold: boolean; // item.status === "picked_up" — terminal, greyed "Sold" to buyers
@@ -114,6 +117,7 @@ interface ListingMeta {
   neighborhood: string;
   pickupFrom: string;
   pickupTo: string;
+  currency: Currency;
 }
 
 let rowCounter = 0;
@@ -137,6 +141,7 @@ function rowToFields(r: Row): ItemFields {
     category: r.category,
     venmoHandle: r.venmoHandle.trim() || null,
     venmoLink: r.venmoLink.trim() || null,
+    upiId: r.upiId.trim() || null,
     photoUrls: r.photoUrls,
   };
 }
@@ -160,7 +165,7 @@ export function ListingEditor({
   claimSummary?: ClaimSummaryEntry[];
 }) {
   const save = useListingSave(listing.id);
-  const currency = listingCurrency();
+  const currency = listing.currency;
 
   const [title, setTitle] = useState(listing.title);
   const [intro, setIntro] = useState(listing.intro);
@@ -367,6 +372,7 @@ export function ListingEditor({
         category: null,
         venmoHandle: "",
         venmoLink: "",
+        upiId: "",
         photoUrls: [],
         listed: true,
         sold: false,
@@ -390,6 +396,7 @@ export function ListingEditor({
           category: r.category as CsvExportItem["category"],
           venmoHandle: r.venmoHandle,
           venmoLink: r.venmoLink,
+          upiId: r.upiId,
           description: r.description,
         }),
       ),
@@ -629,6 +636,7 @@ export function ListingEditor({
           category: f.category,
           venmoHandle: f.venmoHandle,
           venmoLink: f.venmoLink,
+          upiId: f.upiId,
           listed: r.listed,
           photoDataUrl: null,
         };
@@ -1199,6 +1207,7 @@ function mergeDraft(row: Row, d: ItemDraft): Row {
     category: d.category ?? row.category,
     venmoHandle: d.venmoHandle || row.venmoHandle,
     venmoLink: d.venmoLink || row.venmoLink,
+    upiId: d.upiId || row.upiId,
     // itemId, slug, photoUrls, listed, rowKey preserved.
   };
 }
@@ -1219,6 +1228,7 @@ function draftToRow(d: ItemDraft, defaultAvailableFrom: string): Row {
     category: d.category,
     venmoHandle: d.venmoHandle,
     venmoLink: d.venmoLink,
+    upiId: d.upiId,
     photoUrls: [],
     // Imported items stage as Unlisted — the seller lists them when ready.
     listed: false,
@@ -1323,6 +1333,7 @@ function EditRow({
   const cover = r.photoUrls[0] ?? null;
   const photoCount = r.photoUrls.length;
   const symbol = currencySymbol(currency);
+  const upiInvalid = r.upiId.trim() !== "" && !isValidUpi(r.upiId);
   const priceTrimmed = r.priceText.trim();
   const showSymbol =
     priceTrimmed !== "" &&
@@ -1419,18 +1430,40 @@ function EditRow({
             </option>
           ))}
         </select>
-        <input
-          className="w-28 rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary outline-none"
-          value={r.venmoHandle}
-          placeholder="@venmo"
-          aria-label="Venmo handle (buyer pays here after claiming)"
-          title="Venmo handle — buyers see a 'Pay on Venmo' button after they claim this item"
-          onChange={(e) =>
-            // Clear the stored link so it re-derives from the new handle.
-            onPatch(r.rowKey, { venmoHandle: e.target.value, venmoLink: "" })
-          }
-          onBlur={blur}
-        />
+        {/* Payment follows the sale's currency: Venmo for USD, UPI for INR. */}
+        {currency === "INR" ? (
+          <input
+            className={`w-36 rounded-md border bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary outline-none ${
+              upiInvalid ? "border-crimson" : "border-border-weave"
+            }`}
+            value={r.upiId}
+            placeholder="UPI ID"
+            inputMode="email"
+            autoCapitalize="none"
+            aria-label="UPI ID (buyer pays here after claiming)"
+            aria-invalid={upiInvalid || undefined}
+            title={
+              upiInvalid
+                ? "Doesn't look like a UPI ID (name@bank) — buyers won't see a Pay button"
+                : "UPI ID — buyers see a 'Pay with UPI' button after they claim this item"
+            }
+            onChange={(e) => onPatch(r.rowKey, { upiId: e.target.value })}
+            onBlur={blur}
+          />
+        ) : (
+          <input
+            className="w-28 rounded-md border border-border-weave bg-bg-main px-1.5 py-0.5 text-xs text-text-secondary outline-none"
+            value={r.venmoHandle}
+            placeholder="@venmo"
+            aria-label="Venmo handle (buyer pays here after claiming)"
+            title="Venmo handle — buyers see a 'Pay on Venmo' button after they claim this item"
+            onChange={(e) =>
+              // Clear the stored link so it re-derives from the new handle.
+              onPatch(r.rowKey, { venmoHandle: e.target.value, venmoLink: "" })
+            }
+            onBlur={blur}
+          />
+        )}
       </div>
 
       {/* Price */}

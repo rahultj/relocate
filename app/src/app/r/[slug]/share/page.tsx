@@ -59,7 +59,7 @@ export default async function SharePage({
     if (canonical) permanentRedirect(`/r/${canonical}/share`);
     notFound();
   }
-  const currency = listingCurrency();
+  const currency = listingCurrency(listing);
 
   const rows = await db
     .select()

@@ -6,7 +6,8 @@
 //
 // Conventions (CLAUDE.md):
 //   - DB columns snake_case, TS camelCase — Drizzle bridges via `casing` config.
-//   - Money as integer cents. Dates as `date` (ISO 8601 in DB, US format in UI).
+//   - Money as integer minor units of the sale's currency (cents for USD,
+//     paise for INR) — `price_cents` keeps its name. Dates as `date` (ISO 8601 in DB, US format in UI).
 //   - Phones stored as salted hash (lookup) + encrypted E.164 (routing).
 
 import {
@@ -21,8 +22,11 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
+import type { Currency } from "@/lib/money";
 import type { SellerContact } from "@/lib/seller-contact";
 
 // ---------- Enums ----------
@@ -59,35 +63,47 @@ export const messageFromRoleEnum = pgEnum("message_from_role", [
 
 // ---------- listings · one per seller event ----------
 
-export const listings = pgTable("listings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  // 4-char base32 OR a seller-chosen vanity slug; unique; collision-retry on insert.
-  slug: text("slug").notNull().unique(),
-  // Slugs this listing used before (after a rename) — resolved to a 301 redirect
-  // so old links / printed QR never break.
-  previousSlugs: text("previous_slugs").array().notNull().default([]),
-  title: text("title").notNull(),
-  // Seller's move story — a short paragraph shown under the title on the buyer
-  // header (why/when they're moving). Null => header shows title + byline only.
-  intro: text("intro"),
-  // Per-listing seller contact(s), shown on the buyer "Contact us" button.
-  // Each entry is { name?, value (phone or email), primary? }. Empty => no
-  // button. Replaces the old hardcoded global seller-contact constant.
-  sellerContacts: jsonb("seller_contacts")
-    .$type<SellerContact[]>()
-    .notNull()
-    .default([]),
-  city: text("city"),
-  neighborhood: text("neighborhood"),
-  pickupFrom: date("pickup_from"),
-  pickupTo: date("pickup_to"),
-  // M2: seller identity + proxy routing. Empty in M1.
-  sellerPhoneHash: text("seller_phone_hash"),
-  proxyNumber: text("proxy_number"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const listings = pgTable(
+  "listings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // 4-char base32 OR a seller-chosen vanity slug; unique; collision-retry on insert.
+    slug: text("slug").notNull().unique(),
+    // Slugs this listing used before (after a rename) — resolved to a 301 redirect
+    // so old links / printed QR never break.
+    previousSlugs: text("previous_slugs").array().notNull().default([]),
+    title: text("title").notNull(),
+    // Seller's move story — a short paragraph shown under the title on the buyer
+    // header (why/when they're moving). Null => header shows title + byline only.
+    intro: text("intro"),
+    // Per-listing seller contact(s), shown on the buyer "Contact us" button.
+    // Each entry is { name?, value (phone or email), primary? }. Empty => no
+    // button. Replaces the old hardcoded global seller-contact constant.
+    sellerContacts: jsonb("seller_contacts")
+      .$type<SellerContact[]>()
+      .notNull()
+      .default([]),
+    city: text("city"),
+    neighborhood: text("neighborhood"),
+    pickupFrom: date("pickup_from"),
+    pickupTo: date("pickup_to"),
+    // M2: seller identity + proxy routing. Empty in M1.
+    sellerPhoneHash: text("seller_phone_hash"),
+    proxyNumber: text("proxy_number"),
+    // Currency is per sale; every item's prices are in it. Existing sales are USD.
+    currency: text("currency").$type<Currency>().notNull().default("USD"),
+    // Sale-wide payment defaults, set at first publish. An item's own
+    // venmoHandle / upiId wins over these.
+    defaultVenmoHandle: text("default_venmo_handle"),
+    defaultUpiId: text("default_upi_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check("listings_currency_check", sql`${t.currency} in ('USD', 'INR')`),
+  ],
+);
 
 // ---------- items · the things being given away ----------
 
@@ -121,6 +137,9 @@ export const items = pgTable(
     // given, else derived from the handle. Both null => no Venmo for this item.
     venmoHandle: text("venmo_handle"),
     venmoLink: text("venmo_link"),
+    // Per-item UPI ID (e.g. name@okhdfc). Never run through normalizeContact —
+    // the "@" would make it look like an email.
+    upiId: text("upi_id"),
     // Photos, in order — photoUrls[0] is the cover. Source of truth for the
     // item detail gallery. `photoUrl` below is kept as a synced mirror of the
     // cover (photoUrls[0]) so the feed/manage thumbs need no change.
@@ -131,6 +150,13 @@ export const items = pgTable(
     // ("No longer available") so already-shared/printed per-item QR codes never
     // 404. Reversible. Distinct from `status` (which is the M2 claim lifecycle).
     unlisted: boolean("unlisted").notNull().default(false),
+    // AI draft from the seller v1 flow, not yet published. Unlike `unlisted`,
+    // drafts 404 for buyers — they were never shared.
+    draft: boolean("draft").notNull().default(false),
+    // The seller's "Tell us about it" sentence, kept so the item can be re-drafted.
+    sellerNote: text("seller_note"),
+    // Raw AI output: brand guess, ambiguity flag + candidates, field provenance.
+    aiDraft: jsonb("ai_draft"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
