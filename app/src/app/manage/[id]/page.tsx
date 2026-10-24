@@ -8,6 +8,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items, claims, buyers } from "@/db/schema";
 import { ListingEditor, type EditorItem } from "./listing-editor";
+import { listingCurrency } from "@/lib/money";
 import { photoList } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,7 @@ export default async function ManagePage({
     category: it.category,
     venmoHandle: it.venmoHandle ?? "",
     venmoLink: it.venmoLink ?? "",
+    upiId: it.upiId ?? "",
     photoUrls: photoList(it),
     listed: !it.unlisted,
     sold: it.status === "picked_up",
@@ -155,6 +157,7 @@ export default async function ManagePage({
           neighborhood: listing.neighborhood ?? "",
           pickupFrom: listing.pickupFrom ?? "",
           pickupTo: listing.pickupTo ?? "",
+          currency: listingCurrency(listing),
         }}
         initialItems={initialItems}
         claimSummary={claimSummary}

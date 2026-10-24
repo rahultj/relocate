@@ -5,15 +5,12 @@
 export const CURRENCIES = ["USD", "INR"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
-// Every sale is USD until listings carry a currency column (seller v1).
+// Fallback for a missing or unrecognized `listings.currency`.
 export const DEFAULT_CURRENCY: Currency = "USD";
 
 const LOCALES: Record<Currency, string> = { USD: "en-US", INR: "en-IN" };
 
-/**
- * The currency a listing sells in. Listings don't store one yet, so this falls
- * back to DEFAULT_CURRENCY; once the column exists, pass the listing through.
- */
+/** The currency a listing sells in, falling back to DEFAULT_CURRENCY. */
 export function listingCurrency(listing?: { currency?: string | null }): Currency {
   const c = listing?.currency;
   return CURRENCIES.find((x) => x === c) ?? DEFAULT_CURRENCY;

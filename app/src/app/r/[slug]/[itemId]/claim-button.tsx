@@ -17,7 +17,7 @@ import {
   type ClaimResult,
   type WaitlistResult,
 } from "./actions";
-import { venmoPayHref, venmoDisplayHandle } from "@/lib/venmo";
+import type { Payment } from "@/lib/payment";
 
 const BUYER_KEY = "mustgo_buyer";
 const CLAIMS_KEY = "mustgo_claims";
@@ -70,14 +70,14 @@ export function ClaimButton({
   listingId,
   itemId,
   alreadyClaimed,
-  venmoHandle,
-  venmoLink,
+  payment,
+  priceLabel,
 }: {
   listingId: string;
   itemId: string;
   alreadyClaimed: boolean; // server: item.status !== "listed"
-  venmoHandle: string | null;
-  venmoLink: string | null;
+  payment: Payment | null; // Venmo (USD sale) or UPI (INR sale); null => none
+  priceLabel: string | null; // "₹1,500"; null when free
 }) {
   // Seed from server truth so first paint (pre-hydration) is correct. The effect
   // below upgrades to the buyer-specific state (success / waitlisted).
@@ -299,18 +299,17 @@ export function ClaimButton({
             {error}
           </p>
         )}
-        {venmoPayHref({ handle: venmoHandle, link: venmoLink }) && (
+        {payment?.kind === "venmo" && (
           <a
-            href={venmoPayHref({ handle: venmoHandle, link: venmoLink })!}
+            href={payment.href}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#008CFF] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Pay{" "}
-            {venmoDisplayHandle({ handle: venmoHandle, link: venmoLink }) ?? "the owner"}{" "}
-            on Venmo <span aria-hidden>→</span>
+            Pay {payment.handle ?? "the owner"} on Venmo <span aria-hidden>→</span>
           </a>
         )}
+        {payment?.kind === "upi" && <UpiPay payment={payment} priceLabel={priceLabel} />}
         <div className="mt-3 border-t border-forest/15 pt-2.5 text-xs">
           {confirmUnclaim ? (
             <span className="flex items-center gap-2 text-text-secondary">
@@ -545,3 +544,49 @@ export function ClaimButton({
 
 const inputCls =
   "w-full rounded-lg border border-border-weave bg-bg-main px-3 py-2.5 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-brand-light focus:ring-3 focus:ring-ring/40";
+
+// UPI pay link plus a copy-the-ID fallback: upi:// links don't reliably open
+// an app on iPhone, so the buyer can always paste the ID into their UPI app.
+function UpiPay({
+  payment,
+  priceLabel,
+}: {
+  payment: Extract<Payment, { kind: "upi" }>;
+  priceLabel: string | null;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(payment.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the ID is shown on the button, so it can be read off.
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <a
+        href={payment.href}
+        className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-weave px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+      >
+        Pay {priceLabel ? `${priceLabel} ` : ""}with UPI <span aria-hidden>→</span>
+      </a>
+      <button
+        type="button"
+        onClick={copy}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-weave/30 bg-bg-card px-4 py-2 text-xs text-text-secondary transition-colors hover:border-indigo-weave/60"
+      >
+        {copied ? (
+          <span className="font-medium text-forest">Copied ✓</span>
+        ) : (
+          <>
+            Copy UPI ID <span className="font-mono text-text-primary">{payment.id}</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+}

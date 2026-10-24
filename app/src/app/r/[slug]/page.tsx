@@ -76,7 +76,7 @@ export default async function ListingPage({
   }));
 
   // Byline: "Washington, D.C. · Logan Circle · Pickup Jun 12 → Jun 24"
-  const currency = listingCurrency();
+  const currency = listingCurrency(listing);
   const place = [listing.city, listing.neighborhood].filter(Boolean).join(", ");
   const pickup =
     listing.pickupFrom && listing.pickupTo

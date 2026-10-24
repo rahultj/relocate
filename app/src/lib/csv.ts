@@ -29,6 +29,7 @@ export type FieldKey =
   | "category"
   | "venmoHandle"
   | "venmoLink"
+  | "upiId"
   | "ignore";
 
 export const FIELD_LABELS: Record<FieldKey, string> = {
@@ -43,6 +44,7 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   category: "Category",
   venmoHandle: "Venmo handle",
   venmoLink: "Venmo link",
+  upiId: "UPI ID",
   ignore: "Ignore column",
 };
 
@@ -53,6 +55,7 @@ const ALIASES: { field: FieldKey; patterns: RegExp[] }[] = [
   // claims the handle (both scalar, claimed once).
   { field: "venmoLink", patterns: [/venmo.*link/, /venmo.*url/] },
   { field: "venmoHandle", patterns: [/venmo/] },
+  { field: "upiId", patterns: [/\bupi\b/, /\bvpa\b/] },
   { field: "originalPrice", patterns: [/^original/, /msrp/, /retail/, /\bpaid\b/, /bought.*price/] },
   { field: "boughtDate", patterns: [/^bought/, /purchas/, /acquired/] },
   { field: "originalBox", patterns: [/box/, /packaging/] },
@@ -181,6 +184,8 @@ export interface ItemDraft {
   // Per-item Venmo (raw seller text; normalized at persist via lib/venmo).
   venmoHandle: string;
   venmoLink: string;
+  // Per-item UPI ID (raw seller text; normalized at persist via lib/upi).
+  upiId: string;
   photoDataUrls: string[]; // local previews (cover first); uploaded on publish
   state: "ready" | "draft" | "skip";
 }
@@ -228,6 +233,7 @@ export function rowsToDrafts(
       category: resolveCategory(col(row, "category"), name),
       venmoHandle: col(row, "venmoHandle").trim(),
       venmoLink: col(row, "venmoLink").trim(),
+      upiId: col(row, "upiId").trim(),
       photoDataUrls: [],
       state: "draft",
     };
@@ -251,12 +257,13 @@ export const TEMPLATE_HEADERS = [
   "Category",
   "Venmo",
   "Venmo Link",
+  "UPI",
   "Description",
 ];
 
 const TEMPLATE_EXAMPLE_ROWS: string[][] = [
-  ["Orange couch", "100", "Good", "Apr 2026", "260", "Aug 2 2026", "Furniture", "@you", "venmo.com/you", "Comfy 3-seater, light wear"],
-  ["Dining table", "50", "Fair", "Jan 2016", "", "Aug 22 2026", "Furniture", "@you", "", "Seats up to 10"],
+  ["Orange couch", "100", "Good", "Apr 2026", "260", "Aug 2 2026", "Furniture", "@you", "venmo.com/you", "", "Comfy 3-seater, light wear"],
+  ["Dining table", "50", "Fair", "Jan 2016", "", "Aug 22 2026", "Furniture", "@you", "", "", "Seats up to 10"],
 ];
 
 // Seller-facing column reference for the "What columns can I use?" list.
@@ -270,6 +277,7 @@ export const SELLER_COLUMNS: { header: string; note: string }[] = [
   { header: "Category", note: "Furniture, Kitchen, Electronics… (auto-guessed if blank)" },
   { header: "Venmo", note: "@handle so buyers can pay the item’s owner" },
   { header: "Venmo Link", note: "optional venmo.com/… link (derived from the handle if blank)" },
+  { header: "UPI", note: "UPI ID like name@okhdfcbank, for sales in India" },
   { header: "Description", note: "any extra details" },
 ];
 
@@ -300,6 +308,7 @@ export interface CsvExportItem {
   category: Category | null;
   venmoHandle: string;
   venmoLink: string;
+  upiId: string;
   description: string | null;
 }
 
@@ -309,7 +318,7 @@ export interface CsvExportItem {
  * the correct auto-mapping and no manual fixups. Every cell is emitted in a
  * form the parsers accept: bare dollars / "Free" (parsePriceToCents), ISO dates
  * (parseLooseDate), the condition label (parseCondition), the canonical
- * category (resolveCategory), and "@handle" for Venmo.
+ * category (resolveCategory), "@handle" for Venmo, and the bare UPI ID.
  */
 export function buildItemsCsv(items: CsvExportItem[]): string {
   const rows = items.map((it) => [
@@ -322,6 +331,7 @@ export function buildItemsCsv(items: CsvExportItem[]): string {
     it.category ?? "",
     it.venmoHandle ? `@${it.venmoHandle}` : "",
     it.venmoLink,
+    it.upiId,
     it.description ?? "",
   ]);
   return [TEMPLATE_HEADERS, ...rows]

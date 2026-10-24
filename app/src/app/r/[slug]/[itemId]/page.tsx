@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { formatDate, formatMonthYear, CONDITION_LABELS } from "@/lib/format";
 import { formatMoney, listingCurrency } from "@/lib/money";
+import { itemPayment } from "@/lib/payment";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { photoList } from "@/lib/photos";
 import { ContactButton } from "@/components/contact-button";
@@ -66,7 +67,7 @@ export default async function ItemDetailPage({
 
   const { listing, item } = data;
   const photos = photoList(item);
-  const currency = listingCurrency();
+  const currency = listingCurrency(listing);
 
   const priceLabel =
     item.isFree || item.priceCents == null
@@ -212,8 +213,8 @@ export default async function ItemDetailPage({
               listingId={listing.id}
               itemId={item.id}
               alreadyClaimed={item.status !== "listed"}
-              venmoHandle={item.venmoHandle}
-              venmoLink={item.venmoLink}
+              payment={itemPayment({ ...listing, currency }, item)}
+              priceLabel={item.isFree || item.priceCents == null ? null : priceLabel}
             />
           )}
         </div>
