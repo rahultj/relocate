@@ -266,7 +266,8 @@ export async function setItemsListed(
   return withListing(listingId, async (listing) => {
     await db
       .update(items)
-      .set({ unlisted: !listed })
+      // Listing a draft publishes it; unlisting never makes a draft.
+      .set(listed ? { unlisted: false, draft: false } : { unlisted: true })
       .where(
         and(eq(items.listingId, listing.id), inArray(items.id, itemIds)),
       );
@@ -480,6 +481,8 @@ export async function updateListing(
           originalBoxIncluded: it.originalBoxIncluded,
           availableFrom: it.availableFrom,
           unlisted: !it.listed,
+          // Listing a draft publishes it.
+          ...(it.listed ? { draft: false } : {}),
           // A blank category on re-import must not wipe an existing one
           // ("blank cells don't overwrite"); only set when provided.
           ...(it.category ? { category: it.category } : {}),

@@ -1,15 +1,17 @@
 // Seller home — /sell/[id]. The one link a seller keeps; the listing UUID is
-// the capability, as on /manage/[id]. Slice 3 stub: sale details and the way
-// back. The camera loop (slice 4) and the real home (slice 8) land here.
+// the capability, as on /manage/[id]. Sale details, the camera loop and its
+// drafts; the full seller home (slice 8) lands here later.
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { ArrowRight, Camera } from "lucide-react";
+import { and, asc, eq } from "drizzle-orm";
+import { ArrowRight } from "lucide-react";
 import { db } from "@/db";
-import { listings } from "@/db/schema";
+import { items, listings } from "@/db/schema";
 import { listingCurrency, currencySymbol } from "@/lib/money";
 import { formatDate } from "@/lib/format";
+import { photoList } from "@/lib/photos";
+import { CameraLoop } from "./camera-loop";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,12 @@ export default async function SellerHomePage({
     .where(eq(listings.id, id))
     .limit(1);
   if (!listing) notFound();
+
+  const drafts = await db
+    .select()
+    .from(items)
+    .where(and(eq(items.listingId, listing.id), eq(items.draft, true)))
+    .orderBy(asc(items.createdAt));
 
   const currency = listingCurrency(listing);
   const place = [listing.city, listing.neighborhood].filter(Boolean).join(", ");
@@ -57,15 +65,17 @@ export default async function SellerHomePage({
           back to your sale. There&apos;s no account, so this link is the key.
         </div>
 
-        <div className="mt-5 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border-alt px-5 py-10 text-center">
-          <Camera className="size-7 text-text-muted" aria-hidden />
-          <p className="font-serif text-2xl font-semibold text-text-primary">Camera comes next</p>
-          <p className="text-sm leading-normal text-text-secondary">
-            Snapping photos of your items is the next step we&apos;re building. For now, add
-            items in Manage.
-          </p>
-        </div>
+        <CameraLoop
+          listingId={listing.id}
+          initialDrafts={drafts.map((d) => ({
+            id: d.id,
+            name: d.name,
+            photoUrls: photoList(d),
+            note: d.sellerNote ?? "",
+          }))}
+        />
 
+        <div className="min-h-8 flex-1" />
         <Link
           href={`/manage/${listing.id}`}
           className="mt-5 flex h-12 items-center justify-between rounded-xl border border-border-weave bg-white px-4 text-[15px] font-medium text-text-primary hover:bg-bg-hover"

@@ -60,6 +60,7 @@ export async function claimItem(
             eq(items.listingId, listing.id),
             eq(items.status, "listed"),
             eq(items.unlisted, false),
+            eq(items.draft, false),
           ),
         )
         .returning({ id: items.id });
