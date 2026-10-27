@@ -12,6 +12,7 @@
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
 import { mintSlug } from "@/lib/slug";
+import { insertWithUniqueSlug } from "@/lib/listing-insert";
 import { uploadItemPhoto } from "@/lib/storage";
 import type { ItemCondition } from "@/lib/format";
 import { normalizeVenmo } from "@/lib/venmo";
@@ -48,24 +49,6 @@ export interface PublishResult {
   id?: string; // listing UUID — the secret manage capability
   itemCount?: number;
   error?: string;
-}
-
-// Retry a slug-minting insert on unique-violation (Postgres 23505).
-async function insertWithUniqueSlug<T>(
-  attempt: (slug: string) => Promise<T>,
-  slugLen = 4,
-  maxTries = 8,
-): Promise<T> {
-  for (let i = 0; i < maxTries; i++) {
-    try {
-      return await attempt(mintSlug(slugLen));
-    } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === "23505" && i < maxTries - 1) continue; // collision, retry
-      throw err;
-    }
-  }
-  throw new Error("Could not mint a unique slug after several attempts.");
 }
 
 export async function publishListing(

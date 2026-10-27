@@ -18,7 +18,7 @@ export function mintSlug(length = 4): string {
 
 // Words that must not become a listing slug (would shadow real routes if the
 // /r/ prefix were ever dropped; cheap guard regardless).
-const RESERVED_SLUGS = new Set(["manage", "seller", "r", "api", "share"]);
+const RESERVED_SLUGS = new Set(["manage", "seller", "sell", "r", "api", "share"]);
 
 /** Coerce free text into a slug: lowercase, non-alphanumerics → single hyphens. */
 export function toVanitySlug(raw: string): string {

@@ -879,7 +879,7 @@ export function ListingEditor({
       </section>
 
       {/* Import / add */}
-      <section className="mt-6">
+      <section id="import" className="mt-6 scroll-mt-6">
         {parsed ? (
           <div className="rounded-xl border border-border-weave bg-bg-card p-5">
             <div className="flex items-center justify-between">
