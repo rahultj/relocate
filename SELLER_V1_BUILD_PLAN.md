@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Not started.**
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–2 done (schema live, #17, #18). Slice 3 is next.
 
 ## What v1 is
 
@@ -40,6 +40,8 @@ Each slice ships on its own and is testable. The first two are worth doing befor
 ### 0. AI check on the production model (go/no-go)
 Rerun the 40-photo test (in the scratchpad `ai-test/` folder) through the API on the model the app will actually use: try Haiku first, then Sonnet if Haiku is weak. Check that naming, category, ambiguity flags and "brand only from a logo" still hold. Log cost and time per item.
 
+**Result: go** with `claude-haiku-5-5` at effort `medium`. It named 38 of 40 right, at about $0.0005 and 4s per item. "Which one are you selling?" detection was unreliable (3 of 40), so the seller's note and the draft-card review are the real safety net.
+
 ### 1. Currency plumbing (no visible change for US sales)
 - `lib/money.ts`: `formatMoney(minor, currency)` with `Intl.NumberFormat` (`en-US` for USD, `en-IN` for INR, giving ₹1,50,000) plus a currency-aware parse. It replaces `formatPrice` in `lib/format.ts`.
 - Replace the hardcoded `$` in `r/[slug]/listing-feed.tsx:390`, `r/[slug]/share/page.tsx:148`, `seller/add/bulk-add-client.tsx:583` and `manage/[id]/listing-editor.tsx:1324`, plus the item detail page.
@@ -53,8 +55,31 @@ Rerun the 40-photo test (in the scratchpad `ai-test/` folder) through the API on
 - **Gotcha:** a UPI ID contains `@`, so it must never go through `normalizeContact` (it would be treated as an email).
 
 ### 3. New route: start a sale (`/sell`)
-- The screen asks for name, pickup and "available from". Currency is inferred from pickup (an Indian city, state or "India" means INR), and a visible "Change" link overrides it.
-- It creates an empty listing and redirects to `/sell/[id]`, where the UUID is the secret link, the same model as `/manage/[id]`.
+
+The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` artboards), built as designed.
+
+**Decisions**
+- **One seller link.** `/sell/[id]` is the only link a seller is given and told to bookmark. `/manage/[id]` stays as the claims and power-user surface, reached from it. Existing `/manage` bookmarks (mine, Mayowa's) keep working.
+- **CSV lives in `/manage`.** "Have a spreadsheet? Import a CSV" submits the same three answers, creates the sale, then opens `/manage/[id]` at the import section. `/seller/add` is retired: it 308-redirects to `/sell`, and the landing CTA points at `/sell`. Deleting its code waits until slice 4 ships, since its photo helpers are still shared.
+
+**Screen (`app/src/app/sell/{page,start-sale-form,actions}.tsx`)**
+- **Name your sale** (required, text).
+- **Where's pickup?** (required, one text field), with the hint "Neighborhood is enough…". It's stored as typed in `listings.city`, and `neighborhood` stays null, so the buyer header shows it unchanged.
+- **Currency chip** under pickup, once pickup has text: "₹ Prices in rupees" or "$ Prices in dollars", with **Change**, which toggles between them. Once the seller picks one by hand, typing no longer changes it. (The canvas shows the chip only on the India screen; I show it for both so a US seller can also see it and fix it.)
+- **Things are available from:** "Right now" (the default, today in the browser's time zone) or "Pick a date" (a native date input). Saved to `listings.pickupFrom`, the sale-wide default the camera loop will copy onto each item's `availableFrom`.
+- The ochre "No account needed…" note, then **Start adding items** (brand button), then the CSV link.
+- Mobile first at 375px+, using existing tokens (`bg-brand`, `hover:bg-brand-hover`, cream ground). No new colours.
+
+**Logic**
+- `lib/currency-from-place.ts`: `inferCurrency(place): Currency`. INR when the text names India, an Indian state or UT, or a major city including old and new names (Bangalore/Bengaluru, Bombay/Mumbai, Gurgaon/Gurugram, Madras/Chennai, Calcutta/Kolkata, Pune, Hyderabad, Noida…). Matches whole words, case-insensitive. Everything else is USD. It's pure, with tests, including that "Indiana" and "Indianapolis" stay USD.
+- `createSale` server action: validates name and pickup, checks currency against `CURRENCIES` and the date as ISO, inserts the listing (empty `sellerContacts`, no items), then redirects to `/sell/[id]` or `/manage/[id]#import`.
+- `insertWithUniqueSlug` moves from `seller/add/actions.ts` to `lib/listing-insert.ts` so both paths share it.
+
+**`/sell/[id]` in this slice:** a stub seller home. It shows the sale name, pickup and currency, "Bookmark this, it's how you get back", a "Camera comes next" placeholder, and "Manage claims & items →" to `/manage/[id]`. It 404s for unknown IDs. Slice 4 replaces the placeholder with the camera loop, and slice 8 builds the real home.
+
+**Known gap:** the sale exists at `/r/[slug]` from the moment it's created, as the flow intends ("the live link exists from step 1"), so an unshared sale shows an empty feed. Abandoned empty sales will pile up in the DB. That's fine for now, and I'll note it for a cleanup script later.
+
+**Verify:** `pnpm test`, `pnpm build`, then in the browser at 375px: a DC sale (USD), an "Indiranagar, Bengaluru" sale (₹ chip appears), Change overriding it, "Pick a date", the CSV path landing on `/manage` import, the `/seller/add` redirect, and an unknown `/sell/[id]` 404. Delete the test listings from `app/` afterwards and check the row count.
 
 ### 4. Camera loop + photos
 - Use `<input type="file" accept="image/*" capture="environment">`, which opens the phone camera with no native app. Reuse `lib/image.ts` (downscale), `uploadPhotos()` and `signPhotoUploads()`.
