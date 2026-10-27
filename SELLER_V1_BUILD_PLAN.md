@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–2 done (schema live, #17, #18). Slice 3 is next.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–3 done (schema live, #17, #18, #19). Slice 4 is in progress.
 
 ## What v1 is
 
@@ -85,6 +85,15 @@ The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` art
 - Use `<input type="file" accept="image/*" capture="environment">`, which opens the phone camera with no native app. Reuse `lib/image.ts` (downscale), `uploadPhotos()` and `signPhotoUploads()`.
 - Each photo creates a `draft=true` item right away. "Another angle" adds to the same item, up to 8 photos (`MAX_PHOTOS`).
 - "Tell us about it" is a textarea; the phone keyboard's mic handles dictation. Skip moves on.
+
+**Detailed plan**
+- **Hide drafts from buyers first.** Feed, item page, QR sheet and the claim gate all add `draft = false`, so a draft item 404s and can't be claimed. Drafts are also saved `unlisted`, so any surface that only checks `unlisted` still hides them.
+- **The camera is the phone's own.** `capture="environment"` opens the native camera app; there's no in-page viewfinder like the canvas mock. The canvas "Camera" screen therefore becomes a launch point on `/sell/[id]`: a big "Take a photo" button plus "Choose from gallery".
+- **Photo → draft.** The photo is downscaled and uploaded straight to Storage (existing signed-upload path). A `createDraftItem` action then inserts the item: `draft = true`, `unlisted = true`, a placeholder name "Item N", photos, and the sale's `pickupFrom` as `availableFrom`. The preview shows immediately from the local file while that happens.
+- **"Tell us about it" screen** (canvas `2b`): the cover photo, a strip with the item's photos (remove ✕ while there are 2+), **Camera** and **Gallery** tiles for more angles (up to 8, "2 of 8"), the note textarea and the sparkle line. **Next item** saves the note and opens the camera again in the same tap; **Skip** does the same without a note; **Done** returns to the seller home. "Delete this item" discards a bad shot (drafts only).
+- **Seller home** shows "N drafts" as a thumbnail strip above the camera buttons, plus the Manage link. The full draft queue is slice 6.
+- **`/manage` until slice 6.** Drafts show up there as unlisted rows. Listing one (per row, bulk, or via save) clears `draft` too, so a seller who shoots photos now still has a way to publish.
+- **Verify:** 375px headless run with real JPEGs (create, add angle, remove, note, next, delete), check that a draft's buyer URL 404s and isn't in the feed or QR sheet, listing it in `/manage` publishes it. Delete test listings afterwards.
 
 ### 5. AI drafting
 - A server action, `draftItem(itemId)`, sends the photo(s) + `seller_note` to Claude and gets back structured JSON: name, category (from `CATEGORIES`), plain description, brand from a logo, brand guess, `ambiguous` + candidates, and original price / bought date if the note mentions them.

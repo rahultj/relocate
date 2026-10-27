@@ -64,7 +64,13 @@ export default async function SharePage({
   const rows = await db
     .select()
     .from(items)
-    .where(and(eq(items.listingId, listing.id), eq(items.unlisted, false)))
+    .where(
+      and(
+        eq(items.listingId, listing.id),
+        eq(items.unlisted, false),
+        eq(items.draft, false),
+      ),
+    )
     .orderBy(asc(items.availableFrom));
 
   const { origin, host } = await baseUrl();

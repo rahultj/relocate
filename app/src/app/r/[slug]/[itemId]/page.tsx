@@ -33,7 +33,13 @@ async function loadItem(slug: string, itemSlug: string) {
   const [item] = await db
     .select()
     .from(items)
-    .where(and(eq(items.listingId, listing.id), eq(items.slug, itemSlug)))
+    .where(
+      and(
+        eq(items.listingId, listing.id),
+        eq(items.slug, itemSlug),
+        eq(items.draft, false), // drafts 404; unlisted items still resolve
+      ),
+    )
     .limit(1);
   if (!item) return null;
 

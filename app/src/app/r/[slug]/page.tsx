@@ -28,7 +28,13 @@ async function loadListing(slug: string) {
   const rows = await db
     .select()
     .from(items)
-    .where(and(eq(items.listingId, listing.id), eq(items.unlisted, false)))
+    .where(
+      and(
+        eq(items.listingId, listing.id),
+        eq(items.unlisted, false),
+        eq(items.draft, false),
+      ),
+    )
     .orderBy(asc(items.availableFrom)); // nulls last (Postgres asc default)
 
   return { listing, rows };
