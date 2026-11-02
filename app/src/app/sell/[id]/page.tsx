@@ -72,6 +72,7 @@ export default async function SellerHomePage({
             name: d.name,
             photoUrls: photoList(d),
             note: d.sellerNote ?? "",
+            drafted: d.aiDraft != null && !(d.aiDraft as { error?: string }).error,
           }))}
         />
 

@@ -19,6 +19,7 @@ export interface DraftSummary {
   name: string;
   photoUrls: string[];
   note: string;
+  drafted: boolean; // has a usable AI draft
 }
 
 interface Photo {
@@ -38,6 +39,8 @@ interface OpenItem {
 
 let nextKey = 0;
 const photoKey = () => `p${++nextKey}`;
+// Catch-up AI drafts on load run at most this many at once.
+const CATCH_UP = 5;
 
 export function CameraLoop({
   listingId,
@@ -49,10 +52,15 @@ export function CameraLoop({
   const [drafts, setDrafts] = useState(initialDrafts);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<OpenItem | null>(null);
+  const [drafting, setDrafting] = useState<ReadonlySet<string>>(new Set());
   // Draft ids by open-item key, so a note or delete can wait for an item
   // whose first photo is still uploading after the seller has moved on.
   const itemIds = useRef(new Map<number, Promise<string>>());
   const saving = useRef("");
+  // Pending photo/note writes per draft id; an AI draft waits for them so it
+  // reads what the seller just did.
+  const writes = useRef(new Map<string, Promise<unknown>>());
+  const caughtUp = useRef(false);
 
   const newCamera = useRef<HTMLInputElement>(null);
   const newGallery = useRef<HTMLInputElement>(null);
@@ -68,7 +76,7 @@ export function CameraLoop({
   function upsertDraft(id: string, patch: Partial<DraftSummary>) {
     setDrafts((ds) => {
       const i = ds.findIndex((d) => d.id === id);
-      if (i === -1) return [...ds, { id, name: "", photoUrls: [], note: "", ...patch }];
+      if (i === -1) return [...ds, { id, name: "", photoUrls: [], note: "", drafted: false, ...patch }];
       const next = [...ds];
       next[i] = { ...next[i], ...patch };
       return next;
@@ -84,17 +92,66 @@ export function CameraLoop({
     if (urls.join(",") === open.saved.join(",") || saving.current === sig) return;
     saving.current = sig;
     const { key, itemId } = open;
-    setItemPhotos(listingId, itemId, urls)
-      .then((res) => {
-        if (!res.ok) throw new Error(res.error);
-        update(key, () => ({ saved: urls }));
-        upsertDraft(itemId, { photoUrls: urls });
-      })
-      .catch(fail("Couldn't save the photos."))
-      .finally(() => {
-        if (saving.current === sig) saving.current = "";
-      });
+    track(
+      itemId,
+      setItemPhotos(listingId, itemId, urls)
+        .then((res) => {
+          if (!res.ok) throw new Error(res.error);
+          update(key, () => ({ saved: urls }));
+          upsertDraft(itemId, { photoUrls: urls });
+        })
+        .catch(fail("Couldn't save the photos."))
+        .finally(() => {
+          if (saving.current === sig) saving.current = "";
+        }),
+    );
   }, [open, listingId]);
+
+  // Drafts left without an AI draft (tab closed mid-draft, or it failed) get
+  // one when the seller comes back.
+  useEffect(() => {
+    if (caughtUp.current) return;
+    caughtUp.current = true;
+    const todo = initialDrafts.filter((d) => !d.drafted && d.photoUrls.length > 0).map((d) => d.id);
+    const worker = async () => {
+      for (let id = todo.shift(); id; id = todo.shift()) await requestDraft(id);
+    };
+    for (let i = 0; i < CATCH_UP; i++) void worker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function track(id: string, p: Promise<unknown>) {
+    const prev = writes.current.get(id) ?? Promise.resolve();
+    writes.current.set(id, Promise.allSettled([prev, p]));
+  }
+
+  // Ask the server to AI-draft an item once its pending writes land. Failures
+  // are silent: the draft keeps its "Item N" name and can be finished by hand.
+  async function requestDraft(id: string) {
+    setDrafting((s) => new Set(s).add(id));
+    try {
+      await writes.current.get(id);
+      const res = await fetch(`/sell/${listingId}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { name?: string };
+      if (data.name) {
+        const name = data.name;
+        setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, name, drafted: res.ok } : d)));
+        setOpen((o) => (o?.itemId === id ? { ...o, name } : o));
+      }
+    } catch {
+      // network blip: caught up on the next visit
+    } finally {
+      setDrafting((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
 
   function startItem(file: File) {
     setError(null);
@@ -159,20 +216,29 @@ export function CameraLoop({
     update(open.key, (o) => ({ photos: o.photos.filter((p) => p.key !== photo) }));
   }
 
-  // Leave the describe screen, saving the note in the background.
+  // Leave the describe screen: save the note in the background, then have
+  // the AI draft the item from its photos and note.
   function closeItem(saveNote: boolean) {
     if (!open) return;
     const { key, note } = open;
     setOpen(null);
-    if (!saveNote || !note.trim()) return;
     itemIds.current
       .get(key)
-      ?.then(async (id) => {
-        const res = await saveSellerNote(listingId, id, note);
-        if (!res.ok) throw new Error(res.error);
-        upsertDraft(id, { note });
+      ?.then((id) => {
+        if (saveNote && note.trim()) {
+          track(
+            id,
+            saveSellerNote(listingId, id, note)
+              .then((res) => {
+                if (!res.ok) throw new Error(res.error);
+                upsertDraft(id, { note });
+              })
+              .catch(fail("Couldn't save your note.")),
+          );
+        }
+        void requestDraft(id);
       })
-      .catch(fail("Couldn't save your note."));
+      .catch(() => {}); // a failed first upload is reported by startItem
   }
 
   function deleteItem() {
@@ -393,7 +459,9 @@ export function CameraLoop({
                   alt=""
                   className="size-16 rounded-[10px] border border-border-weave object-cover"
                 />
-                <span className="truncate text-xs text-text-secondary">{d.name}</span>
+                <span className="truncate text-xs text-text-secondary">
+                  {drafting.has(d.id) ? "Drafting…" : d.name}
+                </span>
               </button>
             ))}
           </div>
