@@ -4,11 +4,14 @@
 // away; drafts are hidden from buyers (`draft` 404s, and `unlisted` keeps them
 // out of the feed) until the seller publishes them. Capability = listing UUID.
 
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { items, listings } from "@/db/schema";
 import { mintSlug } from "@/lib/slug";
-import { photoColumns } from "@/lib/photos";
+import { photoColumns, photoList } from "@/lib/photos";
+import { CATEGORIES } from "@/lib/category";
+import type { StoredDraft } from "@/lib/ai-draft";
+import { QUEUE_CONDITIONS, isReady, withBrand } from "@/lib/draft-queue";
 import { withListing, type ActionResult } from "@/lib/with-listing";
 
 /** Create a draft item from freshly uploaded photo URLs (cover first). */
@@ -87,5 +90,100 @@ export async function deleteDraftItem(
         ),
       );
     return {};
+  });
+}
+
+// ── Draft queue (/sell/[id]/drafts) ──────────────────────────────────────────
+
+export interface DraftPatch {
+  name?: string;
+  description?: string;
+  category?: string;
+  condition?: (typeof QUEUE_CONDITIONS)[number];
+  price?: { isFree: boolean; priceCents: number | null };
+}
+
+/** Autosave one field (or a few) from the draft card. Drafts only. */
+export async function saveDraftFields(
+  listingId: string,
+  itemId: string,
+  patch: DraftPatch,
+): Promise<ActionResult> {
+  const set: Partial<typeof items.$inferInsert> = {};
+  if (patch.name !== undefined) {
+    const name = patch.name.trim().slice(0, 80);
+    if (!name) return { ok: false, error: "Give it a name." };
+    set.name = name;
+  }
+  if (patch.description !== undefined) set.description = patch.description.trim().slice(0, 1000) || null;
+  if (patch.category !== undefined) {
+    if (!(CATEGORIES as readonly string[]).includes(patch.category)) return { ok: false, error: "Unknown category." };
+    set.category = patch.category;
+  }
+  if (patch.condition !== undefined) {
+    if (!QUEUE_CONDITIONS.includes(patch.condition)) return { ok: false, error: "Unknown condition." };
+    set.condition = patch.condition;
+  }
+  if (patch.price !== undefined) {
+    const { isFree, priceCents } = patch.price;
+    if (isFree) Object.assign(set, { isFree: true, priceCents: null });
+    else if (Number.isInteger(priceCents) && priceCents! > 0 && priceCents! <= 100_000_000)
+      Object.assign(set, { isFree: false, priceCents });
+    else return { ok: false, error: "Enter a price." };
+  }
+  if (Object.keys(set).length === 0) return { ok: true };
+
+  return withListing(listingId, async (listing) => {
+    await db
+      .update(items)
+      .set(set)
+      .where(and(eq(items.id, itemId), eq(items.listingId, listing.id), eq(items.draft, true)));
+    return {};
+  });
+}
+
+/** "Looks like X?" ✓ puts the brand in the name; ✕ just hides the chip. */
+export async function answerBrandGuess(
+  listingId: string,
+  itemId: string,
+  yes: boolean,
+): Promise<ActionResult<{ name: string }>> {
+  return withListing(listingId, async (listing) => {
+    const where = and(eq(items.id, itemId), eq(items.listingId, listing.id), eq(items.draft, true));
+    const [item] = await db.select({ name: items.name, aiDraft: items.aiDraft }).from(items).where(where);
+    if (!item) throw new Error("Draft not found.");
+    const stored = item.aiDraft as StoredDraft | null;
+    const guess = stored?.result?.brandGuess;
+    const name = yes && guess ? withBrand(item.name, guess) : item.name;
+    await db
+      .update(items)
+      .set({ name, ...(stored ? { aiDraft: { ...stored, brandAnswer: yes ? "yes" : "no" } } : {}) })
+      .where(where);
+    return { name };
+  });
+}
+
+/** Put ready drafts live. Anything not ready (checked here, not trusted from
+ *  the client) stays a draft. */
+export async function publishDrafts(
+  listingId: string,
+  itemIds: string[],
+): Promise<ActionResult<{ published: string[] }>> {
+  if (itemIds.length === 0) return { ok: true, published: [] };
+  return withListing(listingId, async (listing) => {
+    const rows = await db
+      .select()
+      .from(items)
+      .where(and(inArray(items.id, itemIds), eq(items.listingId, listing.id), eq(items.draft, true)));
+    const published = rows
+      .filter((r) => isReady({ ...r, photoUrls: photoList(r) }))
+      .map((r) => r.id);
+    if (published.length > 0) {
+      await db
+        .update(items)
+        .set({ draft: false, unlisted: false })
+        .where(and(inArray(items.id, published), eq(items.listingId, listing.id)));
+    }
+    return { published };
   });
 }

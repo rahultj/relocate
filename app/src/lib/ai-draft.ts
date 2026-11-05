@@ -58,6 +58,8 @@ export interface StoredDraft {
   at: string;
   result?: DraftResult;
   error?: string;
+  /** The seller's answer to "Looks like <brandGuess>?" in the draft queue. */
+  brandAnswer?: "yes" | "no";
 }
 
 export const DRAFT_SYSTEM = `You write listing drafts for a move-out sale. A seller photographs one item to sell (several photos are angles of the same item) and may add a short note, often dictated. Fill in the JSON fields.
