@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–4 done (schema live, #17, #18, #19, #20). Slice 5 is next.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–5 done (schema live, #17–#21). Slice 6 is next.
 
 ## What v1 is
 
@@ -135,6 +135,19 @@ The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` art
   - INR small items: Free / ₹100 / ₹200 / ₹500 / ₹1,000
 - "Which one are you selling?" appears only when `ambiguous` is set. Picking several makes one draft per pick, sharing the photos, and each gets re-drafted.
 - Publish sets `draft=false`. "Publish all ready" does it in bulk.
+
+**Detailed plan**
+- **Route:** `/sell/[id]/drafts`, one card at a time ("Draft 2 of 5", "N ready", progress bar). The seller home's "Finish N drafts and publish" button leads here and replaces the "Finish drafts in Manage" link. ✕ goes back to the seller home.
+- **The card** (canvas `3` and `IN 3`): photos (swipe, "1 of N"), the "Drafted by AI · check it" badge, the name (pencil to edit), a category chip (a native select), "Bought Mar 2022 · $600" when the note gave it, the description (tap to edit), then Condition and Price.
+- **Condition:** Like new / Good / Fair only, as on the canvas. The enum's New and Worn stay for CSV imports.
+- **Price:** `lib/price-steps.ts`. Furniture gets the furniture steps and every other category the small-item steps. "Other…" opens a number box. A price that isn't a step shows there.
+- **Brand chip:** "Looks like X?" shows while `ai_draft.result.brandGuess` is set and unanswered. ✓ puts the brand at the front of the name ("IKEA Kivik grey 3-seat sofa"); ✕ hides it. The answer is stored as `ai_draft.brandAnswer` and survives a re-draft with the same guess.
+- **Autosave:** chips save on tap and text on blur, through `saveDraftFields` (drafts only, validated server-side). A seller edit is never overwritten by a later AI draft (slice 5's rule).
+- **Ready to publish:** a photo, a real name (not "Item N"), a condition and a price (Free counts). The card says what's missing ("Still needs a condition and a price."). `publishDrafts` re-checks this on the server, then sets `draft=false, unlisted=false`. Publish goes live at once; slice 7 adds the contact step in front of it.
+- **Catch-up:** a draft with no AI draft yet, or a failed one, is drafted on load (5 at a time). Its card shows "Drafting…" and can't be edited until the draft lands, so the AI can't overwrite typing. The draft route now returns the drafted fields so the card fills in without a reload.
+- **Done:** when the queue is empty: "Your items are live", with links to the sale page and back to the seller home.
+- **Deferred:** "Which one are you selling?" (canvas `3b`). Slice 0 found `ambiguous` unreliable (3/40), so splitting a photo into several drafts is a follow-up.
+- **Verify:** `pnpm test` (readiness, `withBrand`, price steps), lint, build. Headless 375px run: three drafts with AI names, pick and reload (autosave), rename, Other price, single publish, Publish all, done screen, items in the buyer feed. Delete the test listings afterwards.
 
 ### 7. First publish: contact + payment
 - Shown before the first item goes live. It asks for phone or email (saved to `sellerContacts`), plus an optional Venmo (USD) or UPI ID (INR) as the sale-wide default.
