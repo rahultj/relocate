@@ -7,13 +7,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Loader2, Pencil, Sparkles, X } from "lucide-react";
+import { Check, Copy, Loader2, Pencil, Share2, Sparkles, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/category";
 import { formatMoney, currencySymbol, type Currency } from "@/lib/money";
 import { CONDITION_LABELS, formatMonthYear, parsePriceToCents } from "@/lib/format";
 import { priceSteps } from "@/lib/price-steps";
 import { QUEUE_CONDITIONS, missingForPublish, isReady } from "@/lib/draft-queue";
 import { answerBrandGuess, publishDrafts, saveDraftFields, type DraftPatch } from "../actions";
+import { AlmostLive } from "./almost-live";
 
 export interface QueueCard {
   id: string;
@@ -43,11 +44,13 @@ const pick = (on: boolean) =>
 export function DraftQueue({
   listingId,
   slug,
+  title,
   currency,
   initialCards,
 }: {
   listingId: string;
   slug: string;
+  title: string;
   currency: Currency;
   initialCards: QueueCard[];
 }) {
@@ -59,6 +62,8 @@ export function DraftQueue({
   const [publishedCount, setPublishedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Drafts waiting on the "Almost live" step (the sale has no contact yet).
+  const [gate, setGate] = useState<string[] | null>(null);
   const started = useRef(false);
 
   async function requestDraft(id: string) {
@@ -134,7 +139,15 @@ export function DraftQueue({
       setError(res?.error ?? "Couldn't publish. Check your connection and try again.");
       return;
     }
-    const gone = new Set(res.published);
+    if (res.needsContact) {
+      setGate(ids);
+      return;
+    }
+    published(ids, res.published);
+  }
+
+  function published(ids: string[], done: string[]) {
+    const gone = new Set(done);
     const before = card ? cards.findIndex((c) => c.id === card.id) : 0;
     const left = cards.filter((c) => !gone.has(c.id));
     // Stay on the same slot, which now holds the next draft.
@@ -143,6 +156,24 @@ export function DraftQueue({
     setAt(left.length ? kept % left.length : 0);
     setPublishedCount((n) => n + gone.size);
     if (gone.size < ids.length) setError("Some drafts still need a condition or a price.");
+  }
+
+  if (gate) {
+    const first = cards.find((c) => c.id === (card && gate.includes(card.id) ? card.id : gate[0]))!;
+    return (
+      <AlmostLive
+        listingId={listingId}
+        currency={currency}
+        title={title}
+        itemIds={gate}
+        first={first}
+        onBack={() => setGate(null)}
+        onPublished={(done) => {
+          setGate(null);
+          published(gate, done);
+        }}
+      />
+    );
   }
 
   if (!card) {
@@ -157,6 +188,7 @@ export function DraftQueue({
             ? `${publishedCount} ${publishedCount === 1 ? "item is" : "items are"} now on your sale page for buyers.`
             : "Take photos of your things and they'll show up here to finish."}
         </p>
+        {publishedCount > 0 && <BookmarkCard listingId={listingId} />}
         <div className="flex-1" />
         <Link
           href={`/r/${slug}`}
@@ -270,6 +302,47 @@ export function DraftQueue({
           Publish all {readyIds.length} ready
         </button>
       )}
+    </div>
+  );
+}
+
+function BookmarkCard({ listingId }: { listingId: string }) {
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- needs window
+    setUrl(`${window.location.origin}/sell/${listingId}`);
+    setCanShare(typeof navigator.share === "function");
+  }, [listingId]);
+
+  return (
+    <div className="mt-6 rounded-xl border border-insight-border bg-insight-bg px-4 py-3.5 text-sm leading-normal text-text-primary">
+      <strong className="font-bold">Bookmark this, it&apos;s how you get back.</strong>{" "}
+      There&apos;s no account, so this link is the key to your sale.
+      <p className="mt-2 break-all font-mono text-xs text-text-secondary">{url}</p>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard?.writeText(url).then(() => setCopied(true));
+          }}
+          className="flex h-10 items-center gap-1.5 rounded-full border border-border-alt bg-white px-4 text-sm font-medium"
+        >
+          {copied ? <Check className="size-4 text-forest" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+          {copied ? "Copied" : "Copy link"}
+        </button>
+        {canShare && (
+          <button
+            type="button"
+            onClick={() => void navigator.share({ title: "My mustgo sale", url }).catch(() => {})}
+            className="flex h-10 items-center gap-1.5 rounded-full border border-border-alt bg-white px-4 text-sm font-medium"
+          >
+            <Share2 className="size-4" aria-hidden />
+            Share
+          </button>
+        )}
+      </div>
     </div>
   );
 }
