@@ -20,11 +20,14 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 **Buyers**
 - **Feed `/r/[slug]`:** the listing title and my intro on top, then an "Available" band followed by a "Claimed & Sold" band. Each band is grouped into category sections. Filters: category, status (All / Available / Claimed / Sold, showing only statuses that exist) and "Free only". Files: `r/[slug]/{page,listing-feed}.tsx`.
-- **Item `/r/[slug]/[itemId]`:** photo carousel, price and details, and the claim button. Buyers can claim, release their claim, or join and leave the waitlist on a claimed item. After claiming they see a "Pay @handle on Venmo" link if the item has one. Sold items show a final "Sold" panel. Unlisted items say "No longer available" instead of a 404, so printed QR codes never break. Files: `r/[slug]/[itemId]/{page,claim-button,actions}.tsx`, `components/photo-carousel.tsx`.
+- **Item `/r/[slug]/[itemId]`:** photo carousel, price and details, and the claim button. Buyers can claim, release their claim, or join and leave the waitlist on a claimed item. After claiming they see a pay button: Venmo on USD sales, UPI on INR sales (the item's own handle/ID, else the sale-wide default). Free items show none. Sold items show a final "Sold" panel. Unlisted items say "No longer available" instead of a 404, so printed QR codes never break. Files: `r/[slug]/[itemId]/{page,claim-button,actions}.tsx`, `components/photo-carousel.tsx`.
 - Buyers are identified by their contact, remembered in localStorage. There are no accounts.
 
 **Sellers**
-- **`/seller/add`:** first publish. Drop in a CSV, check the column mapping, fix rows, publish.
+- **`/sell`:** start a sale (name, pickup place, currency: $ or ₹). `/seller/add` 308-redirects here.
+- **`/sell/[id]`:** seller home. The camera loop: each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{page,camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
+- **`/sell/[id]/drafts`:** draft queue. One card per draft: check the AI's fields, a "Looks like X?" brand chip, pick condition and price, publish. Files: `sell/[id]/drafts/{page,draft-queue}.tsx`.
+- Drafts (`draft = true`) 404 for buyers and stay out of the feed and QR sheet.
 - **`/manage/[id]`:** everything after that. The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
   - Listed/Unlisted per item, plus bulk toggles. Imported items start out Unlisted.
   - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
@@ -39,7 +42,10 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 - `csv.ts`: import mapping, template, export.
 - `category.ts`: the canonical `CATEGORIES` list (Plants sits just before Other), synonyms, and `suggestCategory` from the item name.
 - `item-save.ts`: field parsing. A $0 price becomes Free.
-- `venmo.ts`: always builds `https://venmo.com/u/<user>` links.
+- `money.ts`: per-currency display (USD/INR) of minor-unit prices.
+- `venmo.ts`: always builds `https://venmo.com/u/<user>` links. `upi.ts` builds `upi://pay` links; `payment.ts` picks which one a buyer sees.
+- `ai-draft.ts` (prompt, schema, no-clobber `applyDraft`) and `ai-draft-run.ts` (server-only API call).
+- `draft-queue.ts` (readiness, brand-in-name) and `price-steps.ts` (the queue's price buttons).
 - `photos.ts`: `photo_urls` is the source of truth; `photo_url` mirrors the cover.
 - `storage.ts`: server-only, signed uploads.
 - `with-listing.ts`: capability check for `/manage` actions.
@@ -48,7 +54,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 - **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
 - **Unmerged branch** `claude/earnings-sold-claimed-items-649hts` shows total earned on `/manage`. Review it, then merge or drop it.
-- **Delete the test listing `/r/3dtn`** ("Live manage test"). Scoped delete, run from `app/`, confirm the row count is 1.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–6 are live. Slice 7 (first publish: contact + Venmo/UPI) is next.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
 ## Stack
@@ -75,8 +81,8 @@ Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials
 - **Run one-off scripts from `app/`** with `--env-file=.env.local`. Anywhere else, `postgres` won't resolve and the script fails silently. Always check a delete's row count.
 - **Clean up test data.** Delete any throwaway listing when you're done.
 - **Supabase `read ETIMEDOUT`** is a free-tier blip. A one-off 500 that works on retry isn't a bug.
-- **Vercel env vars:** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SECRET_KEY` are all required. `NEXT_PUBLIC_*` values bake in at build time, so redeploy after changing them. A misnamed `NEXT_PUBLIC_SUPABASE_URL` once silently broke photo uploads.
-- **Vercel's ~4.5MB request limit.** `/manage` uploads photos browser → Storage directly. `/seller/add` still sends photos as base64 through the publish action, so attaching lots of photos before the first publish can hit the limit.
+- **Vercel env vars:** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` and `ANTHROPIC_API_KEY` (AI drafting; Production + Preview) are all required. `NEXT_PUBLIC_*` values bake in at build time, so redeploy after changing them. A misnamed `NEXT_PUBLIC_SUPABASE_URL` once silently broke photo uploads.
+- **Vercel's ~4.5MB request limit.** Photos never go through a server action: `/manage` and `/sell` upload browser → Storage directly.
 - **CSV re-import matches by name.** Rename an item in the CSV and it comes in as a new row. Blank cells never overwrite, and re-import never deletes.
 - **Testing uploads headless:** the file input is `hidden`. Un-hide it with JS before uploading a real JPEG.
 
@@ -89,8 +95,8 @@ Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials
 
 ## Data conventions
 
-- Prices are stored as `price_cents` (int, USD) and shown as `$X`. Zero shows as "Free".
-- Dates use US format in the UI ("Jun 14, 2026") and ISO 8601 in the DB.
+- Each sale has a `currency` (USD or INR). Prices are stored as `price_cents`, an int in that currency's minor units (cents or paise), and shown as `$X` or `₹X`. Zero shows as "Free".
+- Dates use US format on USD sales ("Jun 14, 2026"), day-first on INR sales ("14 Jun 2026"), and ISO 8601 in the DB.
 - DB columns are snake_case and TS is camelCase. Drizzle bridges the two.
 - Slugs are 4-character base32 (listing slugs retry on collision). Sellers can rename the listing slug; item slugs stay opaque.
 - Phone hash and encrypted E.164 columns exist for the future OTP flow. Soft claim doesn't use them.
