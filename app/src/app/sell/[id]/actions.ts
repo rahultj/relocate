@@ -12,6 +12,14 @@ import { photoColumns, photoList } from "@/lib/photos";
 import { CATEGORIES } from "@/lib/category";
 import type { StoredDraft } from "@/lib/ai-draft";
 import { QUEUE_CONDITIONS, isReady, withBrand } from "@/lib/draft-queue";
+import { listingCurrency } from "@/lib/money";
+import type { SellerContact } from "@/lib/seller-contact";
+import {
+  needsFirstPublish,
+  parseFirstPublish,
+  type FirstPublishField,
+  type FirstPublishForm,
+} from "@/lib/first-publish";
 import { withListing, type ActionResult } from "@/lib/with-listing";
 
 /** Create a draft item from freshly uploaded photo URLs (cover first). */
@@ -163,27 +171,73 @@ export async function answerBrandGuess(
   });
 }
 
-/** Put ready drafts live. Anything not ready (checked here, not trusted from
- *  the client) stays a draft. */
+type Tx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Set `draft=false, unlisted=false` on the ready ones among `itemIds`.
+ *  Readiness is checked here, not trusted from the client. */
+async function publishReady(tx: Tx, listingId: string, itemIds: string[]): Promise<string[]> {
+  if (itemIds.length === 0) return [];
+  const rows = await tx
+    .select()
+    .from(items)
+    .where(and(inArray(items.id, itemIds), eq(items.listingId, listingId), eq(items.draft, true)));
+  const ready = rows.filter((r) => isReady({ ...r, photoUrls: photoList(r) })).map((r) => r.id);
+  if (ready.length > 0) {
+    await tx
+      .update(items)
+      .set({ draft: false, unlisted: false })
+      .where(and(inArray(items.id, ready), eq(items.listingId, listingId)));
+  }
+  return ready;
+}
+
+/** Put ready drafts live. A sale with no contact yet gets `needsContact`
+ *  instead, and the queue shows the "Almost live" step. */
 export async function publishDrafts(
   listingId: string,
   itemIds: string[],
-): Promise<ActionResult<{ published: string[] }>> {
-  if (itemIds.length === 0) return { ok: true, published: [] };
+): Promise<ActionResult<{ published: string[]; needsContact?: boolean }>> {
   return withListing(listingId, async (listing) => {
-    const rows = await db
-      .select()
-      .from(items)
-      .where(and(inArray(items.id, itemIds), eq(items.listingId, listing.id), eq(items.draft, true)));
-    const published = rows
-      .filter((r) => isReady({ ...r, photoUrls: photoList(r) }))
-      .map((r) => r.id);
-    if (published.length > 0) {
-      await db
-        .update(items)
-        .set({ draft: false, unlisted: false })
-        .where(and(inArray(items.id, published), eq(items.listingId, listing.id)));
+    const [sale] = await db
+      .select({ sellerContacts: listings.sellerContacts })
+      .from(listings)
+      .where(eq(listings.id, listing.id));
+    if (needsFirstPublish(sale?.sellerContacts as SellerContact[] | null)) {
+      return { published: [], needsContact: true };
     }
+    return { published: await publishReady(db, listing.id, itemIds) };
+  });
+}
+
+/** The "Almost live" step: save how buyers reach the seller (and the optional
+ *  sale-wide Venmo/UPI), then publish, in one transaction so items never go
+ *  live without a contact. */
+export async function publishWithContact(
+  listingId: string,
+  itemIds: string[],
+  form: FirstPublishForm,
+): Promise<ActionResult<{ published: string[] }> | { ok: false; error: string; field: FirstPublishField }> {
+  const [sale] = await db
+    .select({ currency: listings.currency })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+  if (!sale) return { ok: false, error: "Listing not found." };
+  const parsed = parseFirstPublish(form, listingCurrency(sale));
+  if (!parsed.ok) return parsed;
+
+  return withListing(listingId, async (listing) => {
+    const published = await db.transaction(async (tx) => {
+      await tx
+        .update(listings)
+        .set({
+          sellerContacts: [parsed.contact],
+          ...(parsed.defaultVenmoHandle ? { defaultVenmoHandle: parsed.defaultVenmoHandle } : {}),
+          ...(parsed.defaultUpiId ? { defaultUpiId: parsed.defaultUpiId } : {}),
+        })
+        .where(eq(listings.id, listing.id));
+      return publishReady(tx, listing.id, itemIds);
+    });
     return { published };
   });
 }

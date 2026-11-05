@@ -58,6 +58,7 @@ export default async function DraftQueuePage({
       <DraftQueue
         listingId={listing.id}
         slug={listing.slug}
+        title={listing.title}
         currency={listingCurrency(listing)}
         initialCards={cards}
       />
