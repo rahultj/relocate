@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–5 done (schema live, #17–#21). Slice 6 is next.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–6 done (schema live, #17–#22). Slice 7 is next.
 
 ## What v1 is
 
@@ -152,6 +152,19 @@ The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` art
 ### 7. First publish: contact + payment
 - Shown before the first item goes live. It asks for phone or email (saved to `sellerContacts`), plus an optional Venmo (USD) or UPI ID (INR) as the sale-wide default.
 - Show the seller-home link with "Bookmark this, it's how you get back." Proper recovery is a separate job.
+
+**Detailed plan**
+- **When it shows:** Publish or Publish all in the draft queue, on a sale with no `sellerContacts` yet. The queue shows "Almost live" (canvas `IN · First publish`) instead of publishing; submitting saves the details, then finishes that same publish. A sale with contacts (for example, set in `/manage`) never sees it. Listing from `/manage` stays ungated.
+- **Fields:**
+  - **Your first name** (optional; not on the canvas, the user's call). It labels the Contact button and is the UPI payee name; both fall back to the sale title.
+  - **Phone number** with a fixed prefix by currency (+1 for USD, +91 for INR). "Use an email instead" swaps in an email field. Checked with `normalizeContact`, saved as the primary `sellerContacts` entry.
+  - **Venmo username** (USD) or **UPI ID** (INR), optional, checked with `normalizeVenmo` / `isValidUpi`, saved to `defaultVenmoHandle` / `defaultUpiId`. Hint: "Used for every item. You can set a different one per item later."
+- **Copy:** the Contact button stays public, as today, so the screen says "Buyers see this on your sale page", not the canvas's "only people who claim" (the user's call).
+- **Preview card:** "What a buyer sees after claiming", built from the item being published: "You claimed X · $Y", the Venmo/UPI pay button (only when a handle is set and the item isn't free) and "Contact <name>". It updates as the seller types.
+- **Button:** "Publish N items". A server action saves the contact and payment default and publishes in one call, so a failed save never leaves items live with no contact.
+- **After the first publish:** the "Your items are live" screen adds "Bookmark this, it's how you get back", with the seller-home link, Copy and (where supported) Share.
+- **No schema change.**
+- **Verify:** unit tests (gate rule, phone/email/handle checks, the contact entry built from the form). Headless 375px on a USD and an INR sale: publish → Almost live → fill → items live; the buyer item page shows the pay link and "Contact <name>"; a second publish skips the screen. Delete the test listings afterwards.
 
 ### 8. Seller home (`/sell/[id]`)
 - Link with Copy and Share (`navigator.share`), the QR sheet (existing `/r/[slug]/share`), a "N drafts to finish" prompt, the live list and "Add items". It links to `/manage/[id]` for claims and everything else.
