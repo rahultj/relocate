@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–3 done (schema live, #17, #18, #19). Slice 4 is in progress.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–4 done (schema live, #17, #18, #19, #20). Slice 5 is next.
 
 ## What v1 is
 
@@ -99,6 +99,31 @@ The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` art
 - A server action, `draftItem(itemId)`, sends the photo(s) + `seller_note` to Claude and gets back structured JSON: name, category (from `CATEGORIES`), plain description, brand from a logo, brand guess, `ambiguous` + candidates, and original price / bought date if the note mentions them.
 - **Prompt guardrails from the test:** describe only what's visible or said; never invent selling points; brand only from a logo or the note (a guess goes to `ai_draft`, not to the item); no condition; no price.
 - Fired from the client after each upload so the seller keeps shooting. Drafts show "Drafting…" until done. Set `maxDuration = 60`, plus a retry for the Supabase `ETIMEDOUT` blip.
+
+**Detailed plan**
+- **When it runs: when the seller leaves an item, not after each upload.** Next item, Skip and Done already close the item. That's the first moment the angles and the note are both known, so one call sees everything. Reopening a draft and changing its photos or note re-drafts it on leave. A draft whose inputs haven't changed isn't sent again: `ai_draft` stores a signature of the photo URLs plus the note.
+- **A route handler, not a server action.** Next.js runs a page's server actions one at a time. A ~4s AI call would hold up the next photo's `createDraftItem` and slow the loop. `POST /sell/[id]/draft` with `{ itemId }` runs in parallel, has `maxDuration = 60`, and is guarded by the listing UUID like the actions (draft items only). The client fires it and doesn't wait.
+- **Catch-up on load.** The seller home also fires it for any draft that has photos but no `ai_draft`, so a tab closed mid-draft still gets named next time. There's a cap of 5 in flight.
+- **The call (`lib/ai-draft.ts`, server-only):**
+  - `@anthropic-ai/sdk` with `claude-haiku-5-5` at effort `medium`, using the slice 0 settings.
+  - The photos go in as public Storage URLs (`source: { type: "url" }`), all of them up to 8, cover first. They're already downscaled on upload.
+  - The note is the text block. The sale's currency goes in so "bought it for 600" lands in the right units.
+  - A JSON schema enforced through `output_config.format` returns: `name`, `category` (enum of `CATEGORIES`), `description`, `brand` (only from a visible logo or the note), `brandGuess`, `ambiguous` + `candidates[]`, `originalPrice` (number in major units, only if the note says it), `boughtYear`/`boughtDate` (only if said).
+  - The SDK client keeps its default 2 retries. A refusal or a parse failure counts as a failure (below).
+- **The prompt** is rebuilt from the guardrails above, since the slice 0 scratch script is gone. It describes only what's visible or said, never invents selling points, and gives no condition and no price. The description is plain, 1–2 sentences. The name is short and specific ("Grey 3-seat sofa", not "Beautiful modern couch").
+- **What gets written (`applyDraft`, pure, with tests):**
+  - `name`, `category` and `description` go onto the item.
+  - `originalPriceCents` (major units × 100, in the sale's currency) and `boughtDate` go on only when they came from the note.
+  - Everything raw goes into `ai_draft` (brand guess, ambiguity, candidates, signature, model, timestamp).
+  - **Never clobber the seller:** a field is only written if it's still empty, or still holds what the AI wrote last time. Slice 5 has nothing editable besides the note, but slice 6 will.
+- **Failure:** missing `ANTHROPIC_API_KEY`, an API error, a refusal or bad JSON all leave "Item N" and log server-side. `ai_draft` gets `{ error, signature }` so it isn't retried in a loop. The draft strip shows the placeholder, and the draft can still be finished in `/manage`. The camera loop never shows an AI error.
+- **UI (small; the full card is slice 6):** the draft strip shows "Drafting…" under a thumbnail while its call is in flight, then the AI name. The describe screen's header shows the AI name when a draft is reopened. In `/manage`, drafts show up with their AI name, category and description, so "list it" there is already useful.
+- **Cost guard:** about $0.0005 per call. Calls only happen for draft items, on a changed signature, behind the listing UUID. There's no extra rate limit for now.
+- **Before shipping:** add `ANTHROPIC_API_KEY` to Vercel Production (and Preview, so the PR preview can be phone-tested), then redeploy.
+- **Verify:**
+  - `pnpm test` (`applyDraft` mapping, currency units, the no-clobber rule), lint, build.
+  - A headless 375px run with Trial Pictures: 5 items including the sofa with its note, a busy photo, and one with no note. Check the names, categories and descriptions land, the "Drafting…" state shows, and a reopened draft with an edited note re-drafts. Also check that a draft with an unchanged note doesn't re-draft.
+  - Each run costs well under $0.01 in API calls. Delete the test listings afterwards.
 
 ### 6. Draft queue
 - One card per draft. Name, category and description are editable. A brand guess shows as a "Looks like X?" chip.
