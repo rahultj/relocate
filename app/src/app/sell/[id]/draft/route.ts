@@ -55,12 +55,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const result = await runDraft(photos, item.sellerNote ?? "", listingCurrency(row));
     const patch = applyDraft(item, prev?.result, result);
-    const stored: StoredDraft = { ...base, result };
+    // Keep the seller's brand answer while the guess it answered stands.
+    const brandAnswer =
+      prev?.brandAnswer && prev.result?.brandGuess === result.brandGuess ? prev.brandAnswer : undefined;
+    const stored: StoredDraft = { ...base, result, ...(brandAnswer ? { brandAnswer } : {}) };
     await db
       .update(items)
       .set({ ...patch, aiDraft: stored })
       .where(and(eq(items.id, item.id), eq(items.draft, true)));
-    return NextResponse.json({ name: patch.name ?? item.name });
+    // The draft queue fills its card from this; the camera loop reads `name`.
+    return NextResponse.json({
+      name: patch.name ?? item.name,
+      category: patch.category ?? item.category,
+      description: patch.description ?? item.description,
+      originalPriceCents: patch.originalPriceCents ?? item.originalPriceCents,
+      boughtDate: patch.boughtDate ?? item.boughtDate,
+      brandGuess: brandAnswer ? null : result.brandGuess,
+    });
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     console.error(`AI draft failed for item ${item.id}:`, error);

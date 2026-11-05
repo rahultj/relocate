@@ -492,11 +492,11 @@ export function CameraLoop({
 
       {drafts.length > 0 && (
         <Link
-          href={`/manage/${listingId}`}
-          className="mt-4 flex items-center justify-center gap-1 text-sm text-text-secondary underline underline-offset-2"
+          href={`/sell/${listingId}/drafts`}
+          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-full bg-forest text-[15px] font-medium text-white"
         >
-          Finish drafts in Manage for now
-          <ArrowRight className="size-3.5" aria-hidden />
+          Finish {drafts.length} {drafts.length === 1 ? "draft" : "drafts"} and publish
+          <ArrowRight className="size-4" aria-hidden />
         </Link>
       )}
     </>
