@@ -9,12 +9,16 @@
 //   photos                      → upload straight to Storage, then setItemPhoto
 //   CSV import-merge            → still the bulk updateListing path (+ reload)
 //
+// Import, photo matching, CSV export and Show/Hide all sit in one "Import &
+// tools" menu; ?tool=csv|photos|add (from the seller home's Add items sheet)
+// opens a tool directly.
+//
 // A single top-right pill ("All changes saved / Saving… / Couldn't save") is the
 // only save signal. See use-listing-save.ts for the engine.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Mail, Phone, Trash2 } from "lucide-react";
-import { CsvHelp } from "@/components/csv-help";
+import { ChevronDown, Mail, Phone, Trash2, X } from "lucide-react";
+import { CsvHelp, downloadTemplate } from "@/components/csv-help";
 import {
   parseCsv,
   mapColumns,
@@ -155,14 +159,18 @@ export interface ClaimSummaryEntry {
   waiting: number;
 }
 
+export type EditorTool = "csv" | "photos" | "add";
+
 export function ListingEditor({
   listing,
   initialItems,
   claimSummary = [],
+  initialTool = null,
 }: {
   listing: ListingMeta;
   initialItems: EditorItem[];
   claimSummary?: ClaimSummaryEntry[];
+  initialTool?: EditorTool | null;
 }) {
   const save = useListingSave(listing.id);
   const currency = listing.currency;
@@ -200,9 +208,13 @@ export function ListingEditor({
     }
   };
 
-  const [rows, setRows] = useState<Row[]>(() =>
-    initialItems.map((it) => ({ ...it, rowKey: it.itemId ?? nextKey() })),
-  );
+  const [rows, setRows] = useState<Row[]>(() => {
+    const loaded = initialItems.map((it) => ({ ...it, rowKey: it.itemId ?? nextKey() }));
+    // ?tool=add arrives with a blank row ready to type into.
+    return initialTool === "add"
+      ? [...loaded, blankRow(listing.pickupFrom || TODAY_ISO)]
+      : loaded;
+  });
   // Latest rows for event handlers (blur/toggle/bulk read this, not stale state).
   const rowsRef = useRef(rows);
   useEffect(() => {
@@ -216,6 +228,13 @@ export function ListingEditor({
   const [pasteText, setPasteText] = useState("");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<UpdateResult | null>(null);
+
+  // The open "Import & tools" panel (CSV import or photo matching).
+  const [tool, setTool] = useState<"csv" | "photos" | null>(
+    initialTool === "add" ? null : initialTool,
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rowsEndRef = useRef<HTMLDivElement>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const bulkPhotoRef = useRef<HTMLInputElement>(null);
@@ -354,30 +373,25 @@ export function ListingEditor({
     });
   };
 
-  const addBlankRow = () =>
-    setRows((rs) => [
-      ...rs,
-      {
-        rowKey: nextKey(),
-        itemId: null,
-        slug: null,
-        name: "",
-        description: "",
-        condition: null,
-        priceText: "",
-        originalPriceText: "",
-        boughtDate: null,
-        originalBoxIncluded: null,
-        availableFrom: defaultAvailableFrom,
-        category: null,
-        venmoHandle: "",
-        venmoLink: "",
-        upiId: "",
-        photoUrls: [],
-        listed: true,
-        sold: false,
-      },
-    ]);
+  const addBlankRow = () => {
+    setRows((rs) => [...rs, blankRow(defaultAvailableFrom)]);
+    // Bring the new row into view once it renders.
+    requestAnimationFrame(() =>
+      rowsEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
+    );
+  };
+
+  // ?tool= from the seller home: open that tool once, then drop the param so a
+  // reload doesn't repeat it.
+  const toolHandled = useRef(false);
+  useEffect(() => {
+    if (toolHandled.current || !initialTool) return;
+    toolHandled.current = true;
+    if (initialTool === "add") rowsEndRef.current?.scrollIntoView({ block: "end" });
+    else document.getElementById("import")?.scrollIntoView({ block: "start" });
+    window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Download the current items as a CSV the importer reads back cleanly, so the
   // seller can bulk-edit on a computer and re-upload. Exports all rows (listed
@@ -939,38 +953,39 @@ export function ListingEditor({
             </button>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={addBlankRow}
-              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
-            >
-              + Add item
-            </button>
-            <button
-              onClick={() => csvInputRef.current?.click()}
-              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
-            >
-              Import / re-import CSV
-            </button>
-            <button
-              onClick={downloadCsv}
-              disabled={rows.length === 0}
-              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Download CSV
-            </button>
-            <button
-              onClick={() => bulkPhotoRef.current?.click()}
-              className="rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
-            >
-              Bulk add photos
-            </button>
-            <button
-              onClick={() => setPasteMode((v) => !v)}
-              className="text-sm text-brand underline-offset-4 hover:underline"
-            >
-              {pasteMode ? "Hide paste box" : "…or paste rows"}
-            </button>
+          <>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-alt px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover"
+              >
+                Import &amp; tools
+                <ChevronDown className="size-4" aria-hidden />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} aria-hidden />
+                  <div
+                    role="menu"
+                    onClick={() => setMenuOpen(false)}
+                    onKeyDown={(e) => e.key === "Escape" && setMenuOpen(false)}
+                    className="absolute left-0 top-full z-20 mt-1.5 w-64 overflow-hidden rounded-xl border border-border-weave bg-white py-1 shadow-lg"
+                  >
+                    <MenuItem onSelect={() => { setTool("csv"); setPasteMode(false); }}>Import a spreadsheet</MenuItem>
+                    <MenuItem onSelect={() => { setTool("csv"); setPasteMode(true); }}>Paste rows</MenuItem>
+                    <MenuItem onSelect={() => setTool("photos")}>Match photos by filename</MenuItem>
+                    <MenuItem onSelect={addBlankRow}>Add an item by hand</MenuItem>
+                    <MenuItem onSelect={downloadCsv} disabled={rows.length === 0} divider>Download CSV</MenuItem>
+                    <MenuItem onSelect={downloadTemplate}>CSV template</MenuItem>
+                    <MenuItem onSelect={() => setAllListed(true)} disabled={rows.length === 0} divider>Show all to buyers</MenuItem>
+                    <MenuItem onSelect={() => setAllListed(false)} disabled={rows.length === 0}>Hide all from buyers</MenuItem>
+                  </div>
+                </>
+              )}
+            </div>
             <input
               ref={csvInputRef}
               type="file"
@@ -986,16 +1001,50 @@ export function ListingEditor({
               hidden
               onChange={(e) => e.target.files && onBulkPhotoFiles(e.target.files)}
             />
-            <p className="w-full px-1 text-xs leading-relaxed text-text-muted">
-              Tip: name photo files like the item (
-              <span className="font-mono">orange couch.jpg</span>) so{" "}
-              <span className="font-medium text-text-secondary">Bulk add photos</span>{" "}
-              auto-matches them — you can fix any mismatches after.
-            </p>
-            <div className="w-full">
-              <CsvHelp />
-            </div>
-          </div>
+
+            {tool === "csv" && (
+              <ToolPanel title="Import a spreadsheet" onClose={() => { setTool(null); setPasteMode(false); }}>
+                <p className="text-sm text-text-muted">
+                  A CSV from Sheets or Excel. Items with a matching name are updated;
+                  the rest are added, hidden from buyers until you show them.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => csvInputRef.current?.click()}
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                  >
+                    Choose a CSV file
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPasteMode((v) => !v)}
+                    className="text-sm text-brand underline-offset-4 hover:underline"
+                  >
+                    {pasteMode ? "Hide paste box" : "…or paste rows"}
+                  </button>
+                </div>
+                <CsvHelp />
+              </ToolPanel>
+            )}
+
+            {tool === "photos" && (
+              <ToolPanel title="Match photos by filename" onClose={() => setTool(null)}>
+                <p className="text-sm leading-relaxed text-text-muted">
+                  Name photo files like the item (
+                  <span className="font-mono">orange couch.jpg</span>) and they&apos;re
+                  matched automatically. You can fix any mismatches before attaching.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => bulkPhotoRef.current?.click()}
+                  className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                >
+                  Choose photos
+                </button>
+              </ToolPanel>
+            )}
+          </>
         )}
 
         {pasteMode && !parsed && (
@@ -1097,20 +1146,6 @@ export function ListingEditor({
             >
               View ↗
             </a>
-            <div className="inline-flex overflow-hidden rounded-lg border border-border-alt">
-              <button
-                onClick={() => setAllListed(true)}
-                className="px-3 py-1 text-xs font-medium text-text-secondary hover:bg-bg-hover"
-              >
-                List all
-              </button>
-              <button
-                onClick={() => setAllListed(false)}
-                className="border-l border-border-alt px-3 py-1 text-xs font-medium text-text-secondary hover:bg-bg-hover"
-              >
-                Unlist all
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -1136,6 +1171,7 @@ export function ListingEditor({
             onUndoSold={undoRowSold}
           />
         ))}
+        <div ref={rowsEndRef} />
         {rows.length === 0 && (
           <p className="rounded-xl border border-dashed border-border-alt bg-bg-card px-4 py-8 text-center text-sm text-text-muted">
             No items yet. Add one or import a CSV.
@@ -1161,7 +1197,85 @@ export function ListingEditor({
   );
 }
 
+// ---------- Import & tools menu + panel ----------
+
+function MenuItem({
+  onSelect,
+  disabled,
+  divider,
+  children,
+}: {
+  onSelect: () => void;
+  disabled?: boolean;
+  divider?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onSelect}
+      className={`block w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50 ${
+        divider ? "border-t border-border-weave" : ""
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToolPanel({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-border-weave bg-bg-card p-5">
+      <div className="flex items-center justify-between">
+        <p className="font-medium text-text-primary">{title}</p>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="text-text-muted hover:text-brand"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+      </div>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
 // ---------- Save status pill ----------
+
+function blankRow(availableFrom: string): Row {
+  return {
+    rowKey: nextKey(),
+    itemId: null,
+    slug: null,
+    name: "",
+    description: "",
+    condition: null,
+    priceText: "",
+    originalPriceText: "",
+    boughtDate: null,
+    originalBoxIncluded: null,
+    availableFrom,
+    category: null,
+    venmoHandle: "",
+    venmoLink: "",
+    upiId: "",
+    photoUrls: [],
+    listed: true,
+    sold: false,
+  };
+}
 
 function SavePill({ status }: { status: SaveStatus }) {
   const map: Record<SaveStatus, { label: string; cls: string }> = {

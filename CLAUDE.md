@@ -25,11 +25,13 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 **Sellers**
 - **`/sell`:** start a sale (name, pickup place, currency: $ or ₹). `/seller/add` 308-redirects here.
-- **`/sell/[id]`:** seller home. The camera loop: each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{page,camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
+- **`/sell/[id]`:** seller home. The public link (Copy, QR sheet, Share), tabs (Items here; Claims and Sale link to `/manage` for now), a "Drafts to finish" banner, and every published item with a status line (Available / Hidden / Claimed by X · N waiting / Sold) and All/Available/Hidden chips. Select mode hides or shows items in bulk with undo. "Add items" opens a sheet: the camera loop, or `/manage?tool=csv|photos|add`. A sale with nothing published shows the camera buttons inline. Files: `sell/[id]/{page,link-bar,seller-items}.tsx`, `lib/seller-home.ts`.
+- **Camera loop** (on the seller home): each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
 - **`/sell/[id]/drafts`:** draft queue. One card per draft: check the AI's fields, a "Looks like X?" brand chip, pick condition and price, publish. Files: `sell/[id]/drafts/{page,draft-queue}.tsx`.
 - Drafts (`draft = true`) 404 for buyers and stay out of the feed and QR sheet.
 - **`/manage/[id]`:** everything after that. The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
-  - Listed/Unlisted per item, plus bulk toggles. Imported items start out Unlisted.
+  - Listed/Unlisted per item. Imported items start out Unlisted.
+  - One "Import & tools" menu: import or paste a CSV, match photos by filename, add an item by hand, download CSV, CSV template, show/hide all. `?tool=csv|photos|add` opens a tool directly.
   - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
   - Release a claim, mark sold or undo, and see the waitlist with contacts.
   - Multiple photos per item (cover first), plus a bulk matcher that pairs photos to items by filename.
@@ -54,7 +56,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 - **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
 - **Unmerged branch** `claude/earnings-sold-claimed-items-649hts` shows total earned on `/manage`. Review it, then merge or drop it.
-- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–6 are live. Slice 7 (first publish: contact + Venmo/UPI) is next.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–7 are live. Slice 8 (seller home) is built on `slice-8-seller-home`; phase 2 (Claims/Sale tabs and the item sheet in `/sell`, then `/manage` redirects) comes after.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
 ## Stack

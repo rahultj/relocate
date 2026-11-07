@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–6 done (schema live, #17–#22). Slice 7 is next.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–7 done (schema live, #17–#23). Slice 8 is next.
 
 ## What v1 is
 
@@ -168,6 +168,45 @@ The "Start your move-out sale" screen from the canvas (`Main` / `IndiaStart` art
 
 ### 8. Seller home (`/sell/[id]`)
 - Link with Copy and Share (`navigator.share`), the QR sheet (existing `/r/[slug]/share`), a "N drafts to finish" prompt, the live list and "Add items". It links to `/manage/[id]` for claims and everything else.
+
+**Detailed plan** (design: canvas page "Seller home · slice 8", artboards `8a`–`8c`)
+- **Goal:** the seller home becomes the page a seller opens every day, and the bulk tools stop crowding it. Every button in today's `/manage` toolbar gets a new home:
+
+  | Today on `/manage` | Moves to |
+  |---|---|
+  | + Add item | Add items sheet › Type one in |
+  | Import / re-import CSV, …or paste rows | Add items sheet › Import a spreadsheet |
+  | Bulk add photos | Add items sheet › Match photos by filename |
+  | CSV template | Add items sheet › Get the spreadsheet template |
+  | Download CSV | `/manage` "Import & tools" menu now; the Sale tab in phase 2 |
+  | List all / Unlist all | Items › Select › Hide from buyers / Show to buyers |
+
+- **`/sell/[id]` (8a):**
+  - The header (title; place, date and currency).
+  - One link bar: the public link, Copy, a QR button (to `/r/[slug]/share`) and Share (`navigator.share`, else copy).
+  - Tabs: **Items · N** (this page), **Claims · N** and **Sale**. The last two link to `/manage/[id]` for now.
+  - A "Drafts to finish" banner to `/sell/[id]/drafts` replaces the draft thumbnail strip.
+  - The bookmark card stays until the first item is published, then shrinks to one line at the bottom.
+- **Items list:** every non-draft item, each with a thumbnail, name and price, plus a status line:
+  - Available, Hidden from buyers, "Claimed by <name> · N waiting", or "Sold".
+  - The status comes from `claims`, using the same rules as the `/manage` claims overview.
+  - Filter chips: All / Available / Hidden, showing only the ones that exist.
+  - Tapping an item opens `/manage/[id]` scrolled to that row (the item sheet is phase 2).
+- **Select (8c):** checkboxes, Select all, and **Hide from buyers** / **Show to buyers**. These go through the existing `setItemsListed` (one `UPDATE … WHERE IN`), with an undo toast.
+- **Add items (8b):** a floating button opens a bottom sheet:
+  - **Take photos** and **Choose from gallery** run the existing camera loop.
+  - **Import a spreadsheet**, **Match photos by filename** and **Type one in** open `/manage/[id]?tool=csv|photos|add` with that tool already open.
+  - **Get the spreadsheet template** downloads `buildTemplateCsv()` in the browser.
+- **`/manage` declutter:**
+  - The row of four buttons, the photo tip, the CSV help and List all / Unlist all become one **"Import & tools"** menu. It holds Import a spreadsheet, Paste rows, Match photos by filename, Add an item by hand, Download CSV, CSV template, Show all and Hide all.
+  - `?tool=` opens a tool directly. The tools themselves don't change.
+- **Phase 2 (not this slice):** the Claims and Sale tabs, the item sheet, and moving the CSV import and photo matcher into `/sell`. Then `/manage/[id]` redirects to `/sell/[id]`.
+- **No schema change.**
+- **Verify:**
+  - `pnpm test` (status line, filter counts), lint, build.
+  - A headless 375px run on a test sale: drafts banner, list statuses (claim one item from a second browser), filters, Select → Hide → Undo, the Add items sheet (each row lands in the right `/manage` tool), and `/manage`'s menu.
+  - A read-only look at `/r/swahul`'s seller home at 140 items for speed.
+  - Delete the test listings afterwards.
 
 ### 9. Gallery batch + grouping (last; can follow the first phone test)
 - Multi-select from the gallery. One AI call over the thumbnails returns groups plus "not sure" flags. Show the grouping screen (split, move, own item), then create the drafts.
