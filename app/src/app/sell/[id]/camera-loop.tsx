@@ -4,11 +4,13 @@
 // The phone's own camera does the shooting via a capture file input, so the
 // "camera screen" is the pair of buttons on the seller home. Each photo
 // becomes a draft item at once; the describe screen adds angles and a note,
-// and "Next item" reopens the camera in the same tap.
+// and "Next item" reopens the camera in the same tap. The seller home's Add
+// items sheet starts it through the ref handle; a sale with nothing published
+// yet also shows the camera buttons inline.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Camera, Images, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowRight, Camera, ChevronRight, Images, Loader2, Sparkles, X } from "lucide-react";
 import { uploadPhotos } from "@/lib/photo-upload";
 import { MAX_PHOTOS } from "@/lib/photos";
 import { setItemPhotos } from "@/app/seller/photo-actions";
@@ -42,12 +44,21 @@ const photoKey = () => `p${++nextKey}`;
 // Catch-up AI drafts on load run at most this many at once.
 const CATCH_UP = 5;
 
+export interface CameraLoopHandle {
+  takePhoto: () => void;
+  chooseFromGallery: () => void;
+}
+
 export function CameraLoop({
   listingId,
   initialDrafts,
+  inline,
+  ref,
 }: {
   listingId: string;
   initialDrafts: DraftSummary[];
+  inline: boolean; // show the camera buttons on the page, not only in the sheet
+  ref?: React.Ref<CameraLoopHandle>;
 }) {
   const [drafts, setDrafts] = useState(initialDrafts);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +77,12 @@ export function CameraLoop({
   const newGallery = useRef<HTMLInputElement>(null);
   const addCamera = useRef<HTMLInputElement>(null);
   const addGallery = useRef<HTMLInputElement>(null);
+
+  // Called from a tap in the sheet, so the file picker still counts as user-initiated.
+  useImperativeHandle(ref, () => ({
+    takePhoto: () => newCamera.current?.click(),
+    chooseFromGallery: () => newGallery.current?.click(),
+  }));
 
   const fail = (msg: string) => (err: unknown) =>
     setError(err instanceof Error && err.message ? `${msg} (${err.message})` : msg);
@@ -171,20 +188,6 @@ export function CameraLoop({
     id.catch((err) => {
       setOpen((o) => (o?.key === key ? null : o));
       fail("Couldn't save that photo. Try again.")(err);
-    });
-  }
-
-  function openDraft(d: DraftSummary) {
-    setError(null);
-    const key = ++nextKey;
-    itemIds.current.set(key, Promise.resolve(d.id));
-    setOpen({
-      key,
-      itemId: d.id,
-      name: d.name,
-      photos: d.photoUrls.map((u) => ({ key: photoKey(), preview: u, url: u })),
-      saved: d.photoUrls,
-      note: d.note,
     });
   }
 
@@ -295,7 +298,7 @@ export function CameraLoop({
     return (
       <>
       {inputs}
-      <div className="fixed inset-0 z-10 overflow-y-auto bg-bg-main">
+      <div className="fixed inset-0 z-40 overflow-y-auto bg-bg-main">
         <div className="mx-auto flex min-h-dvh max-w-md flex-col">
           <div className="relative h-[300px] shrink-0 bg-bg-hover">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -438,66 +441,47 @@ export function CameraLoop({
       {errorBanner && <div className="mt-5">{errorBanner}</div>}
 
       {drafts.length > 0 && (
-        <section className="mt-6">
-          <h2 className="text-[15px] font-bold text-text-primary">
-            {drafts.length} {drafts.length === 1 ? "draft" : "drafts"}
-          </h2>
-          <p className="mt-0.5 text-[13px] text-text-secondary">
-            Tap one to add angles or a note. Hidden from buyers until you finish them.
-          </p>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {drafts.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => openDraft(d)}
-                className="flex w-16 shrink-0 flex-col gap-1 text-left"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={d.photoUrls[0]}
-                  alt=""
-                  className="size-16 rounded-[10px] border border-border-weave object-cover"
-                />
-                <span className="truncate text-xs text-text-secondary">
-                  {drafting.has(d.id) ? "Drafting…" : d.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <div className="mt-6 flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={() => newCamera.current?.click()}
-          className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-brand-hover text-base font-medium text-white hover:bg-crimson"
-        >
-          <Camera className="size-5" aria-hidden />
-          {drafts.length ? "Take a photo of the next item" : "Take a photo of your first item"}
-        </button>
-        <button
-          type="button"
-          onClick={() => newGallery.current?.click()}
-          className="flex h-12 items-center justify-center gap-2 rounded-full border border-border-alt bg-white text-[15px] font-medium text-text-primary hover:bg-bg-hover"
-        >
-          <Images className="size-[18px]" aria-hidden />
-          Choose from gallery
-        </button>
-        <p className="text-center text-[13px] text-text-secondary">
-          One item per photo. You can add more angles after.
-        </p>
-      </div>
-
-      {drafts.length > 0 && (
         <Link
           href={`/sell/${listingId}/drafts`}
-          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-full bg-forest text-[15px] font-medium text-white"
+          className="mt-4 flex items-center gap-3 rounded-xl border border-insight-border bg-insight-bg px-3.5 py-3 text-text-primary"
         >
-          Finish {drafts.length} {drafts.length === 1 ? "draft" : "drafts"} and publish
-          <ArrowRight className="size-4" aria-hidden />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ochre text-sm font-bold">
+            {drafts.length}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-px">
+            <span className="text-[15px] font-bold">
+              {drafts.length === 1 ? "Draft to finish" : "Drafts to finish"}
+            </span>
+            <span className="text-[13px] text-text-secondary">
+              {drafting.size > 0 ? `AI is writing ${drafting.size}…` : "Pick a condition and price"}
+            </span>
+          </span>
+          <ChevronRight className="size-[18px] shrink-0 text-text-secondary" aria-hidden />
         </Link>
+      )}
+
+      {inline && (
+        <div className="mt-6 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => newCamera.current?.click()}
+            className="flex h-14 items-center justify-center gap-2.5 rounded-full bg-brand-hover text-base font-medium text-white hover:bg-crimson"
+          >
+            <Camera className="size-5" aria-hidden />
+            {drafts.length ? "Take a photo of the next item" : "Take a photo of your first item"}
+          </button>
+          <button
+            type="button"
+            onClick={() => newGallery.current?.click()}
+            className="flex h-12 items-center justify-center gap-2 rounded-full border border-border-alt bg-white text-[15px] font-medium text-text-primary hover:bg-bg-hover"
+          >
+            <Images className="size-[18px]" aria-hidden />
+            Choose from gallery
+          </button>
+          <p className="text-center text-[13px] text-text-secondary">
+            One item per photo. You can add more angles after.
+          </p>
+        </div>
       )}
     </>
   );
