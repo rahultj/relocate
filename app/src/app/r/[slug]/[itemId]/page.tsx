@@ -19,6 +19,7 @@ import { photoList } from "@/lib/photos";
 import { ContactButton } from "@/components/contact-button";
 import { PhotoCarousel } from "@/components/photo-carousel";
 import { ClaimButton } from "./claim-button";
+import { SellerBar } from "@/components/seller-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,7 @@ export default async function ItemDetailPage({
 
   return (
     <main className="min-h-screen bg-bg-main">
+      <SellerBar slug={listing.slug} itemId={item.id} />
       <div className="mx-auto max-w-xl">
         {/* Back to the listing */}
         <Link
