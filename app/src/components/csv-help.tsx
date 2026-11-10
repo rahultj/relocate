@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { buildTemplateCsv, SELLER_COLUMNS } from "@/lib/csv";
 
-function downloadTemplate() {
+export function downloadTemplate() {
   const blob = new Blob([buildTemplateCsv()], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

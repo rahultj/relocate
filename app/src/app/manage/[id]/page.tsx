@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items, claims, buyers } from "@/db/schema";
-import { ListingEditor, type EditorItem } from "./listing-editor";
+import { ListingEditor, type EditorItem, type EditorTool } from "./listing-editor";
 import { listingCurrency } from "@/lib/money";
 import { photoList } from "@/lib/photos";
 
@@ -22,12 +22,18 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const metadata = { title: "Manage listing · mustgo" };
 
+const TOOLS: readonly EditorTool[] = ["csv", "photos", "add"];
+
 export default async function ManagePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tool?: string | string[] }>;
 }) {
   const { id } = await params;
+  const { tool } = await searchParams;
+  const initialTool = TOOLS.find((t) => t === tool) ?? null;
   if (!UUID_RE.test(id)) notFound(); // avoid a DB error on a non-UUID path
 
   const [listing] = await db
@@ -161,6 +167,7 @@ export default async function ManagePage({
         }}
         initialItems={initialItems}
         claimSummary={claimSummary}
+        initialTool={initialTool}
       />
     </main>
   );
