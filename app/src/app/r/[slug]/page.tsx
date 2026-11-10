@@ -13,6 +13,7 @@ import { listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ContactButton } from "@/components/contact-button";
 import { ListingFeed, type FeedItem } from "./listing-feed";
+import { SellerBar } from "@/components/seller-bar";
 
 // Always reflect the latest publish — listings change as the seller adds items.
 export const dynamic = "force-dynamic";
@@ -94,6 +95,7 @@ export default async function ListingPage({
 
   return (
     <main className="min-h-screen bg-bg-main">
+      <SellerBar slug={listing.slug} />
       <div className="mx-auto flex min-h-screen max-w-xl flex-col pb-24">
         <header className="border-b border-border-weave px-6 pb-4 pt-9">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">

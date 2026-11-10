@@ -17,8 +17,10 @@
 // only save signal. See use-listing-save.ts for the engine.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ChevronDown, Mail, Phone, Trash2, X } from "lucide-react";
 import { CsvHelp, downloadTemplate } from "@/components/csv-help";
+import { RememberSale } from "@/components/seller-bar";
 import {
   parseCsv,
   mapColumns,
@@ -681,6 +683,13 @@ export function ListingEditor({
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
       {/* Header + save status */}
+      <RememberSale id={listing.id} slug={slug} />
+      <Link
+        href={`/sell/${listing.id}`}
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-brand"
+      >
+        <span aria-hidden>←</span> Seller home
+      </Link>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">
@@ -1139,13 +1148,14 @@ export function ListingEditor({
             {counts.unlisted > 0 && <> · {counts.unlisted} unlisted</>}
           </p>
           <div className="flex items-center gap-3">
-            <a
+            {/* Same tab, so Back returns here; the buyer pages show this
+                browser a "Back to your sale" bar too. */}
+            <Link
               href={`/r/${slug}`}
-              target="_blank"
               className="text-sm text-brand underline-offset-4 hover:underline"
             >
-              View ↗
-            </a>
+              View as buyer →
+            </Link>
           </div>
         </div>
       )}
@@ -1641,14 +1651,13 @@ function EditRow({
       {/* Item link (saved) or remove (new unsaved) */}
       <div className="sm:col-start-6 sm:row-start-1">
         {r.itemId ? (
-          <a
+          <Link
             href={`/r/${listingSlug}/${r.slug}`}
-            target="_blank"
             className="font-mono text-[10px] text-text-muted underline-offset-2 hover:text-brand hover:underline"
             title="Open item page"
           >
             /{r.slug}
-          </a>
+          </Link>
         ) : (
           <button
             onClick={() => onRemove(r.rowKey)}

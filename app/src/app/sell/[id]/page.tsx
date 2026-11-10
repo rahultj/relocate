@@ -13,6 +13,7 @@ import { listingCurrency, currencySymbol } from "@/lib/money";
 import { formatDate } from "@/lib/format";
 import { photoList } from "@/lib/photos";
 import { homeStatus, openClaimCount } from "@/lib/seller-home";
+import { RememberSale } from "@/components/seller-bar";
 import { LinkBar } from "./link-bar";
 import { SellerItems, type HomeItem } from "./seller-items";
 
@@ -88,6 +89,7 @@ export default async function SellerHomePage({
 
   return (
     <main className="min-h-screen bg-bg-main">
+      <RememberSale id={listing.id} slug={listing.slug} />
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-8 pt-12">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-hover">mustgo</p>
         <h1 className="mt-2 font-serif text-[32px] font-semibold leading-[1.05] text-text-primary">

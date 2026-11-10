@@ -1,6 +1,7 @@
 "use client";
 
 // The sale's public link with Copy, the QR sheet and Share (design "8a").
+// Tapping the link opens the sale as buyers see it, in this tab.
 // Share uses the phone's share sheet where there is one, else copies.
 
 import { useState } from "react";
@@ -35,9 +36,12 @@ export function LinkBar({ url, slug, title }: { url: string; slug: string; title
   return (
     <div className="mt-3 flex h-11 items-center gap-1.5 rounded-[10px] border border-border-weave bg-white pl-3.5 pr-1.5">
       <Link2 className="size-4 shrink-0 text-text-secondary" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+      <Link
+        href={`/r/${slug}`}
+        className="min-w-0 flex-1 truncate text-sm text-text-primary underline decoration-border-alt underline-offset-4"
+      >
         {url.replace(/^https?:\/\//, "")}
-      </span>
+      </Link>
       <button
         type="button"
         onClick={copy}
