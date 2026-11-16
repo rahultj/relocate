@@ -35,8 +35,8 @@ export function ClaimsView({
   const people = claimsByPerson(list);
   const byItem = claimsByItem(list);
   const sold = soldItems(list);
-  const money = (cents: number, count: number) =>
-    cents === 0 && count > 0 ? "Free" : formatMoney(cents, currency, { whole: true });
+  // Totals are money, so free items add up to "$0", never "Free".
+  const money = (cents: number) => formatMoney(cents, currency, { whole: true });
   const price = (it: HomeItem) =>
     it.isFree ? "Free" : it.priceCents != null ? formatMoney(it.priceCents, currency, { whole: true }) : "";
   const itemHref = (it: HomeItem) => `/sell/${listingId}?item=${it.id}`;
@@ -101,13 +101,13 @@ export function ClaimsView({
     <div className="flex flex-col">
       <div className="mt-3.5 grid grid-cols-2 gap-2.5">
         <div className="rounded-xl border border-border-weave bg-white px-3.5 py-3">
-          <div className="font-serif text-[26px] font-semibold text-ochre-dark">{money(totals.claimed.cents, totals.claimed.count)}</div>
+          <div className="font-serif text-[26px] font-semibold text-ochre-dark">{money(totals.claimed.cents)}</div>
           <div className="text-[13px] text-text-secondary">
             claimed, {totals.claimed.count} {totals.claimed.count === 1 ? "item" : "items"}
           </div>
         </div>
         <div className="rounded-xl border border-border-weave bg-white px-3.5 py-3">
-          <div className="font-serif text-[26px] font-semibold text-forest">{money(totals.sold.cents, totals.sold.count)}</div>
+          <div className="font-serif text-[26px] font-semibold text-forest">{money(totals.sold.cents)}</div>
           <div className="text-[13px] text-text-secondary">
             sold, {totals.sold.count} {totals.sold.count === 1 ? "item" : "items"}
           </div>
