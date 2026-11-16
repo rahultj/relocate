@@ -158,7 +158,7 @@ export function ClaimsView({
                   <ul className="mt-2.5 flex flex-col border-t border-border-weave">
                     {g.items.map((it) => (
                       <li key={it.id} className="flex flex-wrap items-center gap-2 border-b border-border-weave py-1.5 text-sm last:border-b-0">
-                        <Link href={itemHref(it)} className="min-w-0 flex-1 truncate py-2 text-text-primary">
+                        <Link href={itemHref(it)} className="min-w-0 flex-1 line-clamp-2 break-words py-2 text-text-primary">
                           {it.name} · {price(it)}
                         </Link>
                         {actions(it)}
@@ -190,7 +190,7 @@ export function ClaimsView({
               {byItem.map((it) => (
                 <li key={it.id} className="rounded-xl border border-border-weave bg-white p-3.5">
                   <div className="flex items-baseline gap-2">
-                    <Link href={itemHref(it)} className="min-w-0 flex-1 truncate text-base font-bold text-text-primary">
+                    <Link href={itemHref(it)} className="min-w-0 flex-1 line-clamp-2 break-words text-base font-bold text-text-primary">
                       {it.name}
                     </Link>
                     <span className="font-serif text-xl font-semibold text-text-primary">{price(it)}</span>
@@ -236,7 +236,7 @@ export function ClaimsView({
           <ul className="mt-1.5 flex flex-col rounded-xl border border-border-weave bg-white px-3.5">
             {sold.map((it) => (
               <li key={it.id} className="flex items-center gap-2 border-b border-border-weave py-1.5 text-sm last:border-b-0">
-                <Link href={itemHref(it)} className="min-w-0 flex-1 truncate py-2 text-text-secondary">
+                <Link href={itemHref(it)} className="min-w-0 flex-1 line-clamp-2 break-words py-2 text-text-secondary">
                   {it.name} · {price(it)}
                   {it.soldTo?.trim() ? ` · ${it.soldTo.trim()}` : ""}
                 </Link>
