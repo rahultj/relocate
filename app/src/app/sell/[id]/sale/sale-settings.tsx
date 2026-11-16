@@ -14,7 +14,7 @@ import { buildItemsCsv, type CsvExportItem } from "@/lib/csv";
 import { formatDate } from "@/lib/format";
 import type { Currency } from "@/lib/money";
 import type { SellerContact } from "@/lib/seller-contact";
-import { toVanitySlug } from "@/lib/slug";
+import { typingVanitySlug } from "@/lib/slug";
 import type { ActionResult } from "@/lib/with-listing";
 import { patchListingDetails, setListingSlug } from "@/app/manage/[id]/actions";
 import { setPaymentDefault } from "../actions";
@@ -335,7 +335,7 @@ export function SaleSettings(p: SaleSettingsProps) {
                 spellCheck={false}
                 autoCapitalize="off"
                 onChange={(e) => {
-                  setSlugInput(toVanitySlug(e.target.value));
+                  setSlugInput(typingVanitySlug(e.target.value));
                   setSlugMsg(null);
                 }}
               />

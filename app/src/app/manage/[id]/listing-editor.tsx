@@ -42,7 +42,7 @@ import { formatMoney, currencySymbol, type Currency } from "@/lib/money";
 import { isValidUpi } from "@/lib/upi";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
-import { toVanitySlug } from "@/lib/slug";
+import { typingVanitySlug } from "@/lib/slug";
 import type { SellerContact } from "@/lib/seller-contact";
 import { uploadPhotos } from "@/lib/photo-upload";
 import { setItemPhotos } from "@/app/seller/photo-actions";
@@ -861,7 +861,7 @@ export function ListingEditor({
                 className={`${inputCls} max-w-[16rem] flex-1`}
                 value={slugInput}
                 onChange={(e) => {
-                  setSlugInput(toVanitySlug(e.target.value));
+                  setSlugInput(typingVanitySlug(e.target.value));
                   setSlugMsg(null);
                 }}
                 placeholder="ghar-waapsi"

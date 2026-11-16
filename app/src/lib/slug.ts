@@ -30,6 +30,19 @@ export function toVanitySlug(raw: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * toVanitySlug for an input as the seller types: same rules, but a trailing
+ * hyphen survives so "ghar-" can become "ghar-waapsi". Saving still runs
+ * toVanitySlug, which trims it.
+ */
+export function typingVanitySlug(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+/, "");
+}
+
 /** Valid = 3–40 chars, a–z/0–9 words joined by single hyphens, not reserved. */
 export function isValidVanitySlug(s: string): boolean {
   if (s.length < 3 || s.length > 40) return false;
