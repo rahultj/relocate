@@ -171,9 +171,14 @@ export function ItemSheet({
     update({ claim: null, claimant: null }, false);
     run(() => releaseClaim(listingId, item.id), true);
   }
+  // Undo sold gives the buyer their claim back; the server sends it.
   function unsell() {
-    update({ sold: false, soldTo: null }, false);
-    run(() => undoSold(listingId, item.id), true);
+    update({ sold: false, soldTo: null, claimant: itemRef.current.soldTo }, false);
+    run(async () => {
+      const r = await undoSold(listingId, item.id);
+      if (r.ok) update({ claim: r.claim, claimant: r.claim?.name ?? null }, false);
+      return r;
+    }, true);
   }
   function setListed(listed: boolean) {
     update({ listed }, false);

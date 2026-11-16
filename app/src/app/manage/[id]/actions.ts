@@ -7,10 +7,10 @@
 // new/replaced rows upload to Storage before the transaction (same pattern as
 // publishListing).
 
-import { and, eq, ne, or, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ne, or, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { listings, items, claims } from "@/db/schema";
+import { listings, items, claims, buyers } from "@/db/schema";
 import { mintSlug, toVanitySlug, isValidVanitySlug } from "@/lib/slug";
 import { uploadItemPhoto } from "@/lib/storage";
 import {
@@ -337,30 +337,61 @@ export async function markSold(
   });
 }
 
-// Undo a "Sold": item back to listed, and any picked_up claim → cancelled.
-// Deliberately does not try to restore a prior 'claimed' state.
+// Undo a "Sold": the buyer it was sold to gets their claim back (item →
+// claimed). Sold without a claim, it goes back to listed. Returns the restored
+// claim so the seller screens can show it without a reload.
 export async function undoSold(
   listingId: string,
   itemId: string,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ claim: { name: string; contact: string; claimedAt: string } | null }>> {
   return withListing(listingId, async (listing) => {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(claims)
-        .set({ status: "cancelled" })
-        .where(and(eq(claims.itemId, itemId), eq(claims.status, "picked_up")));
+    return db.transaction(async (tx) => {
+      const [item] = await tx
+        .select({ id: items.id })
+        .from(items)
+        .where(
+          and(eq(items.id, itemId), eq(items.listingId, listing.id), eq(items.status, "picked_up")),
+        )
+        .limit(1);
+      if (!item) return { claim: null };
+
+      // Only one claim is picked_up per sale; if there were ever more, the
+      // latest one is restored.
+      const [sold] = await tx
+        .select({
+          id: claims.id,
+          name: buyers.name,
+          contact: buyers.contact,
+          claimedAt: claims.claimedAt,
+        })
+        .from(claims)
+        .innerJoin(buyers, eq(claims.buyerId, buyers.id))
+        .where(and(eq(claims.itemId, itemId), eq(claims.status, "picked_up")))
+        .orderBy(desc(claims.claimedAt))
+        .limit(1);
+
+      if (sold) {
+        await tx.update(claims).set({ status: "confirmed" }).where(eq(claims.id, sold.id));
+        await tx
+          .update(claims)
+          .set({ status: "cancelled" })
+          .where(and(eq(claims.itemId, itemId), eq(claims.status, "picked_up")));
+      }
       await tx
         .update(items)
-        .set({ status: "listed" })
-        .where(
-          and(
-            eq(items.id, itemId),
-            eq(items.listingId, listing.id),
-            eq(items.status, "picked_up"),
-          ),
-        );
+        .set({ status: sold ? "claimed" : "listed" })
+        .where(eq(items.id, itemId));
+
+      return {
+        claim: sold
+          ? {
+              name: sold.name ?? "",
+              contact: sold.contact ?? "",
+              claimedAt: sold.claimedAt.toISOString(),
+            }
+          : null,
+      };
     });
-    return {};
   });
 }
 

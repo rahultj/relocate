@@ -331,6 +331,9 @@ export function ListingEditor({
       );
       return false;
     }
+    // The buyer it was sold to gets their claim back.
+    const claim = res.claim;
+    setRows((rs) => rs.map((r) => (r.rowKey === key ? { ...r, claim } : r)));
     return true;
   };
 

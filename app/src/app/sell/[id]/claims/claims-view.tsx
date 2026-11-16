@@ -44,7 +44,13 @@ export function ClaimsView({
   const itemHref = (it: HomeItem) => `/sell/${listingId}?item=${it.id}`;
 
   // Optimistic change; put the item back as it was if the save fails.
-  async function act(it: HomeItem, patch: Partial<HomeItem>, call: () => Promise<ActionResult>) {
+  // after: fields from the server's answer to apply once it succeeds.
+  async function act<T extends object>(
+    it: HomeItem,
+    patch: Partial<HomeItem>,
+    call: () => Promise<ActionResult<T>>,
+    after?: (res: T) => Partial<HomeItem>,
+  ) {
     setError(null);
     setConfirming(null);
     setList((l) => l.map((x) => (x.id === it.id ? { ...x, ...patch } : x)));
@@ -52,13 +58,23 @@ export function ClaimsView({
     if (!res.ok) {
       setList((l) => l.map((x) => (x.id === it.id ? it : x)));
       setError("Couldn't save that. Check your connection and try again.");
-    } else router.refresh(); // the tab counts come from the server
+    } else {
+      if (after) setList((l) => l.map((x) => (x.id === it.id ? { ...x, ...after(res) } : x)));
+      router.refresh(); // the tab counts come from the server
+    }
   }
   const sell = (it: HomeItem) =>
     act(it, { sold: true, soldTo: it.claim?.name ?? null, claim: null, claimant: null }, () => markSold(listingId, it.id));
   const release = (it: HomeItem) =>
     act(it, { claim: null, claimant: null }, () => releaseClaim(listingId, it.id));
-  const unsell = (it: HomeItem) => act(it, { sold: false, soldTo: null }, () => undoSold(listingId, it.id));
+  // Undo sold gives the buyer their claim back; the server sends it.
+  const unsell = (it: HomeItem) =>
+    act(
+      it,
+      { sold: false, soldTo: null, claimant: it.soldTo },
+      () => undoSold(listingId, it.id),
+      (res) => ({ claim: res.claim, claimant: res.claim?.name ?? null }),
+    );
 
   function actions(it: HomeItem) {
     if (confirming === it.id) {
