@@ -19,39 +19,15 @@ import {
   matchesFilter,
   statusLine,
   type HomeFilter,
+  type HomeItem,
   type HomeStatus,
 } from "@/lib/seller-home";
-import type { ItemCondition } from "@/lib/format";
+
+export type { HomeItem };
 import { setItemsListed } from "@/app/manage/[id]/actions";
 import { CameraLoop, type CameraLoopHandle, type DraftSummary } from "./camera-loop";
 import { ItemSheet } from "./item-sheet";
 
-export interface HomeItem {
-  id: string;
-  slug: string;
-  name: string;
-  photoUrl: string | null; // cover, mirrors photoUrls[0]
-  photoUrls: string[];
-  priceCents: number | null;
-  isFree: boolean;
-  listed: boolean;
-  sold: boolean;
-  claimant: string | null; // confirmed claimant's name, mirrors claim?.name
-  waiting: number; // mirrors waitlist.length
-  description: string | null;
-  condition: ItemCondition | null;
-  category: string | null;
-  boughtDate: string | null;
-  originalPriceCents: number | null;
-  originalBoxIncluded: boolean | null;
-  availableFrom: string | null;
-  venmoHandle: string | null;
-  venmoLink: string | null;
-  upiId: string | null;
-  claim: { name: string; contact: string; claimedAt: string } | null;
-  soldTo: string | null;
-  waitlist: { name: string; contact: string }[];
-}
 
 function itemParam(): string | null {
   return new URLSearchParams(window.location.search).get("item");
@@ -69,6 +45,7 @@ export function SellerItems({
   slug: string;
   currency: Currency;
   payDefaults: { venmo: string | null; upi: string | null };
+  pickupFrom: string | null; // the sale's default "available from" for new items
   initialItems: HomeItem[];
   initialDrafts: DraftSummary[];
 }) {

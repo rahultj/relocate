@@ -687,7 +687,7 @@ function OriginalPrice({
   );
 }
 
-function ContactLink({ contact }: { contact: string }) {
+export function ContactLink({ contact }: { contact: string }) {
   if (!contact) return <span>No contact</span>;
   const href = contactHref(contact);
   return href ? (
