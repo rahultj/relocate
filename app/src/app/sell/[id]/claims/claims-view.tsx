@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/format";
 import { formatMoney, type Currency } from "@/lib/money";
 import type { HomeItem } from "@/lib/seller-home";
@@ -26,6 +27,7 @@ export function ClaimsView({
   currency: Currency;
   initialItems: HomeItem[];
 }) {
+  const router = useRouter();
   const [list, setList] = useState(initialItems);
   const [view, setView] = useState<View>("person");
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function ClaimsView({
     if (!res.ok) {
       setList((l) => l.map((x) => (x.id === it.id ? it : x)));
       setError("Couldn't save that. Check your connection and try again.");
-    }
+    } else router.refresh(); // the tab counts come from the server
   }
   const sell = (it: HomeItem) =>
     act(it, { sold: true, soldTo: it.claim?.name ?? null, claim: null, claimant: null }, () => markSold(listingId, it.id));

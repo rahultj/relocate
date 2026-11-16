@@ -8,6 +8,7 @@
 // can't land after a newer one.
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/category";
 import { contactHref, formatContact } from "@/lib/contact";
@@ -86,6 +87,7 @@ export function ItemSheet({
   const [item, setItem] = useState(initial);
   const itemRef = useRef(initial);
   const [save, setSave] = useState<SaveState>("idle");
+  const router = useRouter();
   const chain = useRef<Promise<void>>(Promise.resolve());
   const [open, setOpen] = useState<"about" | "pay" | null>(null);
   const [editingPhotos, setEditingPhotos] = useState(false);
@@ -104,13 +106,15 @@ export function ItemSheet({
   }, []);
 
   // Saves run one after another; the status pill shows the latest outcome.
-  function run(fn: () => Promise<ActionResult>) {
+  // refresh: the change moves the tab counts (claims), so re-read the shell.
+  function run(fn: () => Promise<ActionResult>, refresh = false) {
     setSave("saving");
     chain.current = chain.current
       .then(fn)
       .then((r) => {
         if (!r.ok) throw new Error(r.error);
         setSave("saved");
+        if (refresh) router.refresh();
       })
       .catch(() => setSave("error"));
   }
@@ -159,16 +163,16 @@ export function ItemSheet({
   function sell() {
     const c = itemRef.current.claim;
     update({ sold: true, soldTo: c?.name ?? null, claim: null, claimant: null }, false);
-    run(() => markSold(listingId, item.id));
+    run(() => markSold(listingId, item.id), true);
   }
   function release() {
     setConfirmRelease(false);
     update({ claim: null, claimant: null }, false);
-    run(() => releaseClaim(listingId, item.id));
+    run(() => releaseClaim(listingId, item.id), true);
   }
   function unsell() {
     update({ sold: false, soldTo: null }, false);
-    run(() => undoSold(listingId, item.id));
+    run(() => undoSold(listingId, item.id), true);
   }
   function setListed(listed: boolean) {
     update({ listed }, false);
