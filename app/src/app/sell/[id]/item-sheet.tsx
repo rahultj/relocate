@@ -8,6 +8,7 @@
 // can't land after a newer one.
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/category";
@@ -613,14 +614,13 @@ export function ItemSheet({
           </label>
         </div>
 
-        <a
+        {/* Same tab, client-side, so an autosave still in flight finishes; Back reopens this sheet. */}
+        <Link
           href={`/r/${slug}/${item.slug}`}
-          target="_blank"
-          rel="noreferrer"
           className="mt-5 self-center text-sm text-text-secondary underline underline-offset-2"
         >
           View as a buyer
-        </a>
+        </Link>
       </div>
     </div>
   );
