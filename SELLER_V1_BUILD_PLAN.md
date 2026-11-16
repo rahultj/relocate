@@ -1,6 +1,6 @@
 # Seller v1: build plan
 
-The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–7 done (schema live, #17–#23). Slice 8 is next.
+The new photo-first seller flow, built in slices I can test on my phone. Design: the "mustgo seller flow" canvas (https://claude.ai/artifact/MYnpD3ftM88552ZDMfvZCd). Jobs and decisions: `SELLER_JTBD.md`. **Status:** slices 0–8 done (schema live, #17–#24). Phase 2 is next.
 
 ## What v1 is
 

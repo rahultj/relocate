@@ -56,7 +56,8 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 - **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
 - **Unmerged branch** `claude/earnings-sold-claimed-items-649hts` shows total earned on `/manage`. Review it, then merge or drop it.
-- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–7 are live. Slice 8 (seller home) is built on `slice-8-seller-home`; phase 2 (Claims/Sale tabs and the item sheet in `/sell`, then `/manage` redirects) comes after.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 are live. Phase 2 (Claims/Sale tabs and the item sheet in `/sell`, then `/manage` redirects) is next.
+- **Getting back to your sale.** Once a seller leaves `/sell/[id]`, nothing leads back to it: the buyer page has no seller link and the browser doesn't remember the sale. Idea: remember owned sales in localStorage, show a "This is your sale · Manage →" bar on the buyer page for that browser only, and list "Your sales" on `/sell`. Cross-device recovery stays with the `manage_token` job.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
 ## Stack
