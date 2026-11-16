@@ -1,9 +1,11 @@
 "use client";
 
-// Seller home items (designs "8a" Items, "8b" Add items sheet, "8c" Select).
-// The live list with status lines and filter chips, Select mode for hiding
-// and showing items in bulk, and the Add items sheet. The sheet starts the
-// camera loop; the other ways to add open the matching /manage tool.
+// Seller home items (designs "8a" Items, "8b" Add items sheet, "8c" Select,
+// "B · Tap an item"). The live list with status lines and filter chips, Select
+// mode for hiding and showing items in bulk, the item sheet (tap an item), and
+// the Add items sheet. The Add sheet starts the camera loop; the other ways to
+// add open the matching /manage tool. The open item is in the address as
+// ?item=<id>, so the phone's back button closes it and a reload reopens it.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -19,29 +21,54 @@ import {
   type HomeFilter,
   type HomeStatus,
 } from "@/lib/seller-home";
+import type { ItemCondition } from "@/lib/format";
 import { setItemsListed } from "@/app/manage/[id]/actions";
 import { CameraLoop, type CameraLoopHandle, type DraftSummary } from "./camera-loop";
+import { ItemSheet } from "./item-sheet";
 
 export interface HomeItem {
   id: string;
+  slug: string;
   name: string;
-  photoUrl: string | null;
+  photoUrl: string | null; // cover, mirrors photoUrls[0]
+  photoUrls: string[];
   priceCents: number | null;
   isFree: boolean;
   listed: boolean;
   sold: boolean;
-  claimant: string | null;
-  waiting: number;
+  claimant: string | null; // confirmed claimant's name, mirrors claim?.name
+  waiting: number; // mirrors waitlist.length
+  description: string | null;
+  condition: ItemCondition | null;
+  category: string | null;
+  boughtDate: string | null;
+  originalPriceCents: number | null;
+  originalBoxIncluded: boolean | null;
+  availableFrom: string | null;
+  venmoHandle: string | null;
+  venmoLink: string | null;
+  upiId: string | null;
+  claim: { name: string; contact: string; claimedAt: string } | null;
+  soldTo: string | null;
+  waitlist: { name: string; contact: string }[];
+}
+
+function itemParam(): string | null {
+  return new URLSearchParams(window.location.search).get("item");
 }
 
 export function SellerItems({
   listingId,
+  slug,
   currency,
+  payDefaults,
   initialItems,
   initialDrafts,
 }: {
   listingId: string;
+  slug: string;
   currency: Currency;
+  payDefaults: { venmo: string | null; upi: string | null };
   initialItems: HomeItem[];
   initialDrafts: DraftSummary[];
 }) {
@@ -54,6 +81,39 @@ export function SellerItems({
   const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loop = useRef<CameraLoopHandle>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const pushed = useRef(false); // did we add the ?item= history entry?
+  const openItem = openId ? list.find((it) => it.id === openId) ?? null : null;
+
+  // The address holds the open item: read it on load and on back/forward.
+  useEffect(() => {
+    const sync = () => {
+      pushed.current = false;
+      setOpenId(itemParam());
+    };
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+
+  function openSheet(id: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("item", id);
+    window.history.pushState(null, "", url);
+    pushed.current = true;
+    setOpenId(id);
+  }
+  function closeSheet() {
+    // Opened from the list: going back pops the entry we pushed. Opened from a
+    // link or a reload: there's nothing to pop, so drop the param in place.
+    if (pushed.current) window.history.back();
+    else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("item");
+      window.history.replaceState(null, "", url);
+      setOpenId(null);
+    }
+  }
 
   const rows = useMemo(() => list.map((it) => ({ it, status: homeStatus(it) })), [list]);
   const counts = filterCounts(rows.map((r) => r.status));
@@ -212,12 +272,13 @@ export function SellerItems({
                       {body}
                     </label>
                   ) : (
-                    <Link
-                      href={`/manage/${listingId}#item-${it.id}`}
-                      className="flex items-center gap-3 py-[11px] text-text-primary"
+                    <button
+                      type="button"
+                      onClick={() => openSheet(it.id)}
+                      className="flex w-full items-center gap-3 py-[11px] text-left text-text-primary"
                     >
                       {body}
-                    </Link>
+                    </button>
                   )}
                 </li>
               );
@@ -269,6 +330,27 @@ export function SellerItems({
           <Plus className="size-5" aria-hidden />
           Add items
         </button>
+      )}
+
+      {openItem && (
+        <ItemSheet
+          key={openItem.id}
+          listingId={listingId}
+          slug={slug}
+          currency={currency}
+          payDefaults={payDefaults}
+          item={openItem}
+          onChange={(next) =>
+            setList((l) =>
+              l.map((it) =>
+                it.id === next.id
+                  ? { ...next, claimant: next.claim?.name ?? null, waiting: next.waitlist.length }
+                  : it,
+              ),
+            )
+          }
+          onClose={closeSheet}
+        />
       )}
 
       {sheetOpen && (

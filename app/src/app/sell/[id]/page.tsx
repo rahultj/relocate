@@ -1,7 +1,8 @@
 // Seller home — /sell/[id] (design: "8a · Seller home"). The one link a seller
 // keeps; the listing UUID is the capability, as on /manage/[id]. The sale's
-// link, the drafts banner, the live item list and Add items. Claims and the
-// sale's settings still live on /manage/[id] (the Claims and Sale tabs).
+// link, the drafts banner, the live item list (tap one to edit it in a sheet)
+// and Add items. Claims and the sale's settings still live on /manage/[id]
+// (the Claims and Sale tabs).
 
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -45,7 +46,13 @@ export default async function SellerHomePage({
       .orderBy(desc(items.createdAt)),
     // Confirmed claims and waitlist entries, for each item's status line.
     db
-      .select({ itemId: claims.itemId, status: claims.status, name: buyers.name })
+      .select({
+        itemId: claims.itemId,
+        status: claims.status,
+        name: buyers.name,
+        contact: buyers.contact,
+        claimedAt: claims.claimedAt,
+      })
       .from(claims)
       .innerJoin(buyers, eq(claims.buyerId, buyers.id))
       .innerJoin(items, eq(claims.itemId, items.id))
@@ -54,27 +61,53 @@ export default async function SellerHomePage({
     headers(),
   ]);
 
-  const claimant = new Map<string, string>();
-  const waiting = new Map<string, number>();
+  // Claims, sales and waitlists per item, for the status line and the item sheet.
+  const claimOf = new Map<string, HomeItem["claim"]>();
+  const soldTo = new Map<string, string>();
+  const waitlist = new Map<string, { name: string; contact: string }[]>();
   for (const c of claimRows) {
-    if (c.status === "confirmed") claimant.set(c.itemId, c.name ?? "");
-    else if (c.status === "waitlist") waiting.set(c.itemId, (waiting.get(c.itemId) ?? 0) + 1);
+    const who = { name: c.name ?? "", contact: c.contact ?? "" };
+    if (c.status === "confirmed") {
+      const at = c.claimedAt instanceof Date ? c.claimedAt.toISOString() : String(c.claimedAt ?? "");
+      claimOf.set(c.itemId, { ...who, claimedAt: at });
+    } else if (c.status === "picked_up") soldTo.set(c.itemId, who.name);
+    else if (c.status === "waitlist") waitlist.set(c.itemId, [...(waitlist.get(c.itemId) ?? []), who]);
   }
 
   const drafts = rows.filter((r) => r.draft).reverse(); // oldest first, as shot
   const published: HomeItem[] = rows
     .filter((r) => !r.draft)
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      photoUrl: photoList(r)[0] ?? null,
-      priceCents: r.priceCents,
-      isFree: r.isFree,
-      listed: !r.unlisted,
-      sold: r.status === "picked_up",
-      claimant: claimant.get(r.id) ?? null,
-      waiting: waiting.get(r.id) ?? 0,
-    }));
+    .map((r) => {
+      const claim = claimOf.get(r.id) ?? null;
+      const waits = waitlist.get(r.id) ?? [];
+      const photos = photoList(r);
+      return {
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        photoUrl: photos[0] ?? null,
+        photoUrls: photos,
+        priceCents: r.priceCents,
+        isFree: r.isFree,
+        listed: !r.unlisted,
+        sold: r.status === "picked_up",
+        claimant: claim?.name ?? null,
+        waiting: waits.length,
+        description: r.description,
+        condition: r.condition,
+        category: r.category,
+        boughtDate: r.boughtDate,
+        originalPriceCents: r.originalPriceCents,
+        originalBoxIncluded: r.originalBoxIncluded,
+        availableFrom: r.availableFrom,
+        venmoHandle: r.venmoHandle,
+        venmoLink: r.venmoLink,
+        upiId: r.upiId,
+        claim,
+        soldTo: soldTo.get(r.id) ?? null,
+        waitlist: waits,
+      };
+    });
   const claimsCount = openClaimCount(published.map(homeStatus));
 
   const host = h.get("host") ?? "localhost:3000";
@@ -130,7 +163,9 @@ export default async function SellerHomePage({
 
         <SellerItems
           listingId={listing.id}
+          slug={listing.slug}
           currency={currency}
+          payDefaults={{ venmo: listing.defaultVenmoHandle, upi: listing.defaultUpiId }}
           initialItems={published}
           initialDrafts={drafts.map((d) => ({
             id: d.id,
