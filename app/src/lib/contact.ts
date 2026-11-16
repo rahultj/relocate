@@ -47,3 +47,20 @@ export function contactHref(raw: string): string | null {
   if (!n) return null;
   return n.type === "email" ? `mailto:${n.contact}` : `sms:${n.contact}`;
 }
+
+/**
+ * Display form of a stored contact. US phone numbers (10 digits, or 11 with a
+ * leading 1 / +1) read as "202-555-0147"; emails and other numbers pass through.
+ */
+export function formatContact(raw: string): string {
+  const n = normalizeContact(raw);
+  if (!n || n.type !== "phone") return raw;
+  const d = n.contact.replace(/^\+/, "");
+  const us =
+    d.length === 10 && !n.contact.startsWith("+")
+      ? d
+      : d.length === 11 && d.startsWith("1")
+        ? d.slice(1)
+        : null;
+  return us ? `${us.slice(0, 3)}-${us.slice(3, 6)}-${us.slice(6)}` : raw;
+}

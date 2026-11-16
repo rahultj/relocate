@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeContact, contactHref } from "./contact";
+import { normalizeContact, contactHref, formatContact } from "./contact";
 
 describe("contactHref", () => {
   it("builds an sms: link for phones (SMS is the medium)", () => {
@@ -60,5 +60,20 @@ describe("normalizeContact", () => {
     expect(normalizeContact("")).toBeNull();
     expect(normalizeContact("   ")).toBeNull();
     expect(normalizeContact("???")).toBeNull();
+  });
+});
+
+describe("formatContact", () => {
+  it("formats 10-digit US numbers", () => {
+    expect(formatContact("2025550147")).toBe("202-555-0147");
+  });
+  it("formats US numbers with a 1 or +1 prefix", () => {
+    expect(formatContact("12025550147")).toBe("202-555-0147");
+    expect(formatContact("+12025550147")).toBe("202-555-0147");
+  });
+  it("leaves emails and non-US numbers alone", () => {
+    expect(formatContact("a@b.com")).toBe("a@b.com");
+    expect(formatContact("+919876543210")).toBe("+919876543210");
+    expect(formatContact("5550147")).toBe("5550147");
   });
 });

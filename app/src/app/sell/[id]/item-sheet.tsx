@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/category";
-import { contactHref } from "@/lib/contact";
+import { contactHref, formatContact } from "@/lib/contact";
 import { CONDITION_LABELS, formatDate, parsePriceToCents, type ItemCondition } from "@/lib/format";
 import { currencySymbol, formatMoney, type Currency } from "@/lib/money";
 import { MAX_PHOTOS } from "@/lib/photos";
@@ -692,7 +692,7 @@ export function ContactLink({ contact }: { contact: string }) {
   const href = contactHref(contact);
   return href ? (
     <a href={href} className="text-brand-hover underline-offset-2 hover:underline">
-      {contact}
+      {formatContact(contact)}
     </a>
   ) : (
     <span>{contact}</span>
