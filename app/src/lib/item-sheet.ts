@@ -4,16 +4,22 @@
 // imports so they unit-test.
 
 import type { ItemCondition } from "./format";
+import { QUEUE_CONDITIONS } from "./draft-queue";
 import { normalizeVenmo } from "./venmo";
 import { normalizeUpi } from "./upi";
 import type { Currency } from "./money";
 
-/** The sheet's condition buttons, as drawn. */
-export const SHEET_CONDITIONS = ["like_new", "good", "fair", "worn"] as const satisfies readonly ItemCondition[];
+/** The sheet offers the draft queue's conditions, so both screens match. */
+export const SHEET_CONDITIONS = QUEUE_CONDITIONS;
 
-/** "New" only shows on an item that already has it (CSV imports), so it isn't lost. */
+/**
+ * "New" or "Worn" only shows on an item that already has it (CSV imports), so
+ * the value isn't lost; it sits in its natural place in the scale.
+ */
 export function sheetConditions(current: ItemCondition | null): ItemCondition[] {
-  return current === "new" ? ["new", ...SHEET_CONDITIONS] : [...SHEET_CONDITIONS];
+  if (current === "new") return ["new", ...SHEET_CONDITIONS];
+  if (current === "worn") return [...SHEET_CONDITIONS, "worn"];
+  return [...SHEET_CONDITIONS];
 }
 
 /** The Venmo username an item pays to, from its handle or its venmo.com link. */

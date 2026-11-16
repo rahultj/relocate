@@ -10,12 +10,13 @@ import {
 } from "./item-sheet";
 
 describe("sheetConditions", () => {
-  it("shows the four drawn conditions", () => {
-    expect(sheetConditions("good")).toEqual(["like_new", "good", "fair", "worn"]);
-    expect(sheetConditions(null)).toEqual(["like_new", "good", "fair", "worn"]);
+  it("shows the draft queue's three conditions", () => {
+    expect(sheetConditions("good")).toEqual(["like_new", "good", "fair"]);
+    expect(sheetConditions(null)).toEqual(["like_new", "good", "fair"]);
   });
-  it("adds New only when the item already has it", () => {
-    expect(sheetConditions("new")).toEqual(["new", "like_new", "good", "fair", "worn"]);
+  it("adds New or Worn only when the item already has it", () => {
+    expect(sheetConditions("new")).toEqual(["new", "like_new", "good", "fair"]);
+    expect(sheetConditions("worn")).toEqual(["like_new", "good", "fair", "worn"]);
   });
 });
 
