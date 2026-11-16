@@ -382,7 +382,7 @@ export function SaleSettings(p: SaleSettingsProps) {
       </Card>
 
       <p className="mt-6 text-[13px] leading-[1.45] text-text-secondary">
-        This page is your private seller link. Bookmark it, it&apos;s how you get back.
+        Bookmark this page. It&apos;s the key to your sale.
       </p>
     </div>
   );
