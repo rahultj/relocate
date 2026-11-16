@@ -191,7 +191,7 @@ export function ItemSheet({
         role="dialog"
         aria-modal="true"
         aria-label={item.name || "Item"}
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[92dvh] max-w-md flex-col overflow-y-auto rounded-t-[20px] bg-bg-main px-5 pb-8 pt-2.5"
+        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[92dvh] max-w-md flex-col overflow-y-auto rounded-t-[20px] [&>*]:shrink-0 bg-bg-main px-5 pb-8 pt-2.5"
       >
         <div className="h-1 w-10 shrink-0 self-center rounded-full bg-border-alt" aria-hidden />
 
