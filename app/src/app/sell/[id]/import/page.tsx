@@ -7,6 +7,9 @@ import { ImportTool } from "./import-tool";
 
 export const dynamic = "force-dynamic";
 
+// The import runs updateListing, which can touch many rows; same headroom as /manage.
+export const maxDuration = 60;
+
 export const metadata = { title: "Import a spreadsheet · mustgo" };
 
 export default async function ImportPage({

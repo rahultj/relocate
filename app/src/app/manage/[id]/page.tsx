@@ -3,7 +3,7 @@
 // Access is the listing's UUID, which is never exposed on buyer surfaces — it
 // acts as a secret capability (no login in M1). An unknown/garbage id 404s.
 
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items, claims, buyers } from "@/db/schema";
@@ -24,6 +24,14 @@ export const metadata = { title: "Manage listing · mustgo" };
 
 const TOOLS: readonly EditorTool[] = ["csv", "photos", "add"];
 
+// Phase 2 of seller v1: everything on this page now also lives on /sell/[id]
+// (Items, Claims and Sale tabs, plus /import and /photos). Flip this to true
+// once the seller pages are tested to send old /manage links there for good
+// (308). Until then /manage stays as the fallback.
+const REDIRECT_TO_SELL = false;
+
+const TOOL_TARGET: Record<EditorTool, string> = { csv: "/import", photos: "/photos", add: "" };
+
 export default async function ManagePage({
   params,
   searchParams,
@@ -35,6 +43,7 @@ export default async function ManagePage({
   const { tool } = await searchParams;
   const initialTool = TOOLS.find((t) => t === tool) ?? null;
   if (!UUID_RE.test(id)) notFound(); // avoid a DB error on a non-UUID path
+  if (REDIRECT_TO_SELL) permanentRedirect(`/sell/${id}${initialTool ? TOOL_TARGET[initialTool] : ""}`);
 
   const [listing] = await db
     .select()

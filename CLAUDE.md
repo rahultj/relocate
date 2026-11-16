@@ -25,11 +25,15 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 **Sellers**
 - **`/sell`:** start a sale (name, pickup place, currency: $ or ₹). `/seller/add` 308-redirects here.
-- **`/sell/[id]`:** seller home. The public link (Copy, QR sheet, Share), tabs (Items here; Claims and Sale link to `/manage` for now), a "Drafts to finish" banner, and every published item with a status line (Available / Hidden / Claimed by X · N waiting / Sold) and All/Available/Hidden chips. Select mode hides or shows items in bulk with undo. "Add items" opens a sheet: the camera loop, or `/manage?tool=csv|photos|add`. A sale with nothing published shows the camera buttons inline. Files: `sell/[id]/{page,link-bar,seller-items}.tsx`, `lib/seller-home.ts`.
+- **`/sell/[id]`:** seller home, the seller's one link. Shared frame (`sell/[id]/seller-shell.tsx`, data from `lib/seller-data.ts`): the public link (Copy, QR sheet, Share) and three tabs.
+  - **Items** (`sell/[id]/{page,seller-items}.tsx`): a "Drafts to finish" banner, every published item with a status line (Available / Hidden / Claimed by X · N waiting / Sold) and All/Available/Hidden chips, Select mode to hide or show in bulk with undo. Tapping an item opens the **item sheet** (`item-sheet.tsx`, `lib/item-sheet.ts`): photos with an Edit mode (remove with undo, make cover), the claim panel (mark sold, release with a confirm, undo sold, waitlist), price, condition, name/description/category and details, Paid to, Shown to buyers. The open item is `?item=<id>`. "Add items" opens a sheet: the camera loop, Type one in, or the import and photo tools. A sale with nothing published shows the camera buttons inline.
+  - **Claims** (`sell/[id]/claims/`, `lib/seller-claims.ts`): claimed and sold totals, open claims by person or by item with Sold / Release, waitlists, sold items with Undo.
+  - **Sale** (`sell/[id]/sale/`): pickup, dates, currency, name and intro, contacts, the sale-wide Venmo/UPI, rename the public link, QR sheet, CSV export/template, and links to the tools.
+  - **Tools:** `/sell/[id]/import` (CSV or pasted rows) and `/sell/[id]/photos` (match photos by filename), logic in `lib/sell-import.ts`.
 - **Camera loop** (on the seller home): each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
 - **`/sell/[id]/drafts`:** draft queue. One card per draft: check the AI's fields, a "Looks like X?" brand chip, pick condition and price, publish. Files: `sell/[id]/drafts/{page,draft-queue}.tsx`.
 - Drafts (`draft = true`) 404 for buyers and stay out of the feed and QR sheet.
-- **`/manage/[id]`:** everything after that. The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
+- **`/manage/[id]`:** the old seller editor, kept as a fallback while the `/sell` tabs are tested. `REDIRECT_TO_SELL` in `manage/[id]/page.tsx` turns on a 308 to `/sell/[id]` (off for now). Everything it does: The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
   - Listed/Unlisted per item. Imported items start out Unlisted.
   - One "Import & tools" menu: import or paste a CSV, match photos by filename, add an item by hand, download CSV, CSV template, show/hide all. `?tool=csv|photos|add` opens a tool directly.
   - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
@@ -55,8 +59,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 ## What's next
 
 - **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
-- **Unmerged branch** `claude/earnings-sold-claimed-items-649hts` shows total earned on `/manage`. Review it, then merge or drop it.
-- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 are live. Phase 2 (Claims/Sale tabs and the item sheet in `/sell`, then `/manage` redirects) is next.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 are live. Phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`) is built on `claude/loving-dijkstra-oyu7di`, waiting on a phone test. After it passes: flip `REDIRECT_TO_SELL`, then delete the earnings branch (the Claims tab's totals replace it) and, later, `/manage`'s editor code.
 - **Getting back to your sale.** Once a seller leaves `/sell/[id]`, nothing leads back to it: the buyer page has no seller link and the browser doesn't remember the sale. Idea: remember owned sales in localStorage, show a "This is your sale · Manage →" bar on the buyer page for that browser only, and list "Your sales" on `/sell`. Cross-device recovery stays with the `manage_token` job.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
