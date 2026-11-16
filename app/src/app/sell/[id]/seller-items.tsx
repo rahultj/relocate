@@ -3,15 +3,18 @@
 // Seller home items (designs "8a" Items, "8b" Add items sheet, "8c" Select,
 // "B · Tap an item"). The live list with status lines and filter chips, Select
 // mode for hiding and showing items in bulk, the item sheet (tap an item), and
-// the Add items sheet. The Add sheet starts the camera loop; the other ways to
-// add open the matching /manage tool. The open item is in the address as
-// ?item=<id>, so the phone's back button closes it and a reload reopens it.
+// the Add items sheet. The Add sheet starts the camera loop, types one in (then
+// opens it in the item sheet), or opens the spreadsheet or photo tool. The open
+// item is in the address as ?item=<id>, so the phone's back button closes it
+// and a reload reopens it.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, ChevronRight, Images, PenLine, Plus, Sheet, FolderCheck, X } from "lucide-react";
 import { downloadTemplate } from "@/components/csv-help";
-import { formatMoney, type Currency } from "@/lib/money";
+import { currencySymbol, formatMoney, type Currency } from "@/lib/money";
+import { suggestCategory } from "@/lib/category";
+import { parsePriceToCents } from "@/lib/format";
 import { groupByListed } from "@/lib/item-save";
 import {
   filterCounts,
@@ -22,12 +25,11 @@ import {
   type HomeItem,
   type HomeStatus,
 } from "@/lib/seller-home";
-
-export type { HomeItem };
-import { setItemsListed } from "@/app/manage/[id]/actions";
+import { createItem, setItemsListed } from "@/app/manage/[id]/actions";
 import { CameraLoop, type CameraLoopHandle, type DraftSummary } from "./camera-loop";
 import { ItemSheet } from "./item-sheet";
 
+export type { HomeItem };
 
 function itemParam(): string | null {
   return new URLSearchParams(window.location.search).get("item");
@@ -38,6 +40,7 @@ export function SellerItems({
   slug,
   currency,
   payDefaults,
+  pickupFrom,
   initialItems,
   initialDrafts,
 }: {
@@ -333,6 +336,14 @@ export function SellerItems({
       {sheetOpen && (
         <AddItemsSheet
           listingId={listingId}
+          currency={currency}
+          pickupFrom={pickupFrom}
+          onCreated={(it) => {
+            setList((l) => [it, ...l]);
+            setSheetOpen(false);
+            setFilter("all");
+            openSheet(it.id);
+          }}
           onClose={() => setSheetOpen(false)}
           onCamera={() => {
             setSheetOpen(false);
@@ -406,32 +417,38 @@ function ItemRowBody({ it, status, currency }: { it: HomeItem; status: HomeStatu
 
 function AddItemsSheet({
   listingId,
+  currency,
+  pickupFrom,
+  onCreated,
   onClose,
   onCamera,
   onGallery,
 }: {
   listingId: string;
+  currency: Currency;
+  pickupFrom: string | null;
+  onCreated: (it: HomeItem) => void;
   onClose: () => void;
   onCamera: () => void;
   onGallery: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => closeRef.current?.focus(), []);
+  const [typing, setTyping] = useState(false);
 
   const tools = [
     {
-      tool: "csv",
+      href: `/sell/${listingId}/import`,
       icon: Sheet,
       title: "Import a spreadsheet",
       sub: "CSV from Sheets or Excel, or paste rows. Re-import updates items by name.",
     },
     {
-      tool: "photos",
+      href: `/sell/${listingId}/photos`,
       icon: FolderCheck,
       title: "Match photos by filename",
       sub: "Pick many photos; “orange couch.jpg” goes to Orange couch.",
     },
-    { tool: "add", icon: PenLine, title: "Type one in", sub: "Name and price now, photos later." },
   ];
 
   return (
@@ -481,12 +498,9 @@ function AddItemsSheet({
           More ways to add
         </p>
         <ul className="mt-2 rounded-xl border border-border-weave bg-white px-3.5">
-          {tools.map(({ tool, icon: Icon, title, sub }, i) => (
-            <li key={tool} className={i < tools.length - 1 ? "border-b border-border-weave" : ""}>
-              <Link
-                href={`/manage/${listingId}?tool=${tool}`}
-                className="flex items-center gap-3 py-3 text-text-primary"
-              >
+          {tools.map(({ href, icon: Icon, title, sub }) => (
+            <li key={href} className="border-b border-border-weave">
+              <Link href={href} className="flex items-center gap-3 py-3 text-text-primary">
                 <Icon className="size-[22px] shrink-0 text-text-secondary" strokeWidth={1.7} aria-hidden />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-[15px] font-medium">{title}</span>
@@ -496,6 +510,27 @@ function AddItemsSheet({
               </Link>
             </li>
           ))}
+          <li>
+            <button
+              type="button"
+              aria-expanded={typing}
+              onClick={() => setTyping((v) => !v)}
+              className="flex w-full items-center gap-3 py-3 text-left text-text-primary"
+            >
+              <PenLine className="size-[22px] shrink-0 text-text-secondary" strokeWidth={1.7} aria-hidden />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-[15px] font-medium">Type one in</span>
+                <span className="text-[13px] leading-[1.4] text-text-secondary">Name and price now, photos later.</span>
+              </span>
+              <ChevronRight
+                className={`size-[18px] shrink-0 text-text-secondary transition-transform ${typing ? "rotate-90" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {typing && (
+              <TypeOneIn listingId={listingId} currency={currency} pickupFrom={pickupFrom} onCreated={onCreated} />
+            )}
+          </li>
         </ul>
         <button
           type="button"
@@ -506,5 +541,115 @@ function AddItemsSheet({
         </button>
       </div>
     </div>
+  );
+}
+
+// "Type one in": a name and a price, then the new item opens in the item sheet
+// for photos and the rest. It's shown to buyers straight away, as on /manage.
+function TypeOneIn({
+  listingId,
+  currency,
+  pickupFrom,
+  onCreated,
+}: {
+  listingId: string;
+  currency: Currency;
+  pickupFrom: string | null;
+  onCreated: (it: HomeItem) => void;
+}) {
+  const [name, setName] = useState("");
+  const [free, setFree] = useState(false);
+  const [price, setPrice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const cents = free ? null : parsePriceToCents(price);
+    if (!name.trim()) return setError("Give it a name.");
+    if (!free && (cents == null || cents <= 0)) return setError("Add a price, or pick Free.");
+    setBusy(true);
+    setError(null);
+    const fields = {
+      name: name.trim(),
+      description: null,
+      condition: null,
+      priceCents: cents,
+      isFree: cents == null,
+      boughtDate: null,
+      originalPriceCents: null,
+      originalBoxIncluded: null,
+      availableFrom: pickupFrom ?? new Date().toISOString().slice(0, 10),
+      category: suggestCategory(name),
+      venmoHandle: null,
+      venmoLink: null,
+      upiId: null,
+      photoUrls: [],
+    };
+    const res = await createItem(listingId, fields, true).catch(() => ({ ok: false as const, error: "" }));
+    setBusy(false);
+    if (!res.ok) return setError("Couldn't add it. Check your connection and try again.");
+    onCreated({
+      ...fields,
+      id: res.itemId,
+      slug: res.slug,
+      photoUrl: null,
+      listed: true,
+      sold: false,
+      claimant: null,
+      waiting: 0,
+      claim: null,
+      soldTo: null,
+      waitlist: [],
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 pb-4">
+      <label className="flex flex-col gap-1">
+        <span className="text-[13px] text-text-secondary">Name</span>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Grey 3-seat sofa"
+          className="w-full rounded-lg border border-border-alt bg-white px-3 py-2.5 text-[15px] text-text-primary outline-none focus:border-text-primary"
+        />
+      </label>
+      <div className="flex items-end gap-2">
+        <label className="flex flex-1 flex-col gap-1">
+          <span className="text-[13px] text-text-secondary">Price</span>
+          <span className="flex items-center rounded-lg border border-border-alt bg-white pl-3 focus-within:border-text-primary">
+            <span className="text-[15px] text-text-secondary" aria-hidden>{currencySymbol(currency)}</span>
+            <input
+              inputMode="decimal"
+              value={free ? "" : price}
+              disabled={free}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={free ? "Free" : "0"}
+              className="w-full bg-transparent px-1 py-2.5 text-[15px] text-text-primary outline-none disabled:opacity-60"
+            />
+          </span>
+        </label>
+        <button
+          type="button"
+          aria-pressed={free}
+          onClick={() => setFree((v) => !v)}
+          className={`h-[46px] rounded-full border px-4 text-sm font-medium ${
+            free ? "border-text-primary bg-text-primary text-white" : "border-border-alt bg-white text-forest"
+          }`}
+        >
+          Free
+        </button>
+      </div>
+      {error && <p role="alert" className="text-[13px] text-crimson">{error}</p>}
+      <button
+        type="submit"
+        disabled={busy}
+        className="h-12 rounded-full bg-text-primary text-[15px] font-medium text-white disabled:opacity-60"
+      >
+        {busy ? "Adding…" : "Add item"}
+      </button>
+    </form>
   );
 }

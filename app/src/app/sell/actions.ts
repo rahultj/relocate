@@ -59,5 +59,5 @@ export async function createSale(
   }
 
   // Outside the try: redirect() works by throwing.
-  redirect(input.next === "csv" ? `/manage/${id}#import` : `/sell/${id}`);
+  redirect(input.next === "csv" ? `/sell/${id}/import` : `/sell/${id}`);
 }
