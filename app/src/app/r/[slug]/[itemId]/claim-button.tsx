@@ -409,21 +409,16 @@ export function ClaimButton({
   if (mode === "takenByOther") {
     return (
       <div className="mt-6" role="status" aria-live="polite">
-        <button
-          type="button"
-          disabled
-          className="w-full cursor-not-allowed rounded-lg bg-bg-hover py-3 text-sm font-medium text-text-muted"
-        >
-          Claimed
-        </button>
+        {/* Status as text, not a dead button: the one thing to tap is the waitlist. */}
+        <p className="text-center text-sm font-medium text-text-secondary">Claimed by someone else</p>
         <button
           type="button"
           onClick={startWaitlist}
-          className="mt-2 w-full rounded-lg border border-brand/50 py-3 text-sm font-medium text-brand transition-colors hover:bg-brand/5"
+          className="mt-2.5 w-full rounded-lg bg-brand py-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
         >
           Join the waitlist
         </button>
-        <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+        <p className="mt-2 text-center text-[13px] text-text-muted">
           {error ?? "Be next in line if it opens up"}
         </p>
       </div>
@@ -471,8 +466,8 @@ export function ClaimButton({
             </button>
           </p>
         ) : (
-          <p className="mt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
-            Free to claim · no account needed
+          <p className="mt-2 text-center text-[13px] text-text-muted">
+            No account needed
           </p>
         )}
       </div>
@@ -491,7 +486,7 @@ export function ClaimButton({
       }}
     >
       <label className="block">
-        <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+        <span className="mb-1 block text-[13px] font-medium text-text-primary">
           Your name
         </span>
         <input
@@ -503,7 +498,7 @@ export function ClaimButton({
         />
       </label>
       <label className="mt-3 block">
-        <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+        <span className="mb-1 block text-[13px] font-medium text-text-primary">
           Email or phone
         </span>
         <input

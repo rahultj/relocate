@@ -85,10 +85,3 @@ export function goneLabel(items: FeedEntry[]): string {
   return claimed ? `${claimed} claimed` : `${sold} sold`;
 }
 
-/** The header's live count: "28 available · 12 free", "28 available", "Nothing available right now". */
-export function availableLabel(items: FeedEntry[]): string {
-  const available = items.filter((it) => it.status === "listed");
-  if (available.length === 0) return "Nothing available right now";
-  const free = available.filter(isFreeItem).length;
-  return free ? `${available.length} available · ${free} free` : `${available.length} available`;
-}

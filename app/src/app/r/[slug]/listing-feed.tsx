@@ -86,7 +86,7 @@ export function ListingFeed({
           groups.map((g) => (
             <section key={g.category}>
               <h2 className="pb-3 pt-6 text-[15px] font-bold text-text-primary">
-                {g.category} <span className="font-medium text-text-muted">· {g.items.length}</span>
+                {g.category}
               </h2>
               <ul className="grid grid-cols-2 gap-x-3 gap-y-5">{g.items.map(card)}</ul>
             </section>

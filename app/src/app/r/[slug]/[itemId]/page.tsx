@@ -120,7 +120,8 @@ export default async function ItemDetailPage({
     });
   else if (showDiscount && item.originalBoxIncluded)
     rows.push({ label: "Box", value: "Included" });
-  if (item.availableFrom)
+  // Only a future date says anything; available now is the default.
+  if (item.availableFrom && item.availableFrom > new Date().toISOString().slice(0, 10))
     rows.push({ label: "Available from", value: formatDate(item.availableFrom, currency) });
   if (item.condition)
     rows.push({ label: "Condition", value: CONDITION_LABELS[item.condition] });
@@ -164,7 +165,7 @@ export default async function ItemDetailPage({
                 key={r.label}
                 className="flex items-center justify-between gap-4"
               >
-                <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                <dt className="text-[13px] text-text-secondary">
                   {r.label}
                 </dt>
                 <dd
@@ -173,11 +174,11 @@ export default async function ItemDetailPage({
                       ? `flex items-baseline gap-2 font-serif text-lg font-medium ${
                           r.accent ? "text-forest" : "text-text-primary"
                         }`
-                      : "font-mono text-[11px] font-medium text-text-primary"
+                      : "text-right text-sm text-text-primary"
                   }
                 >
                   {r.struck && (
-                    <span className="font-mono text-[11px] font-normal text-text-muted">
+                    <span className="font-sans text-xs font-normal text-text-muted">
                       Orig.{" "}
                       <span className="line-through">{r.struck}</span>
                     </span>
@@ -201,7 +202,7 @@ export default async function ItemDetailPage({
               <p className="flex items-center justify-center gap-2 text-sm font-semibold text-text-secondary">
                 <span aria-hidden>✓</span> Sold
               </p>
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              <p className="mt-1 text-[13px] text-text-muted">
                 This item has been picked up
               </p>
             </div>
@@ -210,7 +211,7 @@ export default async function ItemDetailPage({
               <p className="text-sm font-medium text-text-secondary">
                 No longer available
               </p>
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+              <p className="mt-1 text-[13px] text-text-muted">
                 This item has been taken down
               </p>
             </div>
