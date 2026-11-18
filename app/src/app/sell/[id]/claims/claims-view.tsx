@@ -10,11 +10,11 @@ import { inPlace } from "../seller-tabs";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/format";
 import { formatMoney, type Currency } from "@/lib/money";
-import type { HomeItem } from "@/lib/seller-home";
+import { releasePatch, type HomeItem } from "@/lib/seller-home";
 import type { ActionResult } from "@/lib/with-listing";
 import { claimTotals, claimsByItem, claimsByPerson, soldItems } from "@/lib/seller-claims";
 import { markSold, releaseClaim, undoSold } from "@/app/manage/[id]/actions";
-import { ContactLink } from "../item-sheet";
+import { ContactLink, PromotedTag } from "../item-sheet";
 
 type View = "person" | "item";
 
@@ -65,8 +65,14 @@ export function ClaimsView({
   }
   const sell = (it: HomeItem) =>
     act(it, { sold: true, soldTo: it.claim?.name ?? null, claim: null, claimant: null }, () => markSold(listingId, it.id));
+  // Releasing passes the claim to #1 on the waitlist, if anyone is waiting.
   const release = (it: HomeItem) =>
-    act(it, { claim: null, claimant: null }, () => releaseClaim(listingId, it.id));
+    act(
+      it,
+      releasePatch(it, new Date().toISOString()),
+      () => releaseClaim(listingId, it.id),
+      (res) => (res.promoted ? { claim: res.promoted, claimant: res.promoted.name } : { claim: null, claimant: null }),
+    );
   // Undo sold gives the buyer their claim back; the server sends it.
   const unsell = (it: HomeItem) =>
     act(
@@ -80,7 +86,11 @@ export function ClaimsView({
     if (confirming === it.id) {
       return (
         <div className="flex w-full flex-col gap-2 pb-3">
-          <p className="text-sm text-text-primary">Release this claim? The item goes back to Available.</p>
+          <p className="text-sm text-text-primary">
+            {it.waitlist[0]
+              ? `Release this claim? It goes to ${it.waitlist[0].name.trim() || "the next person"}, next in line.`
+              : "Release this claim? The item goes back to Available."}
+          </p>
           <div className="flex gap-2">
             <button type="button" onClick={() => release(it)} className="h-10 flex-1 rounded-full bg-text-primary text-sm font-medium text-white">
               Release
@@ -178,6 +188,7 @@ export function ClaimsView({
                       <li key={it.id} className="flex flex-wrap items-center gap-2 border-b border-border-weave py-1.5 text-sm last:border-b-0">
                         <a href={itemHref(it)} onClick={(e) => inPlace(e, itemHref(it))} className="min-w-0 flex-1 break-words py-2 text-text-primary">
                           <span className="line-clamp-2">{it.name} · {price(it)}</span>
+                          {it.claim?.promoted && <PromotedTag />}
                           {it.waitlist.length > 0 && <Waiting count={it.waitlist.length} names={waitNames(it)} />}
                         </a>
                         {actions(it)}
@@ -210,6 +221,7 @@ export function ClaimsView({
                         {it.claim.claimedAt && (
                           <span className="text-text-secondary"> · {formatDate(it.claim.claimedAt.slice(0, 10), currency)}</span>
                         )}
+                        {it.claim.promoted && <PromotedTag className="ml-1.5" />}
                       </p>
                       <p className="text-sm">
                         <ContactLink contact={it.claim.contact} />
@@ -280,3 +292,4 @@ function Waiting({ count, names }: { count: number; names?: string }) {
     </span>
   );
 }
+

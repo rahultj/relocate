@@ -20,9 +20,10 @@ import { db } from "@/db";
 import { listings, items, buyers, claims } from "@/db/schema";
 import { revalidateListing } from "@/lib/with-listing";
 import { normalizeContact } from "@/lib/contact";
+import { promoteNextWaiter } from "@/lib/claims";
 
 export type ClaimResult =
-  | { ok: true }
+  | { ok: true; passedOn?: boolean } // passedOn: a release went to the next person waiting
   | { ok: false; reason: "taken" | "invalid" | "notfound" };
 
 export type WaitlistResult =
@@ -122,6 +123,7 @@ export async function unclaimItem(
   if (!listing) return { ok: false, reason: "notfound" };
 
   let released = false;
+  let passedOn = false;
   await db.transaction(async (tx) => {
     const [buyer] = await tx
       .select({ id: buyers.id })
@@ -144,22 +146,27 @@ export async function unclaimItem(
       .returning({ id: claims.id });
     if (cancelled.length === 0) return; // not this buyer's claim → no-op
 
-    await tx
-      .update(items)
-      .set({ status: "listed" })
-      .where(
-        and(
-          eq(items.id, itemId),
-          eq(items.listingId, listing.id),
-          eq(items.status, "claimed"),
-        ),
-      );
+    // Someone waiting gets it (item stays claimed); else back to the feed.
+    const promoted = await promoteNextWaiter(tx, itemId);
+    passedOn = promoted != null;
+    if (!promoted) {
+      await tx
+        .update(items)
+        .set({ status: "listed" })
+        .where(
+          and(
+            eq(items.id, itemId),
+            eq(items.listingId, listing.id),
+            eq(items.status, "claimed"),
+          ),
+        );
+    }
     released = true;
   });
 
   if (!released) return { ok: false, reason: "notfound" };
   revalidateListing(listing.slug);
-  return { ok: true };
+  return { ok: true, passedOn };
 }
 
 // Join the waitlist for an already-claimed item. No OTP/SMS: contact is the
@@ -289,4 +296,28 @@ export async function leaveWaitlist(
   if (left.length === 0) return { ok: false, reason: "notfound" };
   revalidateListing(listing.slug);
   return { ok: true };
+}
+
+// Where this browser's buyer stands on an item, from the server: holding the
+// claim (maybe promoted off the waitlist while they were away), on the
+// waitlist at #N, or neither. The claim button calls it on load so a stale
+// localStorage "waitlist #2" can't hide a promotion. Contact is the identity,
+// as everywhere in the soft claim; nothing about other buyers is returned.
+export type MyItemStatus =
+  | { status: "holder" }
+  | { status: "waitlist"; position: number }
+  | { status: "none" };
+
+export async function myItemStatus(itemId: string, contact: string): Promise<MyItemStatus> {
+  const norm = normalizeContact(contact);
+  if (!norm) return { status: "none" };
+  const [row] = await db
+    .select({ status: claims.status, position: claims.position })
+    .from(claims)
+    .innerJoin(buyers, eq(claims.buyerId, buyers.id))
+    .where(and(eq(claims.itemId, itemId), eq(buyers.contact, norm.contact)))
+    .limit(1);
+  if (row?.status === "confirmed") return { status: "holder" };
+  if (row?.status === "waitlist" && row.position != null) return { status: "waitlist", position: row.position };
+  return { status: "none" };
 }

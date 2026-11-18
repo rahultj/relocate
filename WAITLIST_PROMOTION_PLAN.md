@@ -1,6 +1,6 @@
 # Plan: Waitlist auto-promotion + buyer status lookup
 
-Status: **PLANNED, not started** (drafted 2026-06-06 with Rahul). Pick up later.
+Status: **BUILT** 2026-11-18, with the optional tag (`claims.promoted_at`, added by `app/scripts/add-claims-promoted-at.mjs`). The seller side is the `/sell` Claims tab and item sheet (this plan predates them and says `/manage`).
 
 ## Context / why
 

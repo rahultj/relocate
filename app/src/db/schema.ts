@@ -214,6 +214,8 @@ export const claims = pgTable(
     // Groups bundle claims for batched receipts (multi-claim UI ships v2;
     // column lives nullable from M2 so no retrofit is needed).
     claimSessionId: uuid("claim_session_id"),
+    // Set when a waitlister was promoted to the claim (seller should reach out).
+    promotedAt: timestamp("promoted_at", { withTimezone: true }),
   },
   (t) => [
     // A buyer can hold or wait for a given item at most once.

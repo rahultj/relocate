@@ -27,7 +27,8 @@ export interface HomeItem {
   venmoHandle: string | null;
   venmoLink: string | null;
   upiId: string | null;
-  claim: { name: string; contact: string; claimedAt: string } | null;
+  // promoted: they got it off the waitlist and don't know yet (reach out).
+  claim: { name: string; contact: string; claimedAt: string; promoted?: boolean } | null;
   soldTo: string | null;
   waitlist: { name: string; contact: string }[];
 }
@@ -88,4 +89,20 @@ export function openClaimCount(statuses: HomeStatus[]): number {
   return statuses.filter(
     (s) => s.kind === "claimed" || (s.kind === "available" && s.waiting > 0),
   ).length;
+}
+
+/**
+ * What releasing an item's claim does, for the seller screens to show at once:
+ * the first person waiting takes the claim (promoted) and the line moves up;
+ * with nobody waiting, the item is simply unclaimed. Mirrors lib/claims.ts.
+ */
+export function releasePatch(it: Pick<HomeItem, "waitlist">, nowIso: string): Partial<HomeItem> {
+  const [next, ...rest] = it.waitlist;
+  if (!next) return { claim: null, claimant: null };
+  return {
+    claim: { name: next.name, contact: next.contact, claimedAt: nowIso, promoted: true },
+    claimant: next.name,
+    waitlist: rest,
+    waiting: rest.length,
+  };
 }
