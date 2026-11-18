@@ -472,7 +472,7 @@ export function ClaimButton({
           </p>
         ) : (
           <p className="mt-2 text-center text-[13px] text-text-muted">
-            Free to claim · no account needed
+            No account needed
           </p>
         )}
       </div>
