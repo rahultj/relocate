@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { currencySymbol, listingCurrency } from "@/lib/money";
 import type { LoadedSale } from "@/lib/seller-data";
 import type { SellerTab } from "@/lib/seller-tabs";
+import { RememberSale } from "@/components/seller-bar";
 import { LinkBar } from "./link-bar";
 import { SellerTabs } from "./seller-tabs";
 
@@ -27,6 +28,7 @@ export function SellerShell({
 
   return (
     <main className="min-h-screen bg-bg-main">
+      <RememberSale id={listing.id} slug={listing.slug} />
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-8 pt-12 md:max-w-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-hover">mustgo</p>
         <h1 className="mt-2 font-serif text-[32px] font-semibold leading-[1.05] text-text-primary">
