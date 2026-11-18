@@ -37,6 +37,21 @@ export function formatMonthDay(iso: string, currency: Currency = "USD"): string 
   return `${MONTHS[m - 1]} ${d}`;
 }
 
+/**
+ * A pickup window as a short range: "Dec 1–20" inside one month, "Jun 8–Sep 15"
+ * across months (day-first on INR sales: "1–20 Dec", "8 Jun–15 Sep").
+ */
+export function formatDayRange(fromIso: string, toIso: string, currency: Currency = "USD"): string {
+  const [, fm, fd] = fromIso.split("-").map(Number);
+  const [, tm, td] = toIso.split("-").map(Number);
+  if (!fm || !fd || !tm || !td) return `${fromIso}–${toIso}`;
+  if (fromIso === toIso) return formatMonthDay(fromIso, currency);
+  if (fm === tm && fromIso.slice(0, 4) === toIso.slice(0, 4)) {
+    return currency === "INR" ? `${fd}–${td} ${MONTHS[fm - 1]}` : `${MONTHS[fm - 1]} ${fd}–${td}`;
+  }
+  return `${formatMonthDay(fromIso, currency)}–${formatMonthDay(toIso, currency)}`;
+}
+
 /** ISO date string -> "May 2020" (trust-signal "Bought" line, month precision). */
 export function formatMonthYear(iso: string): string {
   const [y, m] = iso.split("-").map(Number);

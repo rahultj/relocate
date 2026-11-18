@@ -8,10 +8,12 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
-import { formatMonthDay } from "@/lib/format";
+import { formatDayRange, formatMonthDay } from "@/lib/format";
 import { listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ContactButton } from "@/components/contact-button";
+import { availableLabel } from "@/lib/feed";
+import { SaleIntro } from "./sale-intro";
 import { ListingFeed, type FeedItem } from "./listing-feed";
 
 // Always reflect the latest publish — listings change as the seller adds items.
@@ -80,43 +82,40 @@ export default async function ListingPage({
     category: it.category,
   }));
 
-  // Byline: "Washington, D.C. · Logan Circle · Pickup Jun 12 → Jun 24"
+  // Facts as short tags that never wrap mid-phrase: "Columbia Heights,
+  // Washington, D.C.", "Pickup Dec 1–20", and a live "28 available · 12 free".
   const currency = listingCurrency(listing);
-  const place = [listing.city, listing.neighborhood].filter(Boolean).join(", ");
+  const place = [listing.neighborhood, listing.city].filter(Boolean).join(", ");
   const pickup =
     listing.pickupFrom && listing.pickupTo
-      ? `Pickup ${formatMonthDay(listing.pickupFrom, currency)} → ${formatMonthDay(listing.pickupTo, currency)}`
+      ? `Pickup ${formatDayRange(listing.pickupFrom, listing.pickupTo, currency)}`
       : listing.pickupFrom
         ? `Pickup from ${formatMonthDay(listing.pickupFrom, currency)}`
         : null;
-  const bylineParts = [place, pickup].filter(Boolean);
+  const facts = [place, pickup].filter((f): f is string => Boolean(f));
 
   return (
     <main className="min-h-screen bg-bg-main">
       <div className="mx-auto flex min-h-screen max-w-xl flex-col pb-24">
-        <header className="border-b border-border-weave px-6 pb-4 pt-9">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">
-            mustgo
-          </p>
-          <h1 className="mt-1 font-serif text-3xl font-medium leading-tight text-text-primary">
+        <header className="px-6 pb-5 pt-9">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-hover">mustgo</p>
+          <h1 className="mt-2 font-serif text-[32px] font-medium leading-[1.08] text-text-primary">
             {listing.title}
           </h1>
-          {listing.intro && (
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-text-secondary">
-              {listing.intro}
-            </p>
-          )}
-          {bylineParts.length > 0 && (
-            <p className="mt-2 text-sm text-text-secondary">
-              {bylineParts.map((part, i) => (
-                <span key={i}>
-                  {i > 0 && (
-                    <span className="mx-1.5 text-border-alt">·</span>
-                  )}
-                  {part}
-                </span>
+          {listing.intro && <SaleIntro text={listing.intro} />}
+          {(facts.length > 0 || feedItems.length > 0) && (
+            <ul className="mt-3.5 flex flex-wrap gap-2 text-[13px]">
+              {facts.map((f) => (
+                <li key={f} className="whitespace-nowrap rounded-lg bg-bg-hover px-2.5 py-1 text-text-primary">
+                  {f}
+                </li>
               ))}
-            </p>
+              {feedItems.length > 0 && (
+                <li className="whitespace-nowrap rounded-lg bg-forest/10 px-2.5 py-1 font-medium text-forest">
+                  {availableLabel(feedItems)}
+                </li>
+              )}
+            </ul>
           )}
         </header>
 

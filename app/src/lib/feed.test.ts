@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedChips, goneLabel, groupByCategory, matchesChip, splitFeed, type FeedEntry } from "./feed";
+import { availableLabel, feedChips, goneLabel, groupByCategory, matchesChip, splitFeed, type FeedEntry } from "./feed";
 
 const item = (o: Partial<FeedEntry> & { id?: string }) => ({
   id: "x",
@@ -73,5 +73,13 @@ describe("goneLabel", () => {
     expect(goneLabel([item({ status: "claimed" }), item({ status: "picked_up" })])).toBe("2 claimed or sold");
     expect(goneLabel([item({ status: "claimed" })])).toBe("1 claimed");
     expect(goneLabel([item({ status: "picked_up" }), item({ status: "picked_up" })])).toBe("2 sold");
+  });
+});
+
+describe("availableLabel", () => {
+  it("counts what's available and free", () => {
+    expect(availableLabel([item({}), item({ isFree: true, priceCents: 0 }), item({ status: "claimed" })])).toBe("2 available · 1 free");
+    expect(availableLabel([item({})])).toBe("1 available");
+    expect(availableLabel([item({ status: "picked_up" })])).toBe("Nothing available right now");
   });
 });
