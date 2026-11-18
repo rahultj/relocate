@@ -84,7 +84,8 @@ export default async function ListingPage({
   // Facts as short tags that never wrap mid-phrase: "Columbia Heights",
   // "Pickup Dec 1–20". The chips below already count what's available.
   const currency = listingCurrency(listing);
-  const place = [listing.neighborhood, listing.city].filter(Boolean).join(", ");
+  // Neighborhood alone keeps the tag short; the item page shows the full place.
+  const place = listing.neighborhood || listing.city;
   const pickup =
     listing.pickupFrom && listing.pickupTo
       ? `Pickup ${formatDayRange(listing.pickupFrom, listing.pickupTo, currency)}`
