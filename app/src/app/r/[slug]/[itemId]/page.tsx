@@ -1,21 +1,21 @@
 // Item detail page — /r/[slug]/[itemId] (section 04, buyer surface).
 //
-// Full trust-signal meta block (price, Bought, Originally, condition, pickup)
-// rendered straight from the seller's CSV import. The claim button is visible
-// but DISABLED with a quiet "Claims open soon" label — M1 ships the surface
-// honestly; the claim/OTP flow is M2. (Buyer-first principle: disabled, not
-// hidden — see CLAUDE.md.)
+// Design review changes 2 and 6: the price sits right under the name as the
+// biggest number on the page (struck original and "% off" on a markdown), the
+// facts read as one sentence, and the claim button is a bar pinned to the
+// bottom (claim-button.tsx). "← All N items" leads back to the rest of the
+// sale, for buyers who arrive from a printed QR code.
 
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { listings, items } from "@/db/schema";
-import { formatDate, formatMonthYear, CONDITION_LABELS } from "@/lib/format";
 import { formatMoney, listingCurrency } from "@/lib/money";
 import { itemPayment } from "@/lib/payment";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { photoList } from "@/lib/photos";
+import { itemFacts, percentOff } from "@/lib/item-facts";
 import { ContactButton } from "@/components/contact-button";
 import { PhotoCarousel } from "@/components/photo-carousel";
 import { ClaimButton } from "./claim-button";
@@ -43,7 +43,20 @@ async function loadItem(slug: string, itemSlug: string) {
     .limit(1);
   if (!item) return null;
 
-  return { listing, item };
+  // What a buyer can still take from this sale, for "← All N items".
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(items)
+    .where(
+      and(
+        eq(items.listingId, listing.id),
+        eq(items.draft, false),
+        eq(items.unlisted, false),
+        eq(items.status, "listed"),
+      ),
+    );
+
+  return { listing, item, available: Number(n) };
 }
 
 export async function generateMetadata({
@@ -71,60 +84,20 @@ export default async function ItemDetailPage({
     notFound();
   }
 
-  const { listing, item } = data;
+  const { listing, item, available } = data;
   const photos = photoList(item);
   const currency = listingCurrency(listing);
 
-  const priceLabel =
-    item.isFree || item.priceCents == null
-      ? "Free"
-      : formatMoney(item.priceCents, currency);
-
-  const pickupPlace = [listing.neighborhood, listing.city]
-    .filter(Boolean)
-    .join(", ");
-
-  // Build the meta rows, dropping any the seller didn't provide.
   const isFreeItem = item.isFree || item.priceCents == null;
-  // A real markdown: struck original anchors the deal right on the Price row.
-  const showDiscount =
-    !isFreeItem &&
-    item.originalPriceCents != null &&
-    item.priceCents != null &&
-    item.originalPriceCents > item.priceCents;
-  const rows: {
-    label: string;
-    value: string;
-    struck?: string;
-    serif?: boolean;
-    accent?: boolean;
-  }[] = [
-    {
-      label: "Price",
-      value: priceLabel,
-      struck: showDiscount ? formatMoney(item.originalPriceCents!, currency) : undefined,
-      serif: true,
-      accent: isFreeItem,
-    },
-  ];
-  if (item.boughtDate)
-    rows.push({ label: "Bought", value: formatMonthYear(item.boughtDate) });
-  // "Originally" as its own row only when it isn't already struck on Price
-  // (avoids showing $200 twice). Box-included info is preserved either way.
-  if (item.originalPriceCents != null && !showDiscount)
-    rows.push({
-      label: "Originally",
-      value:
-        formatMoney(item.originalPriceCents, currency) +
-        (item.originalBoxIncluded ? " · Box included" : ""),
-    });
-  else if (showDiscount && item.originalBoxIncluded)
-    rows.push({ label: "Box", value: "Included" });
-  if (item.availableFrom)
-    rows.push({ label: "Available from", value: formatDate(item.availableFrom, currency) });
-  if (item.condition)
-    rows.push({ label: "Condition", value: CONDITION_LABELS[item.condition] });
-  if (pickupPlace) rows.push({ label: "Pickup", value: pickupPlace });
+  const priceLabel = isFreeItem ? "Free" : formatMoney(item.priceCents!, currency);
+  const off = percentOff(item);
+  const facts = itemFacts(
+    item,
+    listing.neighborhood || listing.city || "",
+    currency,
+    new Date().toISOString().slice(0, 10),
+  );
+  const gone = item.status === "picked_up" || item.unlisted;
 
   return (
     <main className="min-h-screen bg-bg-main">
@@ -132,9 +105,10 @@ export default async function ItemDetailPage({
         {/* Back to the listing */}
         <Link
           href={`/r/${slug}`}
-          className="flex items-center gap-1.5 px-6 pt-6 text-xs font-medium text-text-muted transition-colors hover:text-brand"
+          className="flex items-center gap-1.5 px-6 pt-6 text-sm font-medium text-text-primary transition-colors hover:text-brand-hover"
         >
-          <span aria-hidden>←</span> {listing.title}
+          <span aria-hidden>←</span>{" "}
+          {available > 0 ? `All ${available} ${available === 1 ? "item" : "items"}` : "Back to the sale"}
         </Link>
 
         {/* Hero — a swipe carousel when there are multiple photos, a single
@@ -152,41 +126,33 @@ export default async function ItemDetailPage({
           )}
         </div>
 
-        <div className="px-6 pb-28 pt-6">
+        <div className="px-6 pb-48 pt-6">
           <h1 className="font-serif text-3xl font-medium leading-tight text-text-primary">
             {item.name}
           </h1>
+          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <span
+              className={`font-serif text-[38px] font-semibold leading-none ${
+                gone ? "text-text-muted" : isFreeItem ? "text-forest" : "text-text-primary"
+              }`}
+            >
+              {priceLabel}
+            </span>
+            {off != null && (
+              <>
+                <s className="text-sm text-text-muted">
+                  {formatMoney(item.originalPriceCents!, currency, { whole: true })}
+                </s>
+                <span className="self-center rounded-full bg-forest/10 px-2 py-0.5 text-xs font-medium text-forest">
+                  {off}% off
+                </span>
+              </>
+            )}
+          </p>
 
-          {/* Trust-signal meta block */}
-          <dl className="mt-4 flex flex-col gap-2 rounded-[10px] border border-insight-border bg-insight-bg px-4 py-3">
-            {rows.map((r) => (
-              <div
-                key={r.label}
-                className="flex items-center justify-between gap-4"
-              >
-                <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
-                  {r.label}
-                </dt>
-                <dd
-                  className={
-                    r.serif
-                      ? `flex items-baseline gap-2 font-serif text-lg font-medium ${
-                          r.accent ? "text-forest" : "text-text-primary"
-                        }`
-                      : "font-mono text-[11px] font-medium text-text-primary"
-                  }
-                >
-                  {r.struck && (
-                    <span className="font-mono text-[11px] font-normal text-text-muted">
-                      Orig.{" "}
-                      <span className="line-through">{r.struck}</span>
-                    </span>
-                  )}
-                  {r.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {facts.length > 0 && (
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">{facts.join(" · ")}</p>
+          )}
 
           {item.description && (
             <p className="mt-4 font-serif text-base leading-relaxed text-text-primary">
@@ -221,6 +187,8 @@ export default async function ItemDetailPage({
               alreadyClaimed={item.status !== "listed"}
               payment={itemPayment({ ...listing, currency }, item)}
               priceLabel={priceLabel}
+              itemName={item.name}
+              photoUrl={photos[0] ?? null}
             />
           )}
         </div>

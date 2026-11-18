@@ -44,7 +44,11 @@ export function ContactButton({ contacts }: { contacts: SellerContact[] }) {
         />
       )}
 
-      <div className="relative mx-auto flex max-w-xl flex-col items-end px-6 pb-6">
+      {/* --claim-bar-h: the item page's pinned claim bar, so this sits above it. */}
+      <div
+        className="relative mx-auto flex max-w-xl flex-col items-end px-6"
+        style={{ paddingBottom: "calc(1.5rem + var(--claim-bar-h, 0px))" }}
+      >
         {open && (
           <div
             role="dialog"
