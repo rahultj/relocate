@@ -409,17 +409,12 @@ export function ClaimButton({
   if (mode === "takenByOther") {
     return (
       <div className="mt-6" role="status" aria-live="polite">
-        <button
-          type="button"
-          disabled
-          className="w-full cursor-not-allowed rounded-lg bg-bg-hover py-3 text-sm font-medium text-text-muted"
-        >
-          Claimed
-        </button>
+        {/* Status as text, not a dead button: the one thing to tap is the waitlist. */}
+        <p className="text-center text-sm font-medium text-text-secondary">Claimed by someone else</p>
         <button
           type="button"
           onClick={startWaitlist}
-          className="mt-2 w-full rounded-lg border border-brand/50 py-3 text-sm font-medium text-brand transition-colors hover:bg-brand/5"
+          className="mt-2.5 w-full rounded-lg bg-brand py-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
         >
           Join the waitlist
         </button>
