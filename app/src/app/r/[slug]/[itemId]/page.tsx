@@ -16,7 +16,7 @@ import { formatMoney, listingCurrency } from "@/lib/money";
 import { itemPayment } from "@/lib/payment";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { photoList } from "@/lib/photos";
-import { ContactButton } from "@/components/contact-button";
+import { ContactLine } from "@/components/contact-line";
 import { PhotoCarousel } from "@/components/photo-carousel";
 import { ClaimButton } from "./claim-button";
 
@@ -153,7 +153,7 @@ export default async function ItemDetailPage({
           )}
         </div>
 
-        <div className="px-6 pb-28 pt-6">
+        <div className="px-6 pb-12 pt-6">
           <h1 className="font-serif text-3xl font-medium leading-tight text-text-primary">
             {item.name}
           </h1>
@@ -224,9 +224,10 @@ export default async function ItemDetailPage({
               priceLabel={priceLabel}
             />
           )}
+
+          <ContactLine contacts={listing.sellerContacts} align="center" className="mt-5" />
         </div>
       </div>
-      <ContactButton contacts={listing.sellerContacts} />
     </main>
   );
 }
