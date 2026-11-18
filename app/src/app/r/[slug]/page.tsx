@@ -71,7 +71,6 @@ export default async function ListingPage({
   const feedItems: FeedItem[] = rows.map((it) => ({
     slug: it.slug,
     name: it.name,
-    description: it.description,
     availableFrom: it.availableFrom,
     priceCents: it.priceCents,
     originalPriceCents: it.originalPriceCents,
