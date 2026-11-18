@@ -29,7 +29,7 @@ export function CsvHelp() {
         <button
           type="button"
           onClick={downloadTemplate}
-          className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-hover"
+          className="min-h-10 rounded-lg border border-border-alt bg-white px-3.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-hover"
         >
           ↓ Download CSV template
         </button>
@@ -37,7 +37,7 @@ export function CsvHelp() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="text-xs font-medium text-brand"
+          className="min-h-10 text-sm font-medium text-brand-hover"
         >
           {open ? "Hide columns ▴" : "What columns can I use? ▾"}
         </button>
@@ -56,7 +56,7 @@ export function CsvHelp() {
                 <span className="font-mono font-medium text-text-primary">
                   {c.header}
                 </span>
-                <span className="text-text-muted"> — {c.note}</span>
+                <span className="text-text-secondary"> — {c.note}</span>
               </li>
             ))}
           </ul>

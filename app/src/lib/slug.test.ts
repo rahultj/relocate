@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mintSlug, toVanitySlug, isValidVanitySlug } from "./slug";
+import { mintSlug, toVanitySlug, typingVanitySlug, isValidVanitySlug } from "./slug";
 
 describe("mintSlug", () => {
   it("is the requested length and uses the unambiguous alphabet", () => {
@@ -43,5 +43,16 @@ describe("isValidVanitySlug", () => {
   it("toVanitySlug output is always valid (when non-empty, ≥3)", () => {
     const s = toVanitySlug("Rahul & Swati's Ghar Waapsi");
     expect(isValidVanitySlug(s)).toBe(true);
+  });
+});
+
+describe("typingVanitySlug", () => {
+  it("keeps a trailing hyphen so the seller can keep typing", () => {
+    expect(typingVanitySlug("ghar-")).toBe("ghar-");
+    expect(typingVanitySlug("Ghar ")).toBe("ghar-");
+    expect(typingVanitySlug("ghar--")).toBe("ghar-");
+  });
+  it("still drops leading hyphens and junk", () => {
+    expect(typingVanitySlug("-Ghar Waapsi!")).toBe("ghar-waapsi-");
   });
 });

@@ -2,6 +2,36 @@
 // chips and the Claims tab count. Same rules as the /manage claims overview:
 // sold and hidden items have no open claim activity. Pure so it unit-tests.
 
+import type { ItemCondition } from "./format";
+
+/** A published item as the seller pages (Items, Claims, the item sheet) see it. */
+export interface HomeItem {
+  id: string;
+  slug: string;
+  name: string;
+  photoUrl: string | null; // cover, mirrors photoUrls[0]
+  photoUrls: string[];
+  priceCents: number | null;
+  isFree: boolean;
+  listed: boolean;
+  sold: boolean;
+  claimant: string | null; // confirmed claimant's name, mirrors claim?.name
+  waiting: number; // mirrors waitlist.length
+  description: string | null;
+  condition: ItemCondition | null;
+  category: string | null;
+  boughtDate: string | null;
+  originalPriceCents: number | null;
+  originalBoxIncluded: boolean | null;
+  availableFrom: string | null;
+  venmoHandle: string | null;
+  venmoLink: string | null;
+  upiId: string | null;
+  claim: { name: string; contact: string; claimedAt: string } | null;
+  soldTo: string | null;
+  waitlist: { name: string; contact: string }[];
+}
+
 export type HomeStatus =
   | { kind: "sold" }
   | { kind: "hidden" }

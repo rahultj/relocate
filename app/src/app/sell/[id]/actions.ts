@@ -21,6 +21,8 @@ import {
   type FirstPublishForm,
 } from "@/lib/first-publish";
 import { withListing, type ActionResult } from "@/lib/with-listing";
+import { normalizeVenmo } from "@/lib/venmo";
+import { isValidUpi, normalizeUpi } from "@/lib/upi";
 
 /** Create a draft item from freshly uploaded photo URLs (cover first). */
 export async function createDraftItem(
@@ -239,5 +241,33 @@ export async function publishWithContact(
       return publishReady(tx, listing.id, itemIds);
     });
     return { published };
+  });
+}
+
+/** Sale tab: the sale-wide Venmo (USD) or UPI ID (INR) every item pays to
+ *  unless it has its own. Empty clears it. */
+export async function setPaymentDefault(
+  listingId: string,
+  raw: string,
+): Promise<ActionResult<{ value: string | null }>> {
+  const [sale] = await db
+    .select({ currency: listings.currency })
+    .from(listings)
+    .where(eq(listings.id, listingId))
+    .limit(1);
+  if (!sale) return { ok: false, error: "Listing not found." };
+  const text = raw.trim();
+  if (listingCurrency(sale) === "INR") {
+    if (text && !isValidUpi(text)) return { ok: false, error: "That doesn't look like a UPI ID. It looks like name@bank." };
+    const value = normalizeUpi(text);
+    return withListing(listingId, async (listing) => {
+      await db.update(listings).set({ defaultUpiId: value }).where(eq(listings.id, listing.id));
+      return { value };
+    });
+  }
+  const value = normalizeVenmo({ handle: text, link: null }).handle;
+  return withListing(listingId, async (listing) => {
+    await db.update(listings).set({ defaultVenmoHandle: value }).where(eq(listings.id, listing.id));
+    return { value };
   });
 }

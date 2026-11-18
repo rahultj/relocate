@@ -42,7 +42,7 @@ import { formatMoney, currencySymbol, type Currency } from "@/lib/money";
 import { isValidUpi } from "@/lib/upi";
 import { parsePriceField, groupByListed } from "@/lib/item-save";
 import { CATEGORIES } from "@/lib/category";
-import { toVanitySlug } from "@/lib/slug";
+import { typingVanitySlug } from "@/lib/slug";
 import type { SellerContact } from "@/lib/seller-contact";
 import { uploadPhotos } from "@/lib/photo-upload";
 import { setItemPhotos } from "@/app/seller/photo-actions";
@@ -331,6 +331,9 @@ export function ListingEditor({
       );
       return false;
     }
+    // The buyer it was sold to gets their claim back.
+    const claim = res.claim;
+    setRows((rs) => rs.map((r) => (r.rowKey === key ? { ...r, claim } : r)));
     return true;
   };
 
@@ -861,7 +864,7 @@ export function ListingEditor({
                 className={`${inputCls} max-w-[16rem] flex-1`}
                 value={slugInput}
                 onChange={(e) => {
-                  setSlugInput(toVanitySlug(e.target.value));
+                  setSlugInput(typingVanitySlug(e.target.value));
                   setSlugMsg(null);
                 }}
                 placeholder="ghar-waapsi"
