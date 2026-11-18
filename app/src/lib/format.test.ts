@@ -3,6 +3,7 @@ import {
   parsePriceToCents,
   formatDate,
   formatMonthDay,
+  formatDayRange,
   formatMonthYear,
   parseLooseDate,
   parseCondition,
@@ -95,5 +96,19 @@ describe("parseBool", () => {
   it("is false otherwise", () => {
     expect(parseBool("no")).toBe(false);
     expect(parseBool("")).toBe(false);
+  });
+});
+
+describe("formatDayRange", () => {
+  it("shortens a range inside one month", () => {
+    expect(formatDayRange("2026-12-01", "2026-12-20")).toBe("Dec 1–20");
+    expect(formatDayRange("2026-12-01", "2026-12-20", "INR")).toBe("1–20 Dec");
+  });
+  it("spells out both ends across months", () => {
+    expect(formatDayRange("2026-06-08", "2026-09-15")).toBe("Jun 8–Sep 15");
+    expect(formatDayRange("2026-06-08", "2026-09-15", "INR")).toBe("8 Jun–15 Sep");
+  });
+  it("collapses a single day", () => {
+    expect(formatDayRange("2026-12-01", "2026-12-01")).toBe("Dec 1");
   });
 });
