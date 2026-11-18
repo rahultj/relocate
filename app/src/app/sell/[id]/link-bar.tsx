@@ -35,11 +35,16 @@ export function LinkBar({ url, slug, title }: { url: string; slug: string; title
   return (
     <div className="mt-3 flex h-11 items-center gap-1.5 rounded-[10px] border border-border-weave bg-white pl-3.5 pr-1.5">
       <Link2 className="size-4 shrink-0 text-text-secondary" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
-        {/* Phones show just the path so the slug never gets cut off; Copy still copies the full URL. */}
+      {/* Tapping the link opens the sale as buyers see it, in this tab. Phones
+          show just the path so the slug never gets cut off; Copy still copies
+          the full URL. */}
+      <Link
+        href={`/r/${slug}`}
+        className="min-w-0 flex-1 truncate text-sm text-text-primary underline decoration-border-alt underline-offset-4"
+      >
         <span className="sm:hidden">/r/{slug}</span>
         <span className="hidden sm:inline">{url.replace(/^https?:\/\//, "")}</span>
-      </span>
+      </Link>
       <button
         type="button"
         onClick={copy}

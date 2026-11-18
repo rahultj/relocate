@@ -17,6 +17,7 @@ import { itemPayment } from "@/lib/payment";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { photoList } from "@/lib/photos";
 import { ContactLine } from "@/components/contact-line";
+import { SellerBar } from "@/components/seller-bar";
 import { PhotoCarousel } from "@/components/photo-carousel";
 import { ClaimButton } from "./claim-button";
 
@@ -129,6 +130,7 @@ export default async function ItemDetailPage({
 
   return (
     <main className="min-h-screen bg-bg-main">
+      <SellerBar slug={listing.slug} itemId={item.id} />
       <div className="mx-auto max-w-xl">
         {/* Back to the listing */}
         <Link
