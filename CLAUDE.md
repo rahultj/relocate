@@ -33,7 +33,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 - **Camera loop** (on the seller home): each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
 - **`/sell/[id]/drafts`:** draft queue. One card per draft: check the AI's fields, a "Looks like X?" brand chip, pick condition and price, publish. Files: `sell/[id]/drafts/{page,draft-queue}.tsx`.
 - Drafts (`draft = true`) 404 for buyers and stay out of the feed and QR sheet.
-- **`/manage/[id]`:** the old seller editor, kept as a fallback while the `/sell` tabs are tested. `REDIRECT_TO_SELL` in `manage/[id]/page.tsx` turns on a 308 to `/sell/[id]` (off for now). Everything it does: The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
+- **`/manage/[id]`:** the old seller editor. `REDIRECT_TO_SELL` in `manage/[id]/page.tsx` is on, so it 308-redirects to `/sell/[id]` (`?tool=csv|photos` go to `/import` and `/photos`); its server actions are still used by `/sell`. The editor code below waits to be deleted. Everything it did: The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
   - Listed/Unlisted per item. Imported items start out Unlisted.
   - One "Import & tools" menu: import or paste a CSV, match photos by filename, add an item by hand, download CSV, CSV template, show/hide all. `?tool=csv|photos|add` opens a tool directly.
   - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
@@ -59,7 +59,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 ## What's next
 
 - **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
-- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 are live. Phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`) is built on `claude/loving-dijkstra-oyu7di`, waiting on a phone test. After it passes: flip `REDIRECT_TO_SELL`, then delete the earnings branch (the Claims tab's totals replace it) and, later, `/manage`'s editor code.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 and phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`, #26) are live, and `/manage` redirects to `/sell`. Next: delete the earnings branch (the Claims tab's totals replace it) and, later, `/manage`'s editor code.
 - **Getting back to your sale.** Once a seller leaves `/sell/[id]`, nothing leads back to it: the buyer page has no seller link and the browser doesn't remember the sale. Idea: remember owned sales in localStorage, show a "This is your sale · Manage →" bar on the buyer page for that browser only, and list "Your sales" on `/sell`. Cross-device recovery stays with the `manage_token` job.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
@@ -119,4 +119,4 @@ Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials
 
 - Live: https://mustgo.vercel.app (the stable prod alias). Not `relocate.vercel.app`, which is an unrelated project.
 - Repo: https://github.com/rahultj/relocate. Pushing to `main` auto-deploys to Vercel.
-- My listing: `/r/swahul`. Its `/manage` link is the secret for editing it, so never put the listing ID in this repo (it's public).
+- My listing: `/r/swahul`. Its `/sell` link (same ID as the old `/manage` one) is the secret for editing it, so never put the listing ID in this repo (it's public).
