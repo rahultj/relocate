@@ -12,7 +12,6 @@ import { formatDayRange, formatMonthDay } from "@/lib/format";
 import { listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
 import { ContactButton } from "@/components/contact-button";
-import { availableLabel } from "@/lib/feed";
 import { SaleIntro } from "./sale-intro";
 import { ListingFeed, type FeedItem } from "./listing-feed";
 
@@ -82,8 +81,8 @@ export default async function ListingPage({
     category: it.category,
   }));
 
-  // Facts as short tags that never wrap mid-phrase: "Columbia Heights,
-  // Washington, D.C.", "Pickup Dec 1–20", and a live "28 available · 12 free".
+  // Facts as short tags that never wrap mid-phrase: "Columbia Heights",
+  // "Pickup Dec 1–20". The chips below already count what's available.
   const currency = listingCurrency(listing);
   const place = [listing.neighborhood, listing.city].filter(Boolean).join(", ");
   const pickup =
@@ -103,18 +102,13 @@ export default async function ListingPage({
             {listing.title}
           </h1>
           {listing.intro && <SaleIntro text={listing.intro} />}
-          {(facts.length > 0 || feedItems.length > 0) && (
+          {facts.length > 0 && (
             <ul className="mt-3.5 flex flex-wrap gap-2 text-[13px]">
               {facts.map((f) => (
                 <li key={f} className="whitespace-nowrap rounded-lg bg-bg-hover px-2.5 py-1 text-text-primary">
                   {f}
                 </li>
               ))}
-              {feedItems.length > 0 && (
-                <li className="whitespace-nowrap rounded-lg bg-forest/10 px-2.5 py-1 font-medium text-forest">
-                  {availableLabel(feedItems)}
-                </li>
-              )}
             </ul>
           )}
         </header>

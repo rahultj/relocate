@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableLabel, feedChips, goneLabel, groupByCategory, matchesChip, splitFeed, type FeedEntry } from "./feed";
+import { feedChips, goneLabel, groupByCategory, matchesChip, splitFeed, type FeedEntry } from "./feed";
 
 const item = (o: Partial<FeedEntry> & { id?: string }) => ({
   id: "x",
@@ -76,10 +76,3 @@ describe("goneLabel", () => {
   });
 });
 
-describe("availableLabel", () => {
-  it("counts what's available and free", () => {
-    expect(availableLabel([item({}), item({ isFree: true, priceCents: 0 }), item({ status: "claimed" })])).toBe("2 available · 1 free");
-    expect(availableLabel([item({})])).toBe("1 available");
-    expect(availableLabel([item({ status: "picked_up" })])).toBe("Nothing available right now");
-  });
-});
