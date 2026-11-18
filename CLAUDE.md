@@ -35,14 +35,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 - **Camera loop** (on the seller home): each photo becomes a hidden draft item, with extra angles and a "Tell us about it" note. When the seller moves on, `POST /sell/[id]/draft` has Claude (`claude-haiku-5-5`) draft the name, category and description. Files: `sell/[id]/{camera-loop,actions}.tsx`, `sell/[id]/draft/route.ts`.
 - **`/sell/[id]/drafts`:** draft queue. One card per draft: check the AI's fields, a "Looks like X?" brand chip, pick condition and price, publish. Files: `sell/[id]/drafts/{page,draft-queue}.tsx`.
 - Drafts (`draft = true`) 404 for buyers and stay out of the feed and QR sheet.
-- **`/manage/[id]`:** the old seller editor. `REDIRECT_TO_SELL` in `manage/[id]/page.tsx` is on, so it 308-redirects to `/sell/[id]` (`?tool=csv|photos` go to `/import` and `/photos`); its server actions are still used by `/sell`. The editor code below waits to be deleted. Everything it did: The listing's UUID is the secret link, and there are no accounts. Everything autosaves. Features:
-  - Listed/Unlisted per item. Imported items start out Unlisted.
-  - One "Import & tools" menu: import or paste a CSV, match photos by filename, add an item by hand, download CSV, CSV template, show/hide all. `?tool=csv|photos|add` opens a tool directly.
-  - Claims overview grouped by person, or by item. Unlisted and sold items drop out of it.
-  - Release a claim, mark sold or undo, and see the waitlist with contacts.
-  - Multiple photos per item (cover first), plus a bulk matcher that pairs photos to items by filename.
-  - CSV import and re-import, a CSV template, and a CSV export of the current items.
-  - Seller contacts (shown to buyers), per-item Venmo, category, and a renamable public link (old slugs 308-redirect).
+- **`/manage/[id]`:** the old seller editor's address, now just a 308 to `/sell/[id]` (`?tool=csv|photos` go to `/import` and `/photos`), so old links and bookmarks still work. Its `actions.ts` holds the server actions `/sell` calls.
 - **`/r/[slug]/share`:** printable sheet with QR codes for the listing and each item.
 - **`/`:** landing page for people thinking about listing their own stuff.
 
@@ -56,11 +49,11 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 - `draft-queue.ts` (readiness, brand-in-name) and `price-steps.ts` (the queue's price buttons).
 - `photos.ts`: `photo_urls` is the source of truth; `photo_url` mirrors the cover.
 - `storage.ts`: server-only, signed uploads.
-- `with-listing.ts`: capability check for `/manage` actions.
+- `with-listing.ts`: capability check for the seller actions (`manage/[id]/actions.ts`).
 
 ## What's next
 
-- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 and phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`, #26) are live, and `/manage` redirects to `/sell`. Next: delete the earnings branch (the Claims tab's totals replace it) and, later, `/manage`'s editor code.
+- **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 and phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`, #26) are live. `/manage` redirects to `/sell` and its editor code is gone.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 
 ## Stack
@@ -88,7 +81,7 @@ Copy `app/.env.example` to `app/.env.local` and fill in the Supabase credentials
 - **Clean up test data.** Delete any throwaway listing when you're done.
 - **Supabase `read ETIMEDOUT`** is a free-tier blip. A one-off 500 that works on retry isn't a bug.
 - **Vercel env vars:** `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` and `ANTHROPIC_API_KEY` (AI drafting; Production + Preview) are all required. `NEXT_PUBLIC_*` values bake in at build time, so redeploy after changing them. A misnamed `NEXT_PUBLIC_SUPABASE_URL` once silently broke photo uploads.
-- **Vercel's ~4.5MB request limit.** Photos never go through a server action: `/manage` and `/sell` upload browser → Storage directly.
+- **Vercel's ~4.5MB request limit.** Photos never go through a server action: `/sell` uploads browser → Storage directly.
 - **CSV re-import matches by name.** Rename an item in the CSV and it comes in as a new row. Blank cells never overwrite, and re-import never deletes.
 - **Testing uploads headless:** the file input is `hidden`. Un-hide it with JS before uploading a real JPEG.
 
