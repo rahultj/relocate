@@ -25,10 +25,10 @@ export const metadata = { title: "Manage listing · mustgo" };
 const TOOLS: readonly EditorTool[] = ["csv", "photos", "add"];
 
 // Phase 2 of seller v1: everything on this page now also lives on /sell/[id]
-// (Items, Claims and Sale tabs, plus /import and /photos). Flip this to true
-// once the seller pages are tested to send old /manage links there for good
-// (308). Until then /manage stays as the fallback.
-const REDIRECT_TO_SELL = false;
+// (Items, Claims and Sale tabs, plus /import and /photos), so old /manage
+// links go there for good (308). The editor below is unreachable while this
+// is on and gets deleted later.
+const REDIRECT_TO_SELL = true;
 
 const TOOL_TARGET: Record<EditorTool, string> = { csv: "/import", photos: "/photos", add: "" };
 
