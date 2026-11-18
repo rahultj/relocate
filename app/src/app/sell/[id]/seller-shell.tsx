@@ -1,32 +1,29 @@
 // The frame every seller tab shares (designs "A", "C", "D"): the sale's title
-// and facts, the public link bar, and the Items · Claims · Sale tabs.
+// and facts, the public link bar, and the Items · Claims · Sale tabs. All three
+// tabs come in at once; SellerTabs shows the one the address names.
 
-import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { currencySymbol, listingCurrency } from "@/lib/money";
 import type { LoadedSale } from "@/lib/seller-data";
+import type { SellerTab } from "@/lib/seller-tabs";
 import { LinkBar } from "./link-bar";
-
-export type SellerTab = "items" | "claims" | "sale";
+import { SellerTabs } from "./seller-tabs";
 
 export function SellerShell({
   sale,
-  active,
-  children,
+  panels,
 }: {
   sale: LoadedSale;
-  active: SellerTab;
-  children: React.ReactNode;
+  panels: Record<SellerTab, React.ReactNode>;
 }) {
   const { listing, published, claimsCount, origin } = sale;
   const currency = listingCurrency(listing);
   const place = [listing.city, listing.neighborhood].filter(Boolean).join(", ");
-  const base = `/sell/${listing.id}`;
-  const tabs: { key: SellerTab; href: string; label: string }[] = [
-    { key: "items", href: base, label: `Items · ${published.length}` },
-    { key: "claims", href: `${base}/claims`, label: `Claims · ${claimsCount}` },
-    { key: "sale", href: `${base}/sale`, label: "Sale" },
-  ];
+  const labels: Record<SellerTab, string> = {
+    items: `Items · ${published.length}`,
+    claims: `Claims · ${claimsCount}`,
+    sale: "Sale",
+  };
 
   return (
     <main className="min-h-screen bg-bg-main">
@@ -47,27 +44,7 @@ export function SellerShell({
 
         <LinkBar url={`${origin}/r/${listing.slug}`} slug={listing.slug} title={listing.title} />
 
-        <nav aria-label="Seller sections" className="mt-4 flex gap-6 border-b border-border-weave">
-          {tabs.map((t) => {
-            const on = t.key === active;
-            return (
-              <Link
-                key={t.key}
-                href={t.href}
-                aria-current={on ? "page" : undefined}
-                className={`flex h-10 items-center border-b-2 text-[15px] ${
-                  on
-                    ? "border-text-primary font-bold text-text-primary"
-                    : "border-transparent font-medium text-text-secondary"
-                }`}
-              >
-                {t.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {children}
+        <SellerTabs base={`/sell/${listing.id}`} labels={labels} panels={panels} />
       </div>
     </main>
   );
