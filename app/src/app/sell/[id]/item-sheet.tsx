@@ -38,6 +38,7 @@ import {
   type ItemFields,
 } from "@/app/manage/[id]/actions";
 import type { HomeItem } from "./seller-items";
+import { releasePatch } from "@/lib/seller-home";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -166,10 +167,15 @@ export function ItemSheet({
     update({ sold: true, soldTo: c?.name ?? null, claim: null, claimant: null }, false);
     run(() => markSold(listingId, item.id), true);
   }
+  // Releasing passes the claim to #1 on the waitlist, if anyone is waiting.
   function release() {
     setConfirmRelease(false);
-    update({ claim: null, claimant: null }, false);
-    run(() => releaseClaim(listingId, item.id), true);
+    update(releasePatch(itemRef.current, new Date().toISOString()), false);
+    run(async () => {
+      const r = await releaseClaim(listingId, item.id);
+      if (r.ok) update(r.promoted ? { claim: r.promoted, claimant: r.promoted.name } : { claim: null, claimant: null }, false);
+      return r;
+    }, true);
   }
   // Undo sold gives the buyer their claim back; the server sends it.
   function unsell() {
@@ -340,6 +346,7 @@ export function ItemSheet({
               <span className="size-2 shrink-0 rounded-full bg-ochre" aria-hidden />
               <span className="flex-1 text-[15px] font-bold text-text-primary">
                 Claimed{claim.name.trim() ? ` by ${claim.name.trim()}` : ""}
+                {claim.promoted && <PromotedTag className="ml-2" />}
               </span>
               {claim.claimedAt && (
                 <span className="text-[13px] text-text-secondary">{formatDate(claim.claimedAt.slice(0, 10), currency)}</span>
@@ -352,7 +359,10 @@ export function ItemSheet({
             {confirmRelease ? (
               <div className="mt-3 flex flex-col gap-2">
                 <p className="text-sm text-text-primary">
-                  Release {claim.name.trim() ? `${claim.name.trim()}’s` : "this"} claim? The item goes back to Available.
+                  Release {claim.name.trim() ? `${claim.name.trim()}’s` : "this"} claim?{" "}
+                  {item.waitlist[0]
+                    ? `It goes to ${item.waitlist[0].name.trim() || "the next person"}, next in line.`
+                    : "The item goes back to Available."}
                 </p>
                 <div className="flex gap-2">
                   <button type="button" onClick={release} className="h-11 flex-1 rounded-full bg-text-primary text-sm font-medium text-white">
@@ -718,5 +728,16 @@ function Waitlist({ list }: { list: { name: string; contact: string }[] }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+// A buyer who was moved up from the waitlist doesn't know yet: nudge the seller.
+export function PromotedTag({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full bg-ochre/15 px-2 py-0.5 align-middle text-xs font-medium text-ochre-dark ${className}`}
+    >
+      Promoted · reach out
+    </span>
   );
 }

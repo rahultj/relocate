@@ -22,6 +22,7 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 - **Feed `/r/[slug]`:** the listing title and my intro on top, then an "Available" band followed by a "Claimed & Sold" band. Each band is grouped into category sections. Filters: category, status (All / Available / Claimed / Sold, showing only statuses that exist) and "Free only". Files: `r/[slug]/{page,listing-feed}.tsx`.
 - **Item `/r/[slug]/[itemId]`:** photo carousel, price and details, and the claim button. Buyers can claim, release their claim, or join and leave the waitlist on a claimed item. After claiming they see a pay button: Venmo on USD sales, UPI on INR sales (the item's own handle/ID, else the sale-wide default). Free items show none. Sold items show a final "Sold" panel. Unlisted items say "No longer available" instead of a 404, so printed QR codes never break. Files: `r/[slug]/[itemId]/{page,claim-button,actions}.tsx`, `components/photo-carousel.tsx`.
 - Buyers are identified by their contact, remembered in localStorage. There are no accounts.
+- **Waitlist promotion:** releasing a claim (seller or buyer) passes it to #1 on the waitlist, and the item stays claimed; it only goes back to Available when nobody is waiting (`lib/claims.ts`). The promoted buyer is marked `claims.promoted_at`, shown to the seller as "Promoted · reach out" (nothing is texted). On load, the item page asks the server where a remembered buyer stands (`myItemStatus`), so a promoted buyer sees their claim.
 - **Seller bar:** a browser that opened `/sell/[id]` remembers that sale (`mustgo_seller_sales` in localStorage, `components/seller-bar.tsx`), and the feed and item pages show it a "Back to your sale" bar; on an item it opens that item's sheet (`/sell/[id]?item=`). Buyers never see it, and the sale's ID never reaches buyer HTML.
 
 **Sellers**
@@ -59,7 +60,6 @@ I'm moving from Washington, D.C. back to India, and I built mustgo to sell my ho
 
 ## What's next
 
-- **Waitlist auto-promotion.** When a claim is released, promote the #1 waiter instead of reopening the item. Plan: `WAITLIST_PROMOTION_PLAN.md`.
 - **Seller v1** (`SELLER_V1_BUILD_PLAN.md`): slices 0–8 and phase 2 (item sheet, Claims and Sale tabs, tools in `/sell`, #26) are live, and `/manage` redirects to `/sell`. Next: delete the earnings branch (the Claims tab's totals replace it) and, later, `/manage`'s editor code.
 - Later, maybe: a clearer "tap to claim" cue in the feed, email the seller on claim or waitlist, real OTP/SMS, a custom domain.
 

@@ -7,6 +7,8 @@
 // (so later claims/joins are one-tap), the set of itemIds this device claimed
 // (mustgo_claims), and the waitlist positions it holds (mustgo_waitlist) — so a
 // revisit shows the right state without ever leaking other buyers' contacts.
+// On a claimed item the server is asked too (myItemStatus), so a buyer who was
+// promoted off the waitlist while away sees that they hold the claim now.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,6 +16,7 @@ import {
   unclaimItem,
   joinWaitlist,
   leaveWaitlist,
+  myItemStatus,
   type ClaimResult,
   type WaitlistResult,
 } from "./actions";
@@ -122,6 +125,36 @@ export function ClaimButton({
     } else {
       setMode(remembered ? "oneTap" : "idle");
     }
+
+    // Then ask the server, which knows about promotions: someone on the
+    // waitlist may hold the claim now, and positions move as people leave.
+    // On failure the localStorage answer above stands.
+    if (!alreadyClaimed || !remembered) return;
+    let live = true;
+    myItemStatus(itemId, remembered.contact)
+      .then((r) => {
+        if (!live) return;
+        try {
+          const w = readWaitlist();
+          const claimed = readClaimed().filter((id) => id !== itemId);
+          if (r.status === "waitlist") w[itemId] = r.position;
+          else delete w[itemId];
+          if (r.status === "holder") claimed.push(itemId);
+          localStorage.setItem(WAITLIST_KEY, JSON.stringify(w));
+          localStorage.setItem(CLAIMS_KEY, JSON.stringify(claimed));
+        } catch {
+          /* non-fatal: the state below still shows */
+        }
+        if (r.status === "holder") setMode("success");
+        else if (r.status === "waitlist") {
+          setPosition(r.position);
+          setMode("waitlisted");
+        } else setMode("takenByOther");
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
   }, [alreadyClaimed, itemId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -168,7 +201,8 @@ export function ClaimButton({
         /* non-fatal */
       }
       setConfirmUnclaim(false);
-      setMode(readBuyer() ? "oneTap" : "idle");
+      // Someone waiting got it, so it isn't open again: offer the waitlist.
+      setMode(res.passedOn ? "takenByOther" : readBuyer() ? "oneTap" : "idle");
     } else {
       setError("Couldn't release the claim — please retry.");
     }

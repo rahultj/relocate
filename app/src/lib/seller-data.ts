@@ -28,6 +28,7 @@ export async function loadSale(id: string) {
         name: buyers.name,
         contact: buyers.contact,
         claimedAt: claims.claimedAt,
+        promotedAt: claims.promotedAt,
       })
       .from(claims)
       .innerJoin(buyers, eq(claims.buyerId, buyers.id))
@@ -45,7 +46,7 @@ export async function loadSale(id: string) {
     const who = { name: c.name ?? "", contact: c.contact ?? "" };
     if (c.status === "confirmed") {
       const at = c.claimedAt instanceof Date ? c.claimedAt.toISOString() : String(c.claimedAt ?? "");
-      claimOf.set(c.itemId, { ...who, claimedAt: at });
+      claimOf.set(c.itemId, { ...who, claimedAt: at, promoted: c.promotedAt != null });
     } else if (c.status === "picked_up") soldTo.set(c.itemId, who.name);
     else if (c.status === "waitlist") waitlist.set(c.itemId, [...(waitlist.get(c.itemId) ?? []), who]);
   }

@@ -4,6 +4,7 @@ import {
   homeStatus,
   matchesFilter,
   openClaimCount,
+  releasePatch,
   statusLine,
   type HomeItemState,
 } from "./seller-home";
@@ -59,5 +60,24 @@ describe("filters and counts", () => {
   it("counts open claim activity like the /manage overview", () => {
     expect(openClaimCount(statuses)).toBe(2);
     expect(openClaimCount([homeStatus({ ...base, listed: false, claimant: "Sam" })])).toBe(0);
+  });
+});
+
+describe("releasePatch", () => {
+  const now = "2026-11-18T12:00:00.000Z";
+  it("promotes the first person waiting and moves the line up", () => {
+    const patch = releasePatch(
+      { waitlist: [{ name: "Aang", contact: "a@x.com" }, { name: "Yareli", contact: "y@x.com" }] },
+      now,
+    );
+    expect(patch).toEqual({
+      claim: { name: "Aang", contact: "a@x.com", claimedAt: now, promoted: true },
+      claimant: "Aang",
+      waitlist: [{ name: "Yareli", contact: "y@x.com" }],
+      waiting: 1,
+    });
+  });
+  it("just unclaims when nobody is waiting", () => {
+    expect(releasePatch({ waitlist: [] }, now)).toEqual({ claim: null, claimant: null });
   });
 });

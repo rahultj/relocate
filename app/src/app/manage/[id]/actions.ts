@@ -23,6 +23,7 @@ import type { SellerContact } from "@/lib/seller-contact";
 import { normalizeVenmo } from "@/lib/venmo";
 import { normalizeUpi } from "@/lib/upi";
 import { photoColumns } from "@/lib/photos";
+import { promoteNextWaiter, type PromotedClaim } from "@/lib/claims";
 
 // Venmo columns for the re-import merge, honoring "blank cells don't overwrite":
 // returns {} when the seller left both fields empty, so an existing item's Venmo
@@ -279,12 +280,15 @@ export async function setItemsListed(
 // item back in the feed: confirmed claim → 'cancelled', item status → 'listed'.
 // Capability-checked via withListing; the item's `unlisted` flag (feed
 // visibility) is left as-is, so the item returns exactly to its prior shelf.
+// Release the confirmed claim. If anyone is waiting, #1 is promoted to the
+// claim (lib/claims.ts) and the item stays claimed; else it goes back to the
+// feed. Returns the promoted claim so the seller screens update in place.
 export async function releaseClaim(
   listingId: string,
   itemId: string,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ promoted: PromotedClaim | null }>> {
   return withListing(listingId, async (listing) => {
-    await db.transaction(async (tx) => {
+    return db.transaction(async (tx) => {
       // Scope the claim cancel to this listing's item (capability boundary).
       const owned = await tx
         .select({ id: items.id })
@@ -297,12 +301,15 @@ export async function releaseClaim(
         .update(claims)
         .set({ status: "cancelled" })
         .where(and(eq(claims.itemId, itemId), eq(claims.status, "confirmed")));
-      await tx
-        .update(items)
-        .set({ status: "listed" })
-        .where(and(eq(items.id, itemId), eq(items.status, "claimed")));
+      const promoted = await promoteNextWaiter(tx, itemId);
+      if (!promoted) {
+        await tx
+          .update(items)
+          .set({ status: "listed" })
+          .where(and(eq(items.id, itemId), eq(items.status, "claimed")));
+      }
+      return { promoted };
     });
-    return {};
   });
 }
 
