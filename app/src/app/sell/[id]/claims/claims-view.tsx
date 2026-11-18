@@ -176,24 +176,14 @@ export function ClaimsView({
                   <ul className="mt-2.5 flex flex-col border-t border-border-weave">
                     {g.items.map((it) => (
                       <li key={it.id} className="flex flex-wrap items-center gap-2 border-b border-border-weave py-1.5 text-sm last:border-b-0">
-                        <a href={itemHref(it)} onClick={(e) => inPlace(e, itemHref(it))} className="min-w-0 flex-1 line-clamp-2 break-words py-2 text-text-primary">
-                          {it.name} · {price(it)}
+                        <a href={itemHref(it)} onClick={(e) => inPlace(e, itemHref(it))} className="min-w-0 flex-1 break-words py-2 text-text-primary">
+                          <span className="line-clamp-2">{it.name} · {price(it)}</span>
+                          {it.waitlist.length > 0 && <Waiting count={it.waitlist.length} names={waitNames(it)} />}
                         </a>
                         {actions(it)}
                       </li>
                     ))}
                   </ul>
-                  {g.items.some((it) => it.waitlist.length > 0) && (
-                    <div className="mt-1.5 flex flex-col gap-0.5 text-[13px] text-text-secondary">
-                      {g.items
-                        .filter((it) => it.waitlist.length > 0)
-                        .map((it) => (
-                          <span key={it.id}>
-                            {it.name}: {it.waitlist.length} waiting · {waitNames(it)}
-                          </span>
-                        ))}
-                    </div>
-                  )}
                 </div>
               ))}
               {byItem.some((it) => !it.claim) && (
@@ -233,13 +223,16 @@ export function ClaimsView({
                     <p className="mt-0.5 text-sm text-forest">Available</p>
                   )}
                   {it.waitlist.length > 0 && (
-                    <ol className="mt-2.5 flex flex-col gap-0.5 border-t border-border-weave pt-2 text-[13px] text-text-secondary">
-                      {it.waitlist.map((w, i) => (
-                        <li key={`${w.contact}-${i}`}>
-                          {i + 1}. {w.name.trim() || "Someone"} · <ContactLink contact={w.contact} />
-                        </li>
-                      ))}
-                    </ol>
+                    <div className="mt-2.5 border-t border-border-weave pt-2">
+                      <Waiting count={it.waitlist.length} />
+                      <ol className="mt-0.5 flex flex-col gap-0.5 text-[13px] text-text-secondary">
+                        {it.waitlist.map((w, i) => (
+                          <li key={`${w.contact}-${i}`}>
+                            {i + 1}. {w.name.trim() || "Someone"} · <ContactLink contact={w.contact} />
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
                   )}
                 </li>
               ))}
@@ -271,5 +264,19 @@ export function ClaimsView({
         </>
       )}
     </div>
+  );
+}
+
+// The waitlist line under a claimed item: an ochre dot and count (ochre is
+// the waitlist color), then who's in line, first come first served.
+function Waiting({ count, names }: { count: number; names?: string }) {
+  return (
+    <span className="mt-0.5 flex items-start gap-1.5 text-[13px] leading-snug">
+      <span aria-hidden className="mt-[5px] size-2 shrink-0 rounded-full bg-ochre" />
+      <span>
+        <span className="font-medium text-ochre-dark">{count} waiting</span>
+        {names && <span className="text-text-secondary"> · {names}</span>}
+      </span>
+    </span>
   );
 }
