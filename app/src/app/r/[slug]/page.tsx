@@ -11,7 +11,7 @@ import { listings, items } from "@/db/schema";
 import { formatDayRange, formatMonthDay } from "@/lib/format";
 import { listingCurrency } from "@/lib/money";
 import { canonicalSlugFor } from "@/lib/listing-slug";
-import { ContactButton } from "@/components/contact-button";
+import { ContactLine } from "@/components/contact-line";
 import { SaleIntro } from "./sale-intro";
 import { ListingFeed, type FeedItem } from "./listing-feed";
 
@@ -96,7 +96,7 @@ export default async function ListingPage({
 
   return (
     <main className="min-h-screen bg-bg-main">
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col pb-24">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col pb-12">
         <header className="px-6 pb-5 pt-9">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-hover">mustgo</p>
           <h1 className="mt-2 font-serif text-[32px] font-medium leading-[1.08] text-text-primary">
@@ -112,11 +112,11 @@ export default async function ListingPage({
               ))}
             </ul>
           )}
+          <ContactLine contacts={listing.sellerContacts} className="mt-3.5" />
         </header>
 
         <ListingFeed slug={slug} items={feedItems} currency={currency} />
       </div>
-      <ContactButton contacts={listing.sellerContacts} />
     </main>
   );
 }

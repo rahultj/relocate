@@ -1,4 +1,4 @@
-// Per-listing seller contact shape for the buyer-facing "Contact us" button.
+// Per-listing seller contact shape for the buyer pages' "Questions? Text Rahul" link.
 //
 // Multi-seller: each listing stores its own contacts in `listings.seller_contacts`
 // (a jsonb array of these). There is NO hardcoded global contact — a listing with
@@ -16,4 +16,14 @@ export interface SellerContact {
   value: string;
   /** The primary person to reach — emphasized in the UI. */
   primary?: boolean;
+}
+
+/**
+ * Who the buyer-facing link names: the primary contact's first name, else the
+ * first named contact, else "the seller" ("Text Rahul", "Text the seller").
+ */
+export function contactName(contacts: SellerContact[]): string {
+  const usable = contacts.filter((c) => c.value?.trim());
+  const named = usable.find((c) => c.primary && c.name?.trim()) ?? usable.find((c) => c.name?.trim());
+  return named?.name?.trim().split(/\s+/)[0] ?? "the seller";
 }
