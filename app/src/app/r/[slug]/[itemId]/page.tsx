@@ -120,7 +120,8 @@ export default async function ItemDetailPage({
     });
   else if (showDiscount && item.originalBoxIncluded)
     rows.push({ label: "Box", value: "Included" });
-  if (item.availableFrom)
+  // Only a future date says anything; available now is the default.
+  if (item.availableFrom && item.availableFrom > new Date().toISOString().slice(0, 10))
     rows.push({ label: "Available from", value: formatDate(item.availableFrom, currency) });
   if (item.condition)
     rows.push({ label: "Condition", value: CONDITION_LABELS[item.condition] });
